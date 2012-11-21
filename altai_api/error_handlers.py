@@ -27,9 +27,18 @@ the response entities.
 
 import sys, traceback
 
-from flask import request
+from flask import request, g
 from .main import app
 from .utils import make_json_response
+
+from openstackclient_base.exceptions import Unauthorized
+
+
+@app.errorhandler(Unauthorized)
+def authentication_failed_handler(error):
+    # TODO(imelnikov): log error
+    return '', 403
+
 
 @app.errorhandler(500)
 def exception_handler(error):
@@ -40,12 +49,13 @@ def exception_handler(error):
     """
     _, exc_value, tb = sys.exc_info()
     message_list = traceback.format_exception_only(type(error), error)
+    authorized = hasattr(g, 'http_client')
 
     response = {
         'message': '\n'.join(message_list)
     }
-    if exc_value is error and tb is not None:
-        # system exception info is still about our error; let's use it
+    if authorized and exc_value is error and tb is not None:
+        # system exception info is still about our error; let's report it
         response['traceback'] = [
             {
                 'filename': filename,
@@ -55,7 +65,7 @@ def exception_handler(error):
             for filename, line, function, _
             in traceback.extract_tb(tb)
         ]
-    return make_json_response(response, status_code=error.code)
+    return make_json_response(response, status_code=500)
 
 
 @app.errorhandler(404)

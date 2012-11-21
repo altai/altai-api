@@ -37,6 +37,7 @@ if CONFIG_ENV in os.environ:
 
 from . import entry_points
 from . import error_handlers
+from . import authentication
 
 # register blueprints
 from .vm_types import vm_types

@@ -40,6 +40,7 @@ setup(name='altai-api',
       },
 
       install_requires=['Flask >= 0.9', 'python-openstackclient-base'],
+      tests_require=['mox'],
       dependency_links=['http://github.com/altai/python-openstackclient-base/zipball/master#egg=python-openstackclient-base'], 
 
       test_suite='tests',
