@@ -31,3 +31,13 @@ TEST_STRING = 'Test'
 # enable this to make responses readable
 PRETTY_PRINT_JSON = False
 
+# the way we authorize users; possible values:
+# 'keystone': use keystone for authorization
+# 'noneatall': does not work, used to run some simple unit tests
+AUTHORIZATION_MODE = 'keystone'
+
+# keystone administrator credentials, for internal administrative tasks
+KEYSTONE_ADMIN = 'admin'
+KEYSTONE_ADMIN_PASSWORD = 'admin'
+KEYSTONE_URI = 'localhost:5000/v2.0'
+
