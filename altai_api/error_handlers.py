@@ -48,23 +48,23 @@ def exception_handler(error):
     in machine_readble form to error 500 response entity.
     """
     _, exc_value, tb = sys.exc_info()
-    message_list = traceback.format_exception_only(type(error), error)
+    message = '\n'.join(traceback.format_exception_only(type(error), error))
     authorized = hasattr(g, 'http_client')
 
-    response = {
-        'message': '\n'.join(message_list)
-    }
-    if authorized and exc_value is error and tb is not None:
+    if not authorized:
+        return message, 500
+
+    response = { 'message': message }
+    if exc_value is error and tb is not None:
         # system exception info is still about our error; let's report it
-        response['traceback'] = [
-            {
-                'filename': filename,
-                'line': line,
-                'function': function
-            }
-            for filename, line, function, _
-            in traceback.extract_tb(tb)
-        ]
+        response['traceback'] =  [
+                {
+                    'filename': filename,
+                    'line': line,
+                    'function': function
+                }
+                for filename, line, function, _ in traceback.extract_tb(tb)
+            ]
     return make_json_response(response, status_code=500)
 
 
