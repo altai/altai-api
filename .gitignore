@@ -1,0 +1,8 @@
+.*
+*~
+*.py[co]
+/*.egg*
+*.swp
+fabfile.py
+dist
+build

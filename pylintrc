@@ -1,0 +1,46 @@
+# The format of this file isn't really documented; just use --generate-rcfile
+
+[Master]
+# main.py is really non-standard...
+ignore=main.py
+
+[Messages Control]
+# C0111: Don't require docstrings on every method
+# W0511: TODOs in code comments are fine.
+# W0142: *args and **kwargs are fine.
+# W0703: Catching "Exception" is fine if you need it
+# E1103: When some types could not be inferred, we ignore pylint
+disable=C0111,W0511,W0142,W0703,E1103
+
+[Basic]
+# Variable names can be 1 to 31 characters long, with lowercase and underscores
+variable-rgx=[a-z_][a-z0-9_]{0,30}$
+
+# Argument names can be 2 to 31 characters long, with lowercase and underscores
+argument-rgx=[a-z_][a-z0-9_]{1,30}$
+
+# Method names should be at least 3 characters long
+# and be lowecased with underscores
+method-rgx=([a-z_][a-z0-9_]{2,50}|setUp|tearDown)$
+
+# Module names matching nova-* are ok (files in bin/)
+module-rgx=[a-z_][a-z0-9_]*$
+
+# Module-scope variables: allow lowercase names for blueprins and app
+const-rgx=(([a-z][a-z_]{2,10}[a-z])|([A-Z_][A-Z0-9_]*)|(__.*__))$
+
+# Don't require docstrings on tests.
+no-docstring-rgx=((__.*__)|([tT]est.*)|setUp|tearDown)$
+
+[Design]
+max-public-methods=100
+min-public-methods=0
+max-args=6
+
+[Variables]
+
+# List of additional names supposed to be defined in builtins. Remember that
+# you should avoid to define new builtins when possible.
+# _ is used by our localization
+additional-builtins=_
+
