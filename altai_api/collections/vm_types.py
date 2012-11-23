@@ -20,7 +20,7 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import Blueprint
-from ..utils import make_json_response
+from altai_api.utils import make_json_response
 
 vm_types = Blueprint('vm_types', __name__)
 

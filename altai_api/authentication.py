@@ -19,10 +19,10 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from .main import app
+from altai_api.main import app
 from flask import request, url_for, g
 from openstackclient_base.client import HttpClient
-from .default_settings import AUTHORIZATION_MODE
+from altai_api.default_settings import AUTHORIZATION_MODE
 
 
 @app.before_request
