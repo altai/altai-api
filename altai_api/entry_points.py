@@ -20,8 +20,8 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import url_for
-from .main import app
-from .utils import make_json_response
+from altai_api.main import app
+from altai_api.utils import make_json_response
 
 
 def _make_v1_info():

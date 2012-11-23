@@ -28,8 +28,8 @@ the response entities.
 import sys, traceback
 
 from flask import request, g
-from .main import app
-from .utils import make_json_response
+from altai_api.main import app
+from altai_api.utils import make_json_response
 
 from openstackclient_base.exceptions import Unauthorized
 

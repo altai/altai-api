@@ -35,12 +35,12 @@ CONFIG_ENV = 'ALTAI_API_SETTINGS'
 if CONFIG_ENV in os.environ:
     app.config.from_envvar(CONFIG_ENV)
 
-from . import entry_points
-from . import error_handlers
-from . import authentication
+from altai_api import entry_points
+from altai_api import error_handlers
+from altai_api import authentication
 
 # register blueprints
-from .collections.vm_types import vm_types
+from altai_api.collections.vm_types import vm_types
 app.register_blueprint(vm_types, url_prefix='/v1/vm-types')
 
 def main():
