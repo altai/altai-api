@@ -19,19 +19,4 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import Blueprint
-from .utils import make_json_response
-
-vm_types = Blueprint('vm_types', __name__)
-
-@vm_types.route('/', methods=('GET',))
-def get():
-    response = {
-        'collection': {
-            'name': 'vm-types',
-            'size': 0
-        },
-        'vm-types': []
-    }
-    return make_json_response(response)
 

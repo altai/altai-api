@@ -1,3 +1,4 @@
+
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 # Altai API Service
@@ -18,31 +19,19 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Application entry point
-"""
+from flask import Blueprint
+from ..utils import make_json_response
 
-import os
-import flask
-__all__ = [ 'app', 'make_json_response', 'version_string', 'request' ]
+vm_types = Blueprint('vm_types', __name__)
 
-app = flask.Flask(__name__, static_folder=None)
-
-# default config file
-app.config.from_object('altai_api.default_settings')
-
-# optional config file
-CONFIG_ENV = 'ALTAI_API_SETTINGS'
-if CONFIG_ENV in os.environ:
-    app.config.from_envvar(CONFIG_ENV)
-
-from . import entry_points
-from . import error_handlers
-from . import authentication
-
-# register blueprints
-from .collections.vm_types import vm_types
-app.register_blueprint(vm_types, url_prefix='/v1/vm-types')
-
-def main():
-    app.run()
+@vm_types.route('/', methods=('GET',))
+def get():
+    response = {
+        'collection': {
+            'name': 'vm-types',
+            'size': 0
+        },
+        'vm-types': []
+    }
+    return make_json_response(response)
 
