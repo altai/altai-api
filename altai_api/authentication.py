@@ -19,9 +19,10 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from altai_api.main import app
 from flask import request, url_for, g
-from openstackclient_base.client import HttpClient
+from openstackclient_base.client_set import ClientSet
+
+from altai_api.main import app
 from altai_api.default_settings import AUTHORIZATION_MODE
 
 
@@ -50,19 +51,23 @@ def authorize(auth):
         return keystone_authorize(auth.username,
                                   auth.password)
     elif auth_mode == 'noneatall':
-        g.http_client = None
         return True
     else:
         raise RuntimeError('Invalud AUTHORIZATION_MODE value')
 
 
 def keystone_authorize(username, password):
-    """Authorize in keystone and save authorized http client to flask.g.
-    """
-    client = HttpClient(username=username,
-                        password=password,
-                        auth_uri=app.config['KEYSTONE_URI'])
-    client.authenticate()
-    g.http_client = client
+    """Authorize in keystone and save authorized client set to flask.g."""
+    cs = ClientSet(username=username,
+                   password=password,
+                   tenant_name=app.config['DEFAULT_TENANT'],
+                   auth_uri=app.config['KEYSTONE_URI'])
+    cs.http_client.authenticate() # raises exception on failure
+    g.client_set = cs
     return True
+
+
+def is_authenticated():
+    """Returns True if client was authenticated."""
+    return hasattr(g, 'client_set')
 
