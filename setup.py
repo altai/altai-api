@@ -39,10 +39,18 @@ setup(name='altai-api',
           ]
       },
 
-      install_requires=['Flask >= 0.9', 'python-openstackclient-base'],
+      install_requires=['Flask >= 0.9',
+                        'python-openstackclient-base',
+                        'python-glanceclient',
+                        'python-keystoneclient',
+                        'python-novaclient',
+                        'nova'
+                       ],
       tests_require=['mox'],
-      dependency_links=['http://github.com/altai/python-openstackclient-base/zipball/master#egg=python-openstackclient-base'], 
-
+      dependency_links=[
+          'http://github.com/altai/python-openstackclient-base/zipball/master#egg=python-openstackclient-base',
+          'http://github.com/openstack/nova/zipball/stable/essex#egg=nova'
+      ],
       test_suite='tests',
 )
 
