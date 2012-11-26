@@ -28,10 +28,12 @@ the response entities.
 import sys, traceback
 
 from flask import request, g
+from openstackclient_base.exceptions import Unauthorized
+
 from altai_api.main import app
 from altai_api.utils import make_json_response
+from altai_api.authentication import is_authenticated
 
-from openstackclient_base.exceptions import Unauthorized
 
 
 @app.errorhandler(Unauthorized)
@@ -49,9 +51,8 @@ def exception_handler(error):
     """
     _, exc_value, tb = sys.exc_info()
     message = '\n'.join(traceback.format_exception_only(type(error), error))
-    authorized = hasattr(g, 'http_client')
 
-    if not authorized:
+    if not is_authenticated():
         return message, 500
 
     response = { 'message': message }

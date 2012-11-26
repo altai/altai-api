@@ -35,17 +35,20 @@ def _basic_auth(username, password):
 class AuthenticationTestCase(TestCase, MoxTestBase):
 
     def test_keystone_authorize(self):
-        self.mox.StubOutClassWithMocks(_A, 'HttpClient')
-        client = _A.HttpClient(username='u$3R',
-                               password='p@ssw0rd',
-                               auth_uri='test_auth_uri')
-        client.authenticate()
+        self.mox.StubOutClassWithMocks(_A, 'ClientSet')
+        client = _A.ClientSet(username='u$3R',
+                              password='p@ssw0rd',
+                              auth_uri='test_auth_uri',
+                              tenant_name='test_default_tenant')
+        client.http_client = self.mox.CreateMockAnything()
+        client.http_client.authenticate()
         self.mox.ReplayAll()
 
+        self.app.config['DEFAULT_TENANT'] = 'test_default_tenant'
         self.app.config['KEYSTONE_URI'] = 'test_auth_uri'
         with self.app.test_request_context():
             _A.keystone_authorize('u$3R', 'p@ssw0rd')
-            self.assertTrue(hasattr(g, 'http_client'))
+            self.assertTrue(_A.is_authenticated())
 
 
     def test_no_headers_401(self):

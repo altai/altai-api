@@ -41,3 +41,6 @@ KEYSTONE_ADMIN = 'admin'
 KEYSTONE_ADMIN_PASSWORD = 'admin'
 KEYSTONE_URI = 'localhost:5000/v2.0'
 
+# system tenant to use by default
+DEFAULT_TENANT = 'systenant'
+

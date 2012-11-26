@@ -23,6 +23,8 @@ import flask
 
 from tests import TestCase
 from altai_api import error_handlers
+from mox import MoxTestBase
+
 
 class HttpResponsesTestCase(TestCase):
     def test_404(self):
@@ -30,8 +32,12 @@ class HttpResponsesTestCase(TestCase):
         self.check_and_parse_response(rv, status_code=404)
 
 
-class ErrorHandlersTestCase(TestCase):
+class ErrorHandlersTestCase(TestCase, MoxTestBase):
     def test_unauthorized_500(self):
+        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
+        error_handlers.is_authenticated().AndReturn(False)
+        self.mox.ReplayAll()
+
         with self.app.test_request_context():
             # create exception context for test
             try:
@@ -44,6 +50,10 @@ class ErrorHandlersTestCase(TestCase):
         self.assertTrue('Test message' in resp.data)
 
     def test_authorized_500_other_error(self):
+        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
+        error_handlers.is_authenticated().AndReturn(True)
+        self.mox.ReplayAll()
+
         with self.app.test_request_context():
             resp = self.app.make_response(
                 error_handlers.exception_handler(RuntimeError('Test message')))
@@ -52,9 +62,11 @@ class ErrorHandlersTestCase(TestCase):
         self.assertTrue('Test message' in resp.data)
 
     def test_authorized_500(self):
+        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
+        error_handlers.is_authenticated().AndReturn(True)
+        self.mox.ReplayAll()
+
         with self.app.test_request_context():
-            # fake authorized conetxt
-            flask.g.http_client = None
             # create exception context for test
             try:
                 raise RuntimeError('Test message')
@@ -66,15 +78,14 @@ class ErrorHandlersTestCase(TestCase):
         self.assertTrue(isinstance(data.get('traceback'), list))
 
     def test_authorized_500_other_error(self):
+        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
+        error_handlers.is_authenticated().AndReturn(True)
+        self.mox.ReplayAll()
+
         with self.app.test_request_context():
-            # fake authorized conetxt
-            flask.g.http_client = None
             resp = self.app.make_response(
                 error_handlers.exception_handler(RuntimeError('Test message')))
         data = self.check_and_parse_response(resp, status_code=500)
         self.assertTrue('Test message' in data.get('message', ''))
         self.assertTrue('traceback' not in data)
-
-
-
 
