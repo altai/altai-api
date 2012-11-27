@@ -35,8 +35,7 @@ def _make_v1_info():
 
 @app.route('/', methods=('GET',))
 def get_versions():
-    """REST API Entrty point.
-    """
+    """REST API entry point."""
     return make_json_response({
         'versions': [ _make_v1_info() ]
     })
@@ -44,11 +43,10 @@ def get_versions():
 
 @app.route('/v1/', methods=('GET',))
 def get_v1_endpoint():
-    """Entry point for API v1
-    """
+    """Entry point for API v1"""
     response = _make_v1_info()
     response['links'] = {
-        'vm-types-href': url_for('vm_types.get')
+        'instance-types-href': url_for('instance_types.list_instance_types')
     }
     return make_json_response(response)
 

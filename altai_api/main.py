@@ -40,10 +40,10 @@ from altai_api import error_handlers
 from altai_api import authentication
 
 # register blueprints
-from altai_api.collection.vm_types import vm_types
-app.register_blueprint(vm_types, url_prefix='/v1/vm-types')
 from altai_api.collection.networks import networks
 app.register_blueprint(networks, url_prefix='/v1/networks')
+from altai_api.collection.instance_types import instance_types
+app.register_blueprint(instance_types, url_prefix='/v1/instance-types')
 
 def main():
     app.run(debug=app.config['DEBUG'],
