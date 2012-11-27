@@ -25,6 +25,12 @@
 # debug: disabled by default
 DEBUG = False
 
+# host to listen on
+HOST = '0.0.0.0'
+
+# port to listen on
+PORT = 5039
+
 # used for test
 TEST_STRING = 'Test'
 

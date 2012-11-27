@@ -44,5 +44,7 @@ from altai_api.collections.vm_types import vm_types
 app.register_blueprint(vm_types, url_prefix='/v1/vm-types')
 
 def main():
-    app.run()
+    app.run(debug=app.config['DEBUG'],
+            host=app.config['HOST'],
+            port=app.config['PORT'])
 
