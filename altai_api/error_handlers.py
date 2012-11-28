@@ -30,16 +30,65 @@ import sys, traceback
 from flask import request, g
 from openstackclient_base.exceptions import Unauthorized
 
+from altai_api.exceptions import (
+    InvalidRequest, MissingElement, IllegalValue, UnknownElement)
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.authentication import is_authenticated
 
+def _exception_to_message(error):
+    return '\n'.join(traceback.format_exception_only(type(error), error))
 
 
 @app.errorhandler(Unauthorized)
 def authentication_failed_handler(error):
     # TODO(imelnikov): log error
     return '', 403
+
+
+@app.errorhandler(IllegalValue)
+def illegal_value_handler(error):
+    response = {
+        'path': request.path,
+        'method': request.method,
+        'message': 'Illegal value for resource element.',
+        'element-name': error.name,
+        'element-value': error.value,
+        'element-type': error.typename
+    }
+    return make_json_response(response, status_code=400)
+
+
+@app.errorhandler(UnknownElement)
+def unknown_element_handler(error):
+    response = {
+        'path': request.path,
+        'method': request.method,
+        'message': 'Unknown resource element.',
+        'element-name': error.name
+    }
+    return make_json_response(response, status_code=400)
+
+
+@app.errorhandler(MissingElement)
+def missing_element_handler(error):
+    response = {
+        'path': request.path,
+        'method': request.method,
+        'message': 'Required resource element missing',
+        'element-name': error.name
+    }
+    return make_json_response(response, status_code=400)
+
+
+@app.errorhandler(InvalidRequest)
+def invalid_request_handler(error):
+    response = {
+        'path': request.path,
+        'method': request.method,
+        'message': _exception_to_message(error),
+    }
+    return make_json_response(response, status_code=400)
 
 
 @app.errorhandler(500)
@@ -50,7 +99,7 @@ def exception_handler(error):
     in machine_readble form to error 500 response entity.
     """
     _, exc_value, tb = sys.exc_info()
-    message = '\n'.join(traceback.format_exception_only(type(error), error))
+    message = _exception_to_message(error)
 
     if not is_authenticated():
         return message, 500
