@@ -23,14 +23,13 @@ from flask import request, url_for, g
 from openstackclient_base.client_set import ClientSet
 
 from altai_api.main import app
-from altai_api.default_settings import AUTHORIZATION_MODE
 
 
 @app.before_request
 def require_auth():
     """Handle request authentication
     """
-    if not authorize(request.authorization):
+    if not keystone_auth(request.authorization):
         response = app.make_response((
             'You have to login with proper credentials', 401))
 
@@ -41,25 +40,13 @@ def require_auth():
         return response
     return None
 
-def authorize(auth):
-    """Authorize and save authorized http client to flask.g.
-    """
-    auth_mode = app.config['AUTHORIZATION_MODE']
-    if auth_mode == 'keystone':
-        if auth is None:
-            return False
-        return keystone_authorize(auth.username,
-                                  auth.password)
-    elif auth_mode == 'noneatall':
-        return True
-    else:
-        raise RuntimeError('Invalud AUTHORIZATION_MODE value')
 
-
-def keystone_authorize(username, password):
+def keystone_auth(auth):
     """Authorize in keystone and save authorized client set to flask.g."""
-    cs = ClientSet(username=username,
-                   password=password,
+    if auth is None:
+        return False
+    cs = ClientSet(username=auth.username,
+                   password=auth.password,
                    tenant_name=app.config['DEFAULT_TENANT'],
                    auth_uri=app.config['KEYSTONE_URI'])
     cs.http_client.authenticate() # raises exception on failure
