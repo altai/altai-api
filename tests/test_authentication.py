@@ -32,9 +32,22 @@ def _basic_auth(username, password):
         b64encode('%s:%s' % (username, password))
     )
 
-class AuthenticationTestCase(TestCase, MoxTestBase):
 
-    def test_keystone_authorize(self):
+class Auth(object):
+    """Fake auth for  keystone_auth()"""
+    def __init__(self, username, password):
+        self.username = username
+        self.password = password
+
+    def __eq__(self, other):
+        return (self.username == other.username
+                and self.password == other.password)
+
+
+class AuthenticationTestCase(TestCase, MoxTestBase):
+    FAKE_AUTH = False
+
+    def test_keystone_auth(self):
         self.mox.StubOutClassWithMocks(_A, 'ClientSet')
         client = _A.ClientSet(username='u$3R',
                               password='p@ssw0rd',
@@ -47,12 +60,11 @@ class AuthenticationTestCase(TestCase, MoxTestBase):
         self.app.config['DEFAULT_TENANT'] = 'test_default_tenant'
         self.app.config['KEYSTONE_URI'] = 'test_auth_uri'
         with self.app.test_request_context():
-            _A.keystone_authorize('u$3R', 'p@ssw0rd')
+            _A.keystone_auth(Auth('u$3R', 'p@ssw0rd'))
             self.assertTrue(_A.is_authenticated())
 
 
     def test_no_headers_401(self):
-        self.app.config['AUTHORIZATION_MODE'] = 'keystone'
         rv = self.client.get('/')
         self.assertEquals(rv.status_code, 401)
         self.assertTrue('X-GD-Altai-Implementation' not in rv.headers)
@@ -61,9 +73,8 @@ class AuthenticationTestCase(TestCase, MoxTestBase):
                         'Bad WWW-Authenticate header: %r' % auth_hdr)
 
     def test_success(self):
-        self.mox.StubOutWithMock(_A, 'keystone_authorize')
-        _A.keystone_authorize('u$3R', 'p@ssw0rd').AndReturn(True)
-        self.app.config['AUTHORIZATION_MODE'] = 'keystone'
+        self.mox.StubOutWithMock(_A, 'keystone_auth')
+        _A.keystone_auth(Auth('u$3R', 'p@ssw0rd')).AndReturn(True)
         self.mox.ReplayAll()
 
         rv = self.client.get('/', headers={
@@ -71,22 +82,10 @@ class AuthenticationTestCase(TestCase, MoxTestBase):
         })
         self.check_and_parse_response(rv)
 
-    def test_bad_auth(self):
-        self.app.config['AUTHORIZATION_MODE'] = 'invalid value'
-        rv = self.client.get('/')
-        self.assertEquals(rv.status_code, 500,
-                          'Expeceted response %s, got %s, with: %s' %(
-                              500, rv.status_code, rv.data
-                          ))
-        self.assertTrue('WWW-Authenticate' not in rv.headers)
-        self.assertTrue('traceback' not in rv.data)
-
-
-
     def test_failure(self):
-        self.mox.StubOutWithMock(_A, 'keystone_authorize')
-        _A.keystone_authorize('u$3R', 'p@ssw0rd').AndRaise(Unauthorized(None))
-        self.app.config['AUTHORIZATION_MODE'] = 'keystone'
+        auth = Auth('u$3R', 'p@ssw0rd')
+        self.mox.StubOutWithMock(_A, 'keystone_auth')
+        _A.keystone_auth(auth).AndRaise(Unauthorized(None))
         self.mox.ReplayAll()
 
         rv = self.client.get('/', headers={

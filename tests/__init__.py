@@ -21,13 +21,25 @@
 
 import json, os, unittest
 import altai_api.main
+import altai_api.authentication as _A
+from flask import g
 
 _SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), 'scripts')
 
 def scrpit_path(name):
     return os.path.join(_SCRIPTS_DIR, name)
 
+
+class _Fake(object):
+    pass
+
+
 class TestCase(unittest.TestCase):
+    FAKE_AUTH = True
+
+    def __keystone_auth_test_double(self, auth_):
+        g.client_set = self.fake_client_set
+        return True
 
     def setUp(self):
         super(TestCase, self).setUp()
@@ -35,10 +47,15 @@ class TestCase(unittest.TestCase):
         self.client = self.app.test_client()
         self.__config = self.app.config
         self.app.config = self.app.config.copy()
-
-        self.app.config['AUTHORIZATION_MODE'] = 'noneatall'
+        if self.FAKE_AUTH:
+            self.__keystone_auth = _A.keystone_auth
+            self.fake_client_set = _Fake()
+            _A.keystone_auth = self.__keystone_auth_test_double
 
     def tearDown(self):
+        if self.FAKE_AUTH:
+            _A.keystone_auth = self.__keystone_auth
+            del self.fake_client_set
         self.app.config = self.__config
 
     def check_and_parse_response(self, resp, status_code=200):
