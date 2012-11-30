@@ -23,6 +23,11 @@
 
 import os
 import flask
+
+from openstackclient_base.base import monkey_patch
+monkey_patch()
+
+
 __all__ = [ 'app' ]
 
 app = flask.Flask(__name__, static_folder=None)
@@ -44,6 +49,8 @@ from altai_api.collection.networks import networks
 app.register_blueprint(networks, url_prefix='/v1/networks')
 from altai_api.collection.instance_types import instance_types
 app.register_blueprint(instance_types, url_prefix='/v1/instance-types')
+from altai_api.collection.projects import projects
+app.register_blueprint(projects, url_prefix='/v1/projects')
 
 def main():
     app.run(debug=app.config['DEBUG'],

@@ -50,3 +50,13 @@ def is_authenticated():
     """Returns True if client was authenticated."""
     return hasattr(g, 'client_set')
 
+
+def client_set_for_tenant(tenant_id=None, tenant_name=None):
+    """Returns client set scoped to given tenant"""
+    if tenant_name is None and tenant_id is None:
+        raise ValueError('Either tenant_name or tenant_id mist be specified')
+    return ClientSet(token=g.client_set.http_client.access['token']['id'],
+                     tenant_name=tenant_name,
+                     tenant_id=tenant_id,
+                     auth_uri=app.config['KEYSTONE_URI'])
+
