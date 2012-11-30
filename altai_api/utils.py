@@ -26,17 +26,13 @@ import json
 import altai_api
 
 from altai_api.main import app
+from altai_api.authentication import is_authenticated
 
 
 # Content type for JSON
 _JSON = 'application/json'
+_IMPELEMENTATION = 'Altai API service v%s' % altai_api.__version__
 
-# HTTP headers that are present in response by default
-_DEFAULT_HEADERS = {
-    'Content-Type': _JSON,
-    'X-GD-Altai-Implementation':
-        'Altai API service v%s' % altai_api.__version__
-}
 
 def make_json_response(data, status_code=200, location=None):
     """Make json response from response data.
@@ -48,8 +44,11 @@ def make_json_response(data, status_code=200, location=None):
             data = json.dumps(data, separators=(',',':'))
     else:
         data = ""
-    response = app.make_response((data, status_code, _DEFAULT_HEADERS))
+    response = app.make_response((data, status_code))
+    response.headers['Content-Type'] = _JSON
     if location is not None:
         response.headers['Location'] = location
+    if is_authenticated():
+        response.headers['X-GD-Altai-Implementation'] = _IMPELEMENTATION
     return response
 
