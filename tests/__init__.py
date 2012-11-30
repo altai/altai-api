@@ -38,8 +38,13 @@ class TestCase(unittest.TestCase):
     FAKE_AUTH = True
 
     def __keystone_auth_test_double(self, auth_):
-        g.client_set = self.fake_client_set
+        self.install_fake_auth()
         return True
+
+    def install_fake_auth(self, auth_=None):
+        if not hasattr(self, 'fake_client_set'):
+            self.fake_client_set = _Fake()
+        g.client_set = self.fake_client_set
 
     def setUp(self):
         super(TestCase, self).setUp()
@@ -48,14 +53,15 @@ class TestCase(unittest.TestCase):
         self.__config = self.app.config
         self.app.config = self.app.config.copy()
         if self.FAKE_AUTH:
-            self.__keystone_auth = _A.keystone_auth
             self.fake_client_set = _Fake()
+            self.__keystone_auth = _A.keystone_auth
             _A.keystone_auth = self.__keystone_auth_test_double
 
     def tearDown(self):
+        if hasattr(self, 'fake_client_set'):
+            del self.fake_client_set
         if self.FAKE_AUTH:
             _A.keystone_auth = self.__keystone_auth
-            del self.fake_client_set
         self.app.config = self.__config
 
     def check_and_parse_response(self, resp, status_code=200):
@@ -69,6 +75,10 @@ class TestCase(unittest.TestCase):
                               status_code, resp.status_code,
                               json.dumps(data, indent=4, sort_keys=True)))
         self.assertEquals(resp.content_type, 'application/json')
-        self.assertTrue('X-GD-Altai-Implementation' in resp.headers)
+        if status_code not in (401, 403) and (
+                status_code != 500 or hasattr(self, 'fake_client_set')):
+            self.assertTrue('X-GD-Altai-Implementation' in resp.headers)
+        else:
+            self.assertTrue('X-GD-Altai-Implementation' not in resp.headers)
         return data
 

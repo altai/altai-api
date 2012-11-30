@@ -24,10 +24,9 @@ from mox import MoxTestBase
 
 from tests import TestCase
 
-from altai_api import error_handlers
+from altai_api import error_handlers, utils
 from altai_api.exceptions import (
     InvalidRequest, MissingElement, IllegalValue, UnknownElement)
-
 
 
 class HttpResponsesTestCase(TestCase):
@@ -38,6 +37,7 @@ class HttpResponsesTestCase(TestCase):
     def test_illegal_value(self):
         error = IllegalValue(name='test', typename='uint', value='-42')
         with self.app.test_request_context('/test/path'):
+            self.install_fake_auth()
             rv = self.app.make_response(
                 error_handlers.illegal_value_handler(error))
             data = self.check_and_parse_response(rv, status_code=400)
@@ -53,6 +53,7 @@ class HttpResponsesTestCase(TestCase):
     def test_missing_element(self):
         error = MissingElement(name='test')
         with self.app.test_request_context('/test/path'):
+            self.install_fake_auth()
             rv = self.app.make_response(
                 error_handlers.missing_element_handler(error))
             data = self.check_and_parse_response(rv, status_code=400)
@@ -66,6 +67,7 @@ class HttpResponsesTestCase(TestCase):
     def test_unknown_element(self):
         error = UnknownElement(name='test')
         with self.app.test_request_context('/test/path'):
+            self.install_fake_auth()
             rv = self.app.make_response(
                 error_handlers.unknown_element_handler(error))
             data = self.check_and_parse_response(rv, status_code=400)
@@ -79,6 +81,7 @@ class HttpResponsesTestCase(TestCase):
     def test_invalid_request(self):
         error = InvalidRequest('Test message')
         with self.app.test_request_context('/test/path'):
+            self.install_fake_auth()
             rv = self.app.make_response(
                 error_handlers.invalid_request_handler(error))
             data = self.check_and_parse_response(rv, status_code=400)
@@ -87,12 +90,13 @@ class HttpResponsesTestCase(TestCase):
             self.assertTrue('Test message' in data.get('message'))
 
 
-class ErrorHandlerTestCase(TestCase, MoxTestBase):
-    def test_unauthorized_500(self):
-        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
-        error_handlers.is_authenticated().AndReturn(False)
-        self.mox.ReplayAll()
+class ErrorHandlerTestCase(TestCase):
+    FAKE_AUTH = False
 
+    def setUp(self):
+        super(ErrorHandlerTestCase, self).setUp()
+
+    def test_unauthorized_500(self):
         with self.app.test_request_context():
             # create exception context for test
             try:
@@ -100,16 +104,13 @@ class ErrorHandlerTestCase(TestCase, MoxTestBase):
             except RuntimeError, ex:
                 resp = self.app.make_response(
                     error_handlers.exception_handler(ex))
-        self.assertEqual(resp.status_code, 500)
-        self.assertTrue('X-GD-Altai-Implementation' not in resp.headers)
+        self.check_and_parse_response(resp, status_code=500)
         self.assertTrue('Test message' in resp.data)
+        self.assertTrue('traceback' not in resp.data)
 
     def test_authorized_500_other_error(self):
-        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
-        error_handlers.is_authenticated().AndReturn(True)
-        self.mox.ReplayAll()
-
         with self.app.test_request_context():
+            self.install_fake_auth()
             resp = self.app.make_response(
                 error_handlers.exception_handler(RuntimeError('Test message')))
         self.assertEqual(resp.status_code, 500)
@@ -117,11 +118,8 @@ class ErrorHandlerTestCase(TestCase, MoxTestBase):
         self.assertTrue('Test message' in resp.data)
 
     def test_authorized_500(self):
-        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
-        error_handlers.is_authenticated().AndReturn(True)
-        self.mox.ReplayAll()
-
         with self.app.test_request_context():
+            self.install_fake_auth()
             # create exception context for test
             try:
                 raise RuntimeError('Test message')
@@ -133,11 +131,8 @@ class ErrorHandlerTestCase(TestCase, MoxTestBase):
         self.assertTrue(isinstance(data.get('traceback'), list))
 
     def test_authorized_500_other_error(self):
-        self.mox.StubOutWithMock(error_handlers, 'is_authenticated')
-        error_handlers.is_authenticated().AndReturn(True)
-        self.mox.ReplayAll()
-
         with self.app.test_request_context():
+            self.install_fake_auth()
             resp = self.app.make_response(
                 error_handlers.exception_handler(RuntimeError('Test message')))
         data = self.check_and_parse_response(resp, status_code=500)

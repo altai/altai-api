@@ -37,6 +37,8 @@ class MakeResponseTestCase(TestCase):
         resp = make_json_response(None, status_code=400)
         self.assertEquals(resp.data, '')
         self.assertEquals(resp.status_code, 400)
+        self.assertEquals(resp.headers.get('Content-type'),
+                          'application/json')
 
     def test_pretty_response(self):
         self.app.config['PRETTY_PRINT_JSON'] = True

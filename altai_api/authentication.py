@@ -19,25 +19,17 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import request, url_for, g
+from flask import request, g, abort
 from openstackclient_base.client_set import ClientSet
 
 from altai_api.main import app
-
 
 @app.before_request
 def require_auth():
     """Handle request authentication
     """
     if not keystone_auth(request.authorization):
-        response = app.make_response((
-            'You have to login with proper credentials', 401))
-
-        entry_point = url_for('get_versions', _external=True)
-        response.headers['WWW-Authenticate'] = 'Basic realm="%s"' % (
-            entry_point.split('//', 1)[1].strip('/')
-        )
-        return response
+        abort(401)
     return None
 
 

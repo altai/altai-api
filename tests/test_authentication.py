@@ -66,7 +66,7 @@ class AuthenticationTestCase(TestCase, MoxTestBase):
 
     def test_no_headers_401(self):
         rv = self.client.get('/')
-        self.assertEquals(rv.status_code, 401)
+        self.check_and_parse_response(rv, status_code=401)
         self.assertTrue('X-GD-Altai-Implementation' not in rv.headers)
         auth_hdr = rv.headers.get('WWW-Authenticate', '')
         self.assertTrue(auth_hdr.startswith('Basic '),
@@ -74,7 +74,9 @@ class AuthenticationTestCase(TestCase, MoxTestBase):
 
     def test_success(self):
         self.mox.StubOutWithMock(_A, 'keystone_auth')
-        _A.keystone_auth(Auth('u$3R', 'p@ssw0rd')).AndReturn(True)
+        _A.keystone_auth(Auth('u$3R', 'p@ssw0rd')) \
+                .WithSideEffects(self.install_fake_auth) \
+                .AndReturn(True)
         self.mox.ReplayAll()
 
         rv = self.client.get('/', headers={
@@ -91,11 +93,6 @@ class AuthenticationTestCase(TestCase, MoxTestBase):
         rv = self.client.get('/', headers={
             'Authorization': _basic_auth('u$3R', 'p@ssw0rd')
         })
-        self.assertEquals(rv.status_code, 403,
-                          'Expeceted response %s, got %s, with: %s' %(
-                              403, rv.status_code, rv.data
-                          ))
-        self.assertTrue('X-GD-Altai-Implementation' not in rv.headers)
+        self.check_and_parse_response(rv, status_code=403)
         self.assertTrue('WWW-Authenticate' not in rv.headers)
-
 

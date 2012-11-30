@@ -27,7 +27,7 @@ the response entities.
 
 import sys, traceback
 
-from flask import request, g
+from flask import request, g, url_for
 from openstackclient_base.exceptions import Unauthorized
 
 from altai_api.exceptions import (
@@ -43,7 +43,21 @@ def _exception_to_message(error):
 @app.errorhandler(Unauthorized)
 def authentication_failed_handler(error):
     # TODO(imelnikov): log error
-    return '', 403
+    return make_json_response({ 'message': 'Unauthorized.' },
+                              status_code=403)
+
+
+@app.errorhandler(401)
+def authentication_needed_handler(error):
+    response = make_json_response(
+        { 'message': 'You have to login with proper credentials' },
+        status_code=401)
+
+    entry_point = url_for('get_versions', _external=True)
+    response.headers['WWW-Authenticate'] = 'Basic realm="%s"' % (
+        entry_point.split('//', 1)[1].strip('/')
+    )
+    return response
 
 
 @app.errorhandler(IllegalValue)
@@ -96,16 +110,13 @@ def exception_handler(error):
     """Internal error handler
 
     To ease debugging and error reporting we include traceback
-    in machine_readble form to error 500 response entity.
+    in machine-readable form to error 500 response entity.
     """
     _, exc_value, tb = sys.exc_info()
     message = _exception_to_message(error)
 
-    if not is_authenticated():
-        return message, 500
-
     response = { 'message': message }
-    if exc_value is error and tb is not None:
+    if is_authenticated() and exc_value is error and tb is not None:
         # system exception info is still about our error; let's report it
         response['traceback'] =  [
                 {
