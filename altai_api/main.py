@@ -23,7 +23,7 @@
 
 import os
 import flask
-__all__ = [ 'app', 'make_json_response', 'version_string', 'request' ]
+__all__ = [ 'app' ]
 
 app = flask.Flask(__name__, static_folder=None)
 
@@ -40,8 +40,10 @@ from altai_api import error_handlers
 from altai_api import authentication
 
 # register blueprints
-from altai_api.collections.vm_types import vm_types
+from altai_api.collection.vm_types import vm_types
 app.register_blueprint(vm_types, url_prefix='/v1/vm-types')
+from altai_api.collection.networks import networks
+app.register_blueprint(networks, url_prefix='/v1/networks')
 
 def main():
     app.run(debug=app.config['DEBUG'],
