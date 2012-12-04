@@ -66,7 +66,10 @@ class TestCase(unittest.TestCase):
 
     def check_and_parse_response(self, resp, status_code=200):
         try:
-            data = json.loads(resp.data)
+            if resp.data:
+                data = json.loads(resp.data)
+            else:
+                data = None
         except Exception:
             self.fail('Invalid response data: %r' % resp.data)
 
@@ -80,5 +83,9 @@ class TestCase(unittest.TestCase):
             self.assertTrue('X-GD-Altai-Implementation' in resp.headers)
         else:
             self.assertTrue('X-GD-Altai-Implementation' not in resp.headers)
+
+        if status_code == 204:
+            self.assertEquals(data, None)
+
         return data
 
