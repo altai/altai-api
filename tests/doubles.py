@@ -25,6 +25,9 @@ from novaclient.v1_1.quotas import QuotaSet
 from novaclient.v1_1.servers import Server
 from novaclient.v1_1.flavors import Flavor
 from glanceclient.v1.images import Image
+from novaclient.v1_1.security_groups import SecurityGroup
+from novaclient.v1_1.security_group_rules import SecurityGroupRule
+
 from tests.mocked import mock_with_attributes
 
 # INFO remembers data from several real-life objects
@@ -167,6 +170,22 @@ INFO = {
         u'rxtx_factor': 1.0,
         u'swap': u'',
         u'vcpus': 1
+    },
+    SecurityGroup: {
+        u'rules': [],
+        u'tenant_id': u'6cd68209bf4846c9ad82538b602af120',
+        u'description': u'test sg description',
+        u'id': 3,
+        u'name': u'test sg'
+    },
+    SecurityGroupRule: {
+        u'from_port': 90,
+        u'group': {},
+        u'ip_protocol': u'tcp',
+        u'to_port': 92,
+        u'parent_group_id': 5,
+        u'ip_range': { u'cidr': u'10.20.30.0/24' },
+        u'id': 3
     }
 }
 
