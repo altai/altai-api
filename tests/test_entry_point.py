@@ -39,7 +39,9 @@ class EntryPointTestCase(TestCase):
 
 
     def test_post_retuns_405(self):
-        rv = self.client.post('/')
+        rv = self.client.post('/',
+                              content_type='application/json',
+                              data='{}')
         self.check_and_parse_response(rv, status_code=405)
 
 

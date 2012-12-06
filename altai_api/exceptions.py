@@ -32,7 +32,7 @@ class UnknownElement(InvalidRequest):
 
     def __init__(self, name):
         super(UnknownElement, self).__init__(
-            'Unknown element: %r' % name)
+            'Unknown resource element: %r' % name)
         self.name = name
 
 
@@ -55,4 +55,13 @@ class IllegalValue(InvalidRequest):
         self.name = name
         self.typename = typename
         self.value = value
+
+
+class UnknownArgument(InvalidRequest):
+    """Exception raised when required request elements are missing"""
+
+    def __init__(self, name):
+        super(UnknownArgument, self).__init__(
+            'Unknown request argument: %s' % name)
+        self.name = name
 

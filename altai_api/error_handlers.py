@@ -30,8 +30,8 @@ import sys, traceback
 from flask import request, g, url_for
 from openstackclient_base.exceptions import Unauthorized
 
-from altai_api.exceptions import (
-    InvalidRequest, MissingElement, IllegalValue, UnknownElement)
+from altai_api import exceptions as exc
+
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.authentication import is_authenticated
@@ -60,7 +60,7 @@ def authentication_needed_handler(error):
     return response
 
 
-@app.errorhandler(IllegalValue)
+@app.errorhandler(exc.IllegalValue)
 def illegal_value_handler(error):
     response = {
         'path': request.path,
@@ -73,29 +73,20 @@ def illegal_value_handler(error):
     return make_json_response(response, status_code=400)
 
 
-@app.errorhandler(UnknownElement)
-def unknown_element_handler(error):
+@app.errorhandler(exc.UnknownElement)
+@app.errorhandler(exc.MissingElement)
+@app.errorhandler(exc.UnknownArgument)
+def unknown_param_handler(error):
     response = {
         'path': request.path,
         'method': request.method,
-        'message': 'Unknown resource element.',
+        'message': str(error),
         'element-name': error.name
     }
     return make_json_response(response, status_code=400)
 
 
-@app.errorhandler(MissingElement)
-def missing_element_handler(error):
-    response = {
-        'path': request.path,
-        'method': request.method,
-        'message': 'Required resource element missing',
-        'element-name': error.name
-    }
-    return make_json_response(response, status_code=400)
-
-
-@app.errorhandler(InvalidRequest)
+@app.errorhandler(exc.InvalidRequest)
 def invalid_request_handler(error):
     response = {
         'path': request.path,
@@ -156,4 +147,13 @@ def redirect_handler(error):
     return make_json_response(response,
                               status_code=error.code,
                               location=error.new_url)
+
+@app.errorhandler(417)
+def expectation_failed_handler(error):
+    response = {
+        'path': request.path,
+        'message': 'Unsupported client expectations.'
+    }
+    return make_json_response(response,
+                              status_code=error.code)
 

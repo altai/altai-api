@@ -24,7 +24,6 @@ from openstackclient_base.client_set import ClientSet
 
 from altai_api.main import app
 
-@app.before_request
 def require_auth():
     """Handle request authentication
     """

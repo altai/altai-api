@@ -43,6 +43,16 @@ if CONFIG_ENV in os.environ:
 from altai_api import entry_points
 from altai_api import error_handlers
 from altai_api import authentication
+from altai_api import utils
+
+
+@app.before_request
+def check_request():
+    authentication.require_auth()
+    utils.check_request_headers()
+    utils.setup_args_handling()
+    return None
+
 
 # register blueprints
 from altai_api.collection.networks import networks

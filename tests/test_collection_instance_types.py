@@ -101,7 +101,7 @@ class InstanceTypesWrongRequestsTestCase(TestCase):
         self.check_and_parse_response(rv, status_code=301)
         self.assertEquals(loc, rv.headers['Location'])
 
-    def ignored_test_content_type_required(self):
+    def test_content_type_required(self):
         content_type = 'application/x-www-form-urlencoded'
         rv = self.client.post('/v1/instance-types/',
                               content_type=content_type,
