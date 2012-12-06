@@ -26,7 +26,7 @@ from flask import Blueprint, abort, url_for, request, g
 import openstackclient_base.exceptions as osc_exc
 
 from altai_api import exceptions
-from altai_api.utils import make_json_response
+from altai_api.utils import make_json_response, make_collection_response
 from altai_api import exceptions as exc
 
 instance_types = Blueprint('instance_types', __name__)
@@ -68,13 +68,7 @@ def list_instance_types():
     all_flavors = g.client_set.compute.flavors.list()
     result = [_instance_type_from_nova(flavor)
               for flavor in all_flavors]
-    return make_json_response({
-        'collection': {
-            'name': 'instance-types',
-            'size': len(result)
-        },
-        'instance-types': result
-    })
+    return make_collection_response(u'instance-types', result)
 
 
 @instance_types.route('/<instance_type_id>', methods=('GET',))

@@ -47,6 +47,16 @@ class HttpResponsesTestCase(TestCase):
                               content_type='invalid')
         self.check_and_parse_response(rv, status_code=400)
 
+    def test_limit_checked(self):
+        rv = self.client.get('/v1/instance-types/?limit=limit-no-exist')
+        data = self.check_and_parse_response(rv, status_code=400)
+        self.assertTrue('limit-no-exist' in data.get('message'))
+
+    def test_offset_checked(self):
+        rv = self.client.get('/v1/instance-types/?offset=bad-offset')
+        data = self.check_and_parse_response(rv, status_code=400)
+        self.assertTrue('bad-offset' in data.get('message'))
+
     def test_charset_checked(self):
         rv = self.client.get('/', headers={'Accept-charset': 'cp1251'})
         self.check_and_parse_response(rv, status_code=400)

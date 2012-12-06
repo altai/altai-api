@@ -51,6 +51,7 @@ def check_request():
     authentication.require_auth()
     utils.check_request_headers()
     utils.setup_args_handling()
+    utils.parse_common_args()
     return None
 
 

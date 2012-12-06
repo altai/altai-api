@@ -24,7 +24,7 @@ from flask import url_for, g, Blueprint, abort, request
 
 from altai_api import exceptions as exc
 from altai_api.main import app
-from altai_api.utils import make_json_response
+from altai_api.utils import make_json_response, make_collection_response
 from altai_api.authentication import client_set_for_tenant
 import openstackclient_base.exceptions as osc_exc
 
@@ -111,13 +111,7 @@ def list_projects():
     result = [_project_from_nova(t, networks.get(t.id),
                                  _quotaset_for_project(t.id))
               for t in tenants if t.name != systenant]
-    return make_json_response({
-        u'collection': {
-            u'name': u'projects',
-            u'size': len(result)
-        },
-        u'projects': result
-    })
+    return make_collection_response(u'projects', result)
 
 
 @projects.route('/<project_id>/stats', methods=('GET',))

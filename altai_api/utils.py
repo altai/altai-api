@@ -55,6 +55,20 @@ def make_json_response(data, status_code=200, location=None):
     return response
 
 
+def make_collection_response(name, elements, parent_href=None):
+    """Return a collection to client"""
+    result = {
+        u'collection': {
+            u'name': name,
+            u'size': len(elements)
+        },
+        name: _apply_pagination(elements)
+    }
+    if parent_href is not None:
+        result[u'collection'][u'parent-href'] = parent_href
+    return make_json_response(result)
+
+
 def check_request_headers():
     """Checks that request has all the correct headers"""
     if request.accept_mimetypes and _JSON not in request.accept_mimetypes:
@@ -79,7 +93,6 @@ def check_request_headers():
     return None
 
 
-
 def setup_args_handling():
     """Set up request arguments handling.
 
@@ -100,4 +113,59 @@ def _check_unused_args_empty(response):
     # so, to be consistent, we call handler directly
     return altai_api.error_handlers.unknown_param_handler(
         exc.UnknownArgument(g.unused_args.pop()))
+
+
+def parse_common_args():
+    try:
+        g.limit = int_from_string(request.args.get('limit'),
+                                  on_error='Invalid limit value',
+                                  allow_none=True)
+        g.offset = int_from_string(request.args.get('offset'),
+                                   on_error='Invalid offset value',
+                                   allow_none=True)
+    except ValueError, e:
+        raise exc.InvalidRequest(str(e))
+
+
+def _apply_pagination(result):
+    """Apply previously parsed pagination to given request result."""
+    g.unused_args.discard('limit')
+    g.unused_args.discard('offset')
+    if g.offset:
+        result = result[g.offset:]
+    if g.limit:
+        result = result[:g.limit]
+    return result
+
+
+def _raise(value, on_error):
+    if callable(on_error):
+        on_error(value)
+    else:
+        raise ValueError('%s: %r' % (on_error or 'Invalid value', value))
+
+
+def int_from_user(value, min_val=0, max_val=None, on_error=None):
+    """Check that value is good int"""
+    try:
+        assert isinstance(value, int) or isinstance(value, long)
+        assert value >= min_val
+        if max_val is not None:
+            assert value <= max_val
+        return value
+    except AssertionError:
+        _raise(value, on_error)
+
+
+def int_from_string(value, min_val=0, max_val=None,
+                    on_error=None, allow_none=False):
+    """Convert a string to an int, with strong checks."""
+    try:
+        if value is None and allow_none:
+            return None
+        assert isinstance(value, basestring)
+        assert value == '0' or not value.startswith('0')
+        return int_from_user(int(value), min_val, max_val)
+    except (ValueError, AssertionError):
+        _raise(value, on_error)
 

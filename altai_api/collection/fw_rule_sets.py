@@ -22,7 +22,7 @@
 from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.main import app
-from altai_api.utils import make_json_response
+from altai_api.utils import make_json_response, make_collection_response
 from altai_api.authentication import client_set_for_tenant
 
 from altai_api import exceptions as exc
@@ -62,13 +62,7 @@ def list_fw_rule_sets():
             tcs = client_set_for_tenant(tenant.id)
             for sg in tcs.compute.security_groups.list():
                 result.append(_sg_from_nova(sg, tenant))
-    return make_json_response({
-        'collection': {
-            'name': 'fw-rule-sets',
-            'size': len(result)
-        },
-        'fw-rule-sets': result
-    })
+    return make_collection_response(u'fw-rule-sets', result)
 
 
 @fw_rule_sets.route('/<fw_rule_set_id>', methods=('GET',))

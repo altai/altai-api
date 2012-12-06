@@ -22,7 +22,7 @@
 from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.main import app
-from altai_api.utils import make_json_response
+from altai_api.utils import make_json_response, make_collection_response
 
 from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
@@ -78,15 +78,10 @@ def _get_security_group(sg_id):
 def list_fw_rules(fw_rule_set_id):
     result = [_fw_rule_dict_from_nova(rule)
               for rule in _get_security_group(fw_rule_set_id).rules]
-    return make_json_response({
-        'collection': {
-            'name': 'rules',
-            'parent-href': url_for('fw_rule_sets.get_fw_rule_set',
-                                   fw_rule_set_id=fw_rule_set_id),
-            'size': len(result)
-        },
-        'rules': result
-    })
+    parent_href = url_for('fw_rule_sets.get_fw_rule_set',
+                          fw_rule_set_id=fw_rule_set_id)
+    return make_collection_response(u'rules', result,
+                                    parent_href=parent_href)
 
 
 def _find_rule(sg_id, rule_id):

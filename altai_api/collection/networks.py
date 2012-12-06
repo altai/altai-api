@@ -20,7 +20,7 @@
 # <http://www.gnu.org/licenses/>.
 
 import flask
-from altai_api.utils import make_json_response
+from altai_api.utils import make_json_response, make_collection_response
 from altai_api.exceptions import UnknownElement, InvalidRequest
 from openstackclient_base import exceptions as osc_exc
 
@@ -46,26 +46,11 @@ def net_to_dict(net):
     return d
 
 
-def _response_template():
-    return {
-        'collection': {
-            'name': 'networks',
-            'size': 0
-        },
-        'networks': []
-    }
-
-
 @networks.route('/', methods=('GET',))
 def list_networks():
-    client = flask.g.client_set
-    nets = client.compute.networks.list()
-
-    response = _response_template()
-    response['networks'] = [ net_to_dict(net) for net in nets ]
-    response['collection']['size'] = len(nets)
-
-    return make_json_response(response)
+    nets = flask.g.client_set.compute.networks.list()
+    return make_collection_response(u'networks',
+                                    [net_to_dict(net) for net in nets])
 
 
 @networks.route('/<net_id>', methods=('GET',))
