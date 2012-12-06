@@ -1,7 +1,7 @@
 
 Name:           altai-api
-Version:        0.0.1
-Release:        0.1
+Version:        0.0.2
+Release:        1
 Summary:        Altai API Implementation
 License:        GNU LGPL 2.1
 URL:            http://www.griddynamics.com/openstack
@@ -31,10 +31,13 @@ This package provides service implementing the API.
 %setup -q -n %{name}-%{version}
 
 %build
-echo 'This is early development version, no package should be build.'
-exit 1
+echo 'This is an early development version, no package should be build.'
+exit 0
 
 %changelog
+* Thu Dec 06 2012 Alessio Ababilov <aababilov@griddynamics.com> - 0.0.2-1
+- Make the spec buildable
+
 * Thu Nov 29 2012 Ivan A. Melnikov <imelnikov@griddynamics.com> - 0.0.1-1
 - Initial deliberately unbuildable spec.
 
