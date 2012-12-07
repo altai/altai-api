@@ -37,7 +37,8 @@ from altai_api.utils import make_json_response
 from altai_api.authentication import is_authenticated
 
 def _exception_to_message(error):
-    return '\n'.join(traceback.format_exception_only(type(error), error))
+    lines = traceback.format_exception_only(type(error), error)
+    return '\n'.join(lines).strip()
 
 
 @app.errorhandler(Unauthorized)

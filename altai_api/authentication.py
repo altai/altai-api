@@ -40,7 +40,11 @@ def keystone_auth(auth):
                    password=auth.password,
                    tenant_name=app.config['DEFAULT_TENANT'],
                    auth_uri=app.config['KEYSTONE_URI'])
-    cs.http_client.authenticate() # raises exception on failure
+    try:
+        cs.http_client.authenticate() # raises exception on failure
+    except IOError, error:
+        raise RuntimeError(
+            'Failed to connect to authentication service (%s)' % error)
     g.client_set = cs
     return True
 
