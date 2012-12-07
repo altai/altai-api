@@ -62,7 +62,7 @@ def make_collection_response(name, elements, parent_href=None):
             u'name': name,
             u'size': len(elements)
         },
-        name: _apply_pagination(elements)
+        name: _apply_pagination_and_sorting(elements)
     }
     if parent_href is not None:
         result[u'collection'][u'parent-href'] = parent_href
@@ -127,7 +127,7 @@ def parse_common_args():
         raise exc.InvalidRequest(str(e))
 
 
-def _apply_pagination(result):
+def _apply_pagination_and_sorting(result):
     """Apply previously parsed pagination to given request result."""
     g.unused_args.discard('limit')
     g.unused_args.discard('offset')
@@ -135,6 +135,9 @@ def _apply_pagination(result):
         result = result[g.offset:]
     if g.limit:
         result = result[:g.limit]
+    if 'sortby' in g.unused_args:
+        g.unused_args.discard('sortby')
+        result = _apply_sortby(g.sortby, result)
     return result
 
 
@@ -168,4 +171,72 @@ def int_from_string(value, min_val=0, max_val=None,
         return int_from_user(int(value), min_val, max_val)
     except (ValueError, AssertionError):
         _raise(value, on_error)
+
+
+def _get_nested(x, keys):
+    for k in keys:
+        x = x.get(k)
+        if x is None:
+            return None
+    return x
+
+
+def _parse_one_sortby_item(item, allowed_names):
+    """Convert one item of sortby list to internal represintation."""
+    elems = item.rsplit(':', 1)
+
+    name = elems[0]
+    if name not in allowed_names:
+        raise exc.InvalidRequest(
+            'Could not sort: bad parameter: %r' % elems[0])
+
+    if len(elems) == 1 or elems[1] == 'asc':
+        is_asc = True
+    elif elems[1] == 'desc':
+        is_asc = False
+    else:
+        raise exc.InvalidRequest('Invalid sorting direction: %r' % elems[1])
+
+    keys = name.split('.')
+    if len(keys) == 1:
+        keyfun = lambda x: x.get(name)
+    else:
+        keyfun = lambda x: _get_nested(x, keys)
+    return name, is_asc, keyfun
+
+
+def _parse_sortby(param, allowed_names):
+    """Parse sortby query parameter.
+
+    Performs some checking and returns special data structure
+    that can be passed to _apply_sortby function (see below).
+    """
+    if param is None:
+        return None
+    return [_parse_one_sortby_item(x, allowed_names)
+            for x in param.split(',')]
+
+
+def setup_sorting(allowed_names):
+    """Parses sortby parameter and saves it to flask.g fr farther use"""
+    param = request.args.get('sortby')
+    g.sortby = _parse_sortby(param, set(allowed_names))
+
+
+def _apply_sortby(how, result):
+    """Apply sorting to target.
+
+    Takes result of parse_sortby and a list and sorts list as
+    specified.
+    """
+    if how is None:
+        return result
+
+    def compare(a, b):
+        for _, is_asc, keyfun in how:
+            res = cmp(keyfun(a), keyfun(b))
+            if res != 0:
+                return res if is_asc else -res
+        return 0
+    return sorted(list(result), compare)
 

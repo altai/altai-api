@@ -20,7 +20,8 @@
 # <http://www.gnu.org/licenses/>.
 
 import flask
-from altai_api.utils import make_json_response, make_collection_response
+from altai_api.utils import make_json_response
+from altai_api.utils import make_collection_response, setup_sorting
 from altai_api.exceptions import UnknownElement, InvalidRequest
 from openstackclient_base import exceptions as osc_exc
 from altai_api.collection.projects import link_for_project
@@ -48,6 +49,7 @@ def _net_to_dict(net):
 
 @networks.route('/', methods=('GET',))
 def list_networks():
+    setup_sorting(('name', 'id', 'vlan', 'cidr', 'project.name', 'project.id'))
     nets = flask.g.client_set.compute.networks.list()
     return make_collection_response(u'networks',
                                     [_net_to_dict(net) for net in nets])

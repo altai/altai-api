@@ -26,7 +26,8 @@ from flask import Blueprint, abort, url_for, request, g
 import openstackclient_base.exceptions as osc_exc
 
 from altai_api import exceptions
-from altai_api.utils import make_json_response, make_collection_response
+from altai_api.utils import make_json_response
+from altai_api.utils import make_collection_response, setup_sorting
 from altai_api import exceptions as exc
 
 instance_types = Blueprint('instance_types', __name__)
@@ -65,6 +66,9 @@ def _instance_type_for_nova(data):
 
 @instance_types.route('/', methods=('GET',))
 def list_instance_types():
+    setup_sorting(('id', 'name', 'cpus', 'ram',
+                   'root-size', 'ephemeral-size'))
+
     all_flavors = g.client_set.compute.flavors.list()
     result = [_instance_type_from_nova(flavor)
               for flavor in all_flavors]

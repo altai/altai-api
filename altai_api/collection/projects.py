@@ -24,7 +24,8 @@ from flask import url_for, g, Blueprint, abort, request
 
 from altai_api import exceptions as exc
 from altai_api.main import app
-from altai_api.utils import make_json_response, make_collection_response
+from altai_api.utils import make_json_response
+from altai_api.utils import make_collection_response, setup_sorting
 from altai_api.authentication import client_set_for_tenant
 import openstackclient_base.exceptions as osc_exc
 
@@ -123,6 +124,7 @@ def get_project(project_id):
 
 @projects.route('/', methods=('GET',))
 def list_projects():
+    setup_sorting(('id', 'name', 'description', 'network.id', 'network.name'))
     cs = g.client_set
     tenants = cs.identity_admin.tenants.list()
     networks = dict(((net.project_id, net)

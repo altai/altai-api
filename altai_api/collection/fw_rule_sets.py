@@ -22,7 +22,8 @@
 from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.main import app
-from altai_api.utils import make_json_response, make_collection_response
+from altai_api.utils import make_json_response
+from altai_api.utils import make_collection_response, setup_sorting
 from altai_api.authentication import client_set_for_tenant
 from altai_api.collection.projects import link_for_tenant
 
@@ -50,6 +51,7 @@ def _sg_from_nova(sg, tenant):
 
 @fw_rule_sets.route('/', methods=('GET',))
 def list_fw_rule_sets():
+    setup_sorting(('id', 'name', 'description', 'project.id', 'project.name'))
     tenants = g.client_set.identity_admin.tenants.list()
     systenant = app.config['DEFAULT_TENANT']
 

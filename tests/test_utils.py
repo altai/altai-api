@@ -25,8 +25,11 @@ import flask
 
 from tests import TestCase
 
+from altai_api import exceptions as exc
+
 from altai_api.utils import make_json_response, make_collection_response
 from altai_api.utils import int_from_string, int_from_user
+from altai_api.utils import _parse_sortby, _apply_sortby
 
 
 class MakeResponseTestCase(TestCase):
@@ -118,7 +121,6 @@ class MakeCollectionResponseTestCase(TestCase):
         self.__context.__exit__(*sys.exc_info())
         super(MakeCollectionResponseTestCase, self).tearDown()
 
-
     def test_it_works(self):
         expected = {
             u'collection': {
@@ -178,4 +180,112 @@ class MakeCollectionResponseTestCase(TestCase):
                                       parent_href='/v1/test')
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
+
+
+class SortByTestCase(unittest.TestCase):
+    allowed = ('first', 'second')
+
+    def test_parses_simple(self):
+        sortby = _parse_sortby('first', self.allowed)
+        self.assertEquals(len(sortby), 1)
+        self.assertEquals(sortby[0][0], 'first')
+        self.assertEquals(sortby[0][1], True)
+
+    def test_invalid_direction_raises(self):
+        self.assertRaises(exc.InvalidRequest, _parse_sortby, 'first:i am bad', self.allowed)
+
+    def test_invalid_parameter_raises(self):
+        self.assertRaises(exc.InvalidRequest, _parse_sortby,
+                          'fw-rule-sets:desc', self.allowed)
+
+    def test_applies_nothing(self):
+        victim = [
+            { 'first': 3 },
+            { 'first': 2 },
+            { 'first': 1 }
+        ]
+        self.assertEquals(victim, _apply_sortby(None, victim))
+
+    def test_aplies_one(self):
+        victim = [
+            { 'first': 3 },
+            { 'first': 2 },
+            { 'first': 1 }
+        ]
+        result = [
+            { 'first': 1 },
+            { 'first': 2 },
+            { 'first': 3 }
+        ]
+        sortby = _parse_sortby('first', self.allowed)
+        self.assertEquals(result, _apply_sortby(sortby, victim))
+
+    def test_key_not_found(self):
+        victim = [
+            { 'first': 3 },
+            { 'first': 2 },
+            { 'first': 1 }
+        ]
+        sortby = _parse_sortby('second', self.allowed)
+        try:
+            _apply_sortby(sortby, victim)
+        except Exception, e:
+            self.fail('Unexpected exception: %s', e)
+
+
+    def test_sort_by_two(self):
+        victim = [
+            { 'first': 2, 'second': 2 },
+            { 'first': 2, 'second': 1 },
+            { 'first': 1, 'second': 99 }
+        ]
+        result = [
+            { 'first': 1, 'second': 99 },
+            { 'first': 2, 'second': 1 },
+            { 'first': 2, 'second': 2 }
+        ]
+        sortby = _parse_sortby('first,second', self.allowed)
+        self.assertEquals(result, _apply_sortby(sortby, victim))
+
+    def test_sort_one_asc(self):
+        victim = [
+            { 'first': 3 },
+            { 'first': 2 },
+            { 'first': 1 }
+        ]
+        result = [
+            { 'first': 1 },
+            { 'first': 2 },
+            { 'first': 3 }
+        ]
+        sortby = _parse_sortby('first:asc', self.allowed)
+        self.assertEquals(result, _apply_sortby(sortby, victim))
+
+    def test_sort_one_desc(self):
+        victim = [
+            { 'first': 1 },
+            { 'first': 2 },
+            { 'first': 3 }
+        ]
+        result = [
+            { 'first': 3 },
+            { 'first': 2 },
+            { 'first': 1 }
+        ]
+        sortby = _parse_sortby('first:desc', self.allowed)
+        self.assertEquals(result, _apply_sortby(sortby, victim))
+
+    def test_sort_two_different(self):
+        victim = [
+            { 'first': 2, 'second': 2 },
+            { 'first': 2, 'second': 1 },
+            { 'first': 1, 'second': 0 }
+        ]
+        result = [
+            { 'first': 1, 'second': 0 },
+            { 'first': 2, 'second': 2 },
+            { 'first': 2, 'second': 1 }
+        ]
+        sortby = _parse_sortby('first,second:desc', self.allowed)
+        self.assertEquals(result, _apply_sortby(sortby, victim))
 

@@ -25,6 +25,7 @@ from openstackclient_base import exceptions as osc_exc
 
 from altai_api.collection import networks
 
+from tests import doubles
 from tests.mocked import MockedTestCase
 from tests import doubles
 
@@ -189,4 +190,44 @@ class NetworksCollectionTestCase(MockedTestCase):
         rv = self.client.delete('/v1/networks/net-a')
         # verify
         self.assertEquals(rv.status_code, 404)
+
+
+class NetworksCollectionSortingTestCase(MockedTestCase):
+
+    def _net(self, **kwargs):
+        return doubles.make(self.mox, doubles.Network, **kwargs)
+
+    def test_all_sorts(self):
+        nets = [self._net(id=unicode(i), label='n%s'%i, project_id=None)
+                for i in (3, 1, 2)]
+        self.fake_client_set.compute.networks.list().AndReturn(nets)
+
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/networks/?sortby=id,name,vlan,cidr,project.name')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals([u'1', u'2', u'3'],
+                          [net['id'] for net in data['networks']])
+
+
+    def test_sorts_by_project_name(self):
+        nets = [
+            self._net(id='1', label='net1', project_id='pid1'),
+            self._net(id='3', label='net3', project_id=None),
+            self._net(id='2', label='net2', project_id='pid2')
+        ]
+        tenant1 = doubles.make(self.mox, doubles.Tenant, id='pid1', name='B')
+        tenant2 = doubles.make(self.mox, doubles.Tenant, id='pid2', name='A')
+
+        self.fake_client_set.compute.networks.list().AndReturn(nets)
+        self.fake_client_set.identity_admin.tenants.get(u'pid1').AndReturn(tenant1)
+        self.fake_client_set.identity_admin.tenants.get(u'pid2').AndReturn(tenant2)
+        expected_ids = [u'3', u'2', u'1'] if None < '' else [u'2', u'1', u'3']
+
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/networks/?sortby=project.name')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(expected_ids,
+                          [net['id'] for net in data['networks']])
 
