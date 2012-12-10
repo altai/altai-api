@@ -33,6 +33,28 @@ projects = Blueprint('projects', __name__)
 _MB = 1024 * 1024
 _GB = 1024 * 1024 * 1024
 
+
+def link_for_project(project_id, project_name=None):
+    """Make a link object for a project
+
+    If project_name is not provided, it is looked up in the identity_admin
+    and passes any exception it raises in case of error.
+
+    """
+    if project_name is None:
+        tenant = g.client_set.identity_admin.tenants.get(project_id)
+        project_name = tenant.name
+    return {
+        u'id': project_id,
+        u'name': project_name,
+        u'href': url_for('projects.get_project', project_id=project_id)
+    }
+
+def link_for_tenant(tenant):
+    """Make link object for project identified by tenant"""
+    return link_for_project(tenant.id, tenant.name)
+
+
 def _project_from_nova(tenant, net, quotaset):
     network = None if net is None else {
         u'id': net.id,
@@ -127,11 +149,7 @@ def get_project_stats(project_id):
                     if image.owner == tenant.id]
 
     return make_json_response({
-        u'project': {
-            u'id': tenant.id,
-            u'name': tenant.name,
-            u'href': url_for('projects.get_project', project_id=tenant.id)
-        },
+        u'project': link_for_tenant(tenant),
         u'vms': len(servers),
         u'members': len(users),
         u'local-images': len(local_images),

@@ -26,12 +26,73 @@ from openstackclient_base import exceptions as osc_exc
 from altai_api.collection import networks
 
 from tests.mocked import MockedTestCase
+from tests import doubles
+
+
+class NetConvertersTestCase(MockedTestCase):
+
+    def test_net_to_dict_works(self):
+        net = doubles.make(self.mox, doubles.Network,
+                           id='271',
+                           label='testnet',
+                           vlan=42,
+                           cidr='10.5.2.0/24',
+                           netmask='255.255.255.0',
+                           project_id='PID')
+        tenant = doubles.make(self.mox, doubles.Tenant,
+                              id='PID', name='ptest')
+        expected = {
+            'id': '271',
+            'href': '/v1/networks/271',
+            'name': 'testnet',
+            'vlan': 42,
+            'cidr': '10.5.2.0/24',
+            'used': True,
+            'project': {
+                u'href': '/v1/projects/PID',
+                u'id': 'PID',
+                u'name': 'ptest'
+            }
+        }
+
+        self.fake_client_set.identity_admin\
+                .tenants.get(u'PID').AndReturn(tenant)
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            data = networks._net_to_dict(net)
+        self.assertEquals(data, expected)
+
+    def test_net_to_dict_no_project(self):
+        net = doubles.make(self.mox, doubles.Network,
+                           id='271',
+                           label='testnet',
+                           vlan=42,
+                           cidr='10.5.2.0/24',
+                           netmask='255.255.255.0',
+                           project_id=None)
+        expected = {
+            'id': '271',
+            'href': '/v1/networks/271',
+            'name': 'testnet',
+            'vlan': 42,
+            'cidr': '10.5.2.0/24',
+            'used': False,
+        }
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            data = networks._net_to_dict(net)
+        self.assertEquals(data, expected)
+
 
 class NetworksCollectionTestCase(MockedTestCase):
 
     def setUp(self):
         super(NetworksCollectionTestCase, self).setUp()
-        self.mox.StubOutWithMock(networks, 'net_to_dict')
+        self.mox.StubOutWithMock(networks, '_net_to_dict')
 
     def post(self, data, expected_status_code=200):
         rv = self.client.post('/v1/networks/',
@@ -43,8 +104,8 @@ class NetworksCollectionTestCase(MockedTestCase):
     def test_list_networks_normally(self):
         self.fake_client_set.compute.networks.list() \
                 .AndReturn(['net-a', 'net-b'])
-        networks.net_to_dict('net-a').AndReturn('dict-a')
-        networks.net_to_dict('net-b').AndReturn('dict-b')
+        networks._net_to_dict('net-a').AndReturn('dict-a')
+        networks._net_to_dict('net-b').AndReturn('dict-b')
         expected = {
             'collection': {
                 'name': 'networks',
@@ -62,7 +123,7 @@ class NetworksCollectionTestCase(MockedTestCase):
     def test_get_network(self):
         # prepare
         self.fake_client_set.compute.networks.get('net-a').AndReturn('net-a')
-        networks.net_to_dict('net-a').AndReturn('dict-a')
+        networks._net_to_dict('net-a').AndReturn('dict-a')
         self.mox.ReplayAll()
         # test
         rv = self.client.get('/v1/networks/net-a')
@@ -84,7 +145,7 @@ class NetworksCollectionTestCase(MockedTestCase):
         (name, vlan, cidr) = ('net-name', 3301, 'ip/mask')
         self.fake_client_set.compute.networks.create(
             label=name, vlan_start=vlan, cidr=cidr).AndReturn(['new-net'])
-        networks.net_to_dict('new-net').AndReturn('new-net-dict')
+        networks._net_to_dict('new-net').AndReturn('new-net-dict')
         self.mox.ReplayAll()
 
         post_params = {"name": name, "vlan": vlan, "cidr": cidr}

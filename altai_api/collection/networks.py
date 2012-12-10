@@ -23,11 +23,12 @@ import flask
 from altai_api.utils import make_json_response, make_collection_response
 from altai_api.exceptions import UnknownElement, InvalidRequest
 from openstackclient_base import exceptions as osc_exc
+from altai_api.collection.projects import link_for_project
 
 networks = flask.Blueprint('networks', __name__)
 
 
-def net_to_dict(net):
+def _net_to_dict(net):
     """Convert novaclient.v1_1.Network resource to dict"""
     d = {}
     d["id"] = net.id
@@ -38,8 +39,7 @@ def net_to_dict(net):
 
     if net.project_id:
         d["used"] = True
-        # TODO(ipersky): implement this as <link> after Projects blueprint is ready
-        d["project"] = net.project_id
+        d["project"] = link_for_project(net.project_id)
     else:
         d["used"] = False
 
@@ -50,7 +50,7 @@ def net_to_dict(net):
 def list_networks():
     nets = flask.g.client_set.compute.networks.list()
     return make_collection_response(u'networks',
-                                    [net_to_dict(net) for net in nets])
+                                    [_net_to_dict(net) for net in nets])
 
 
 @networks.route('/<net_id>', methods=('GET',))
@@ -61,7 +61,7 @@ def get_network(net_id):
     except osc_exc.NotFound:
         flask.abort(404)
 
-    return make_json_response(net_to_dict(net))
+    return make_json_response(_net_to_dict(net))
 
 
 @networks.route('/', methods=('POST',))
@@ -88,7 +88,7 @@ def create_network():
         raise ValueError('Network created with strange result: %r' % new_net)
 
 
-    return make_json_response(net_to_dict(new_net))
+    return make_json_response(_net_to_dict(new_net))
 
 
 @networks.route('/<net_id>', methods=('DELETE',))

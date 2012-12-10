@@ -24,6 +24,7 @@ from flask import url_for, g, Blueprint, abort, request
 from altai_api.main import app
 from altai_api.utils import make_json_response, make_collection_response
 from altai_api.authentication import client_set_for_tenant
+from altai_api.collection.projects import link_for_tenant
 
 from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
@@ -43,11 +44,7 @@ def _sg_from_nova(sg, tenant):
         u'href': url_for('fw_rule_sets.get_fw_rule_set', fw_rule_set_id=sgid),
         u'name': sg.name,
         u'description': sg.description,
-        u'project': {
-            u'id': tenant.id,
-            u'name': tenant.name,
-            u'href': url_for('projects.get_project', project_id=tenant.id)
-        }
+        u'project': link_for_tenant(tenant)
     }
 
 
