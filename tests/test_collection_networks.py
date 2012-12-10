@@ -33,6 +33,13 @@ class NetworksCollectionTestCase(MockedTestCase):
         super(NetworksCollectionTestCase, self).setUp()
         self.mox.StubOutWithMock(networks, 'net_to_dict')
 
+    def post(self, data, expected_status_code=200):
+        rv = self.client.post('/v1/networks/',
+                              data=json.dumps(data),
+                              content_type='application/json')
+        return self.check_and_parse_response(
+                rv, status_code=expected_status_code)
+
     def test_list_networks_normally(self):
         self.fake_client_set.compute.networks.list() \
                 .AndReturn(['net-a', 'net-b'])
@@ -74,33 +81,34 @@ class NetworksCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv, status_code=404)
 
     def test_create_network(self):
-        # prepare
         (name, vlan, cidr) = ('net-name', 3301, 'ip/mask')
         self.fake_client_set.compute.networks.create(
-            label=name, vlan=vlan, cidr=cidr).AndReturn('new-net')
+            label=name, vlan_start=vlan, cidr=cidr).AndReturn(['new-net'])
         networks.net_to_dict('new-net').AndReturn('new-net-dict')
         self.mox.ReplayAll()
-        # test
+
         post_params = {"name": name, "vlan": vlan, "cidr": cidr}
-        rv = self.client.post('/v1/networks/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-        # verify
-        data = self.check_and_parse_response(rv)
+        data = self.post(post_params)
         self.assertEquals(data, 'new-net-dict')
+
+    def test_create_network_with_strange_result(self):
+        (name, vlan, cidr) = ('net-name', 3301, 'ip/mask')
+        self.fake_client_set.compute.networks.create(
+            label=name, vlan_start=vlan, cidr=cidr).AndReturn('new-net')
+        self.mox.ReplayAll()
+
+        post_params = {"name": name, "vlan": vlan, "cidr": cidr}
+        self.post(post_params, expected_status_code=500)
 
     def test_create_existing_network(self):
         (name, vlan, cidr) = ('net-name', 3301, 'ip/mask')
         self.fake_client_set.compute.networks.create(
-            label=name, vlan=vlan, cidr=cidr).AndRaise(osc_exc.BadRequest('fail'))
+            label=name, vlan_start=vlan, cidr=cidr).AndRaise(osc_exc.BadRequest('fail'))
 
         self.mox.ReplayAll()
 
         post_params = {"name": name, "vlan": vlan, "cidr": cidr}
-        rv = self.client.post('/v1/networks/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-        data = self.check_and_parse_response(rv, status_code=400)
+        self.post(post_params, expected_status_code=400)
 
     def test_delete_network(self):
         # prepare

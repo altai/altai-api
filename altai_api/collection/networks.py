@@ -76,9 +76,16 @@ def create_network():
                              " or invalid")
     # create network
     try:
-        new_net = client.compute.networks.create(label=name, vlan=vlan, cidr=cidr)
+        new_net = client.compute.networks.create(label=name,
+                                                 vlan_start=vlan,
+                                                 cidr=cidr)
     except osc_exc.BadRequest, e:
         raise InvalidRequest(str(e))
+
+    if isinstance(new_net, list) and len(new_net) == 1:
+        new_net = new_net[0]
+    else:
+        raise ValueError('Network created with strange result: %r' % new_net)
 
 
     return make_json_response(net_to_dict(new_net))
