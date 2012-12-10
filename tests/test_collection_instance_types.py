@@ -20,7 +20,7 @@
 # <http://www.gnu.org/licenses/>.
 
 import uuid
-from flask import url_for, json
+from flask import json
 
 import openstackclient_base.exceptions as osc_exc
 
@@ -89,25 +89,6 @@ class InstanceTypesToNovaTestCase(MockedTestCase):
         }
         self.assertRaises(exc.UnknownElement,
                           instance_types._instance_type_for_nova, data)
-
-
-class InstanceTypesWrongRequestsTestCase(TestCase):
-
-    def test_no_slash_redirects(self):
-        with self.app.test_request_context():
-            loc = url_for('instance_types.list_instance_types',
-                          _external=True)
-        rv = self.client.get('/v1/instance-types')
-        self.check_and_parse_response(rv, status_code=301)
-        self.assertEquals(loc, rv.headers['Location'])
-
-    def test_content_type_required(self):
-        content_type = 'application/x-www-form-urlencoded'
-        rv = self.client.post('/v1/instance-types/',
-                              content_type=content_type,
-                              data='some data')
-        data = self.check_and_parse_response(rv, status_code=400)
-        self.assertTrue(content_type in data.get('message'))
 
 
 class InstanceTypesListTestCase(MockedTestCase):

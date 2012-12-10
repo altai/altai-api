@@ -81,6 +81,9 @@ def check_request_headers():
             request.content_type or request.data):
         raise exc.InvalidRequest('Unsupported content type: %r'
                                  % request.content_type)
+    if request.method in ('POST', 'PUT') and (
+            not request.data or not isinstance(request.json, dict)):
+        raise exc.InvalidRequest('Bad %s request: object expected' % request.method)
     if any((key.lower().startswith('if-')
             for key in request.headers.iterkeys())):
         raise exc.InvalidRequest('Unsupported conditional header')
@@ -107,7 +110,7 @@ def setup_args_handling():
 
 
 def _check_unused_args_empty(response):
-    if not g.unused_args or response.status_code >= 400:
+    if not g.unused_args or response.status_code >= 300:
         return response
     # exception raised here will not be passed to handlers
     # so, to be consistent, we call handler directly

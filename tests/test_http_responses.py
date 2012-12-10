@@ -47,6 +47,20 @@ class HttpResponsesTestCase(TestCase):
                               content_type='invalid')
         self.check_and_parse_response(rv, status_code=400)
 
+    def test_no_empty_posts(self):
+        rv = self.client.post('/v1/instance-types/',
+                              content_type='application/json',
+                              data='')
+        data = self.check_and_parse_response(rv, status_code=400)
+        self.assertTrue('object expected' in data.get('message'))
+
+    def test_object_reuqired(self):
+        rv = self.client.post('/v1/instance-types/',
+                              content_type='application/json',
+                              data='[]')
+        data = self.check_and_parse_response(rv, status_code=400)
+        self.assertTrue('object expected' in data.get('message'))
+
     def test_limit_checked(self):
         rv = self.client.get('/v1/instance-types/?limit=limit-no-exist')
         data = self.check_and_parse_response(rv, status_code=400)
@@ -89,6 +103,22 @@ class HttpResponsesTestCase(TestCase):
     def test_except_checks_202(self):
         rv = self.client.get('/', headers={'Expect': '202-accepted'})
         self.check_and_parse_response(rv, status_code=417)
+
+    def test_no_slash_redirects(self):
+        with self.app.test_request_context():
+            loc = flask.url_for('instance_types.list_instance_types',
+                                _external=True)
+        rv = self.client.get('/v1/instance-types')
+        self.check_and_parse_response(rv, status_code=301)
+        self.assertEquals(loc, rv.headers['Location'])
+
+    def test_no_slash_redirects_with_args(self):
+        with self.app.test_request_context():
+            loc = flask.url_for('instance_types.list_instance_types',
+                                _external=True, sortby='name')
+        rv = self.client.get('/v1/instance-types?sortby=name')
+        self.check_and_parse_response(rv, status_code=301)
+        self.assertEquals(loc, rv.headers['Location'])
 
 
 class ExceptionsTestCase(TestCase):
