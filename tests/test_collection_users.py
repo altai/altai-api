@@ -147,6 +147,28 @@ class UsersCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'new-user-dict')
 
+    def test_create_admin(self):
+        client = self.fake_client_set
+        new_user = doubles.make(self.mox, doubles.User, id='NUID')
+
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        client.identity_admin.users.create(
+            name=name, password=passw, email=email).AndReturn(new_user)
+
+        # see doubles.py, near line 100 for role id and tenant id here
+        client.identity_admin.roles.add_user_role(
+            'NUID', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
+        users._user_from_nova(new_user).AndReturn('new-user-dict')
+
+        self.mox.ReplayAll()
+        post_params = {"name": name, "email": email,
+                       "password": passw, "admin": True }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'new-user-dict')
+
     def test_create_existing_user(self):
         client = self.fake_client_set
         # prepare
@@ -186,8 +208,7 @@ class UsersCollectionTestCase(MockedTestCase):
                        "name": name,
                        "email": email,
                        "password": passw,
-                       "fullname": fullname,
-                       "admin": False,
+                       "fullname": fullname
                       }
         rv = self.client.put('/v1/users/new-user',
                               data=json.dumps(post_params),
@@ -195,6 +216,77 @@ class UsersCollectionTestCase(MockedTestCase):
 
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'new-user-dict')
+
+    def test_update_user_not_found(self):
+        client = self.fake_client_set
+
+        (name, email, passw) = ('user-upd', 'user-upd@example.com', 'banana-upd')
+        client.identity_admin.users.get('new-user')\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        post_params = { "name": name, "email": email, "password": passw }
+        rv = self.client.put('/v1/users/new-user',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_update_grant_admin(self):
+        client = self.fake_client_set
+        uid = u'user-a'
+
+        user = doubles.make(self.mox, doubles.User, id=uid)
+        client.identity_admin.users.get(uid).AndReturn(user)
+        client.identity_admin.roles.add_user_role(
+            u'user-a', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
+        client.identity_admin.users.get(uid).AndReturn('same-user')
+        users._user_from_nova('same-user').AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        rv = self.client.put(u'/v1/users/%s' % uid,
+                             data=json.dumps({'admin': True}),
+                             content_type='application/json')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'REPLY')
+
+    def test_update_revoke_admin(self):
+        client = self.fake_client_set
+        uid = u'user-a'
+
+        user = doubles.make(self.mox, doubles.User, id=uid)
+        client.identity_admin.users.get(uid).AndReturn(user)
+        client.identity_admin.roles.remove_user_role(
+            u'user-a', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
+        client.identity_admin.users.get(uid).AndReturn('same-user')
+        users._user_from_nova('same-user').AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        rv = self.client.put(u'/v1/users/%s' % uid,
+                             data=json.dumps({'admin': False}),
+                             content_type='application/json')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'REPLY')
+
+    def test_update_revoke_admin_idemptent(self):
+        client = self.fake_client_set
+        uid = u'user-a'
+
+        user = doubles.make(self.mox, doubles.User, id=uid)
+        client.identity_admin.users.get(uid).AndReturn(user)
+        client.identity_admin.roles.remove_user_role(
+            u'user-a', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')\
+                .AndRaise(osc_exc.NotFound('failure'))
+        # raised, but nothing should happen
+        client.identity_admin.users.get(uid).AndReturn('same-user')
+        users._user_from_nova('same-user').AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        rv = self.client.put(u'/v1/users/%s' % uid,
+                             data=json.dumps({'admin': False}),
+                             content_type='application/json')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'REPLY')
 
     def test_delete_user(self):
         # prepare
@@ -214,5 +306,4 @@ class UsersCollectionTestCase(MockedTestCase):
         rv = self.client.delete('/v1/users/user-a')
         # verify
         self.assertEquals(rv.status_code, 404)
-
 

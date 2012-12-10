@@ -63,3 +63,27 @@ def client_set_for_tenant(tenant_id=None, tenant_name=None):
                      tenant_id=tenant_id,
                      auth_uri=app.config['KEYSTONE_URI'])
 
+def default_tenant_id():
+    """Returns ID of tenant named app.config['DEFAULT_TENANT']
+
+    Works only for authorized users
+
+    """
+    return g.client_set.http_client.access['token']['tenant']['id']
+
+def admin_role_id():
+    """Get ID of 'admin' role -- role of administrator of default tenant.
+
+    If client is not Altai administrator, she doesn't have this role and don't
+    need it's ID, so this function raises 403 HTTP error in this case.
+
+    """
+    access = g.client_set.http_client.access
+    admin_role_ids = [role['id']
+                      for role in access['user']['roles']
+                      if role['name'] == 'admin']
+    try:
+        return admin_role_ids[0]
+    except IndexError:
+        abort(403)
+

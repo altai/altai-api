@@ -19,11 +19,15 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from mox import MoxTestBase
-from tests import TestCase
+from tests.mocked import MockedTestCase
+
 from flask import g
+from flask import exceptions as flask_exc
 from base64 import b64encode
+
 from openstackclient_base.exceptions import Unauthorized
+
+
 import altai_api.authentication as _A
 
 
@@ -44,7 +48,7 @@ class Auth(object):
                 and self.password == other.password)
 
 
-class AuthenticationTestCase(TestCase, MoxTestBase):
+class AuthenticationTestCase(MockedTestCase):
     FAKE_AUTH = False
 
     def test_keystone_auth(self):
@@ -95,4 +99,37 @@ class AuthenticationTestCase(TestCase, MoxTestBase):
         })
         self.check_and_parse_response(rv, status_code=403)
         self.assertTrue('WWW-Authenticate' not in rv.headers)
+
+
+class AuthInfoTestCase(MockedTestCase):
+
+    def test_default_tenant_id(self):
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = _A.default_tenant_id()
+        # look at tests/mocked.py, near line 100
+        self.assertEquals(result, u'SYSTENANT_ID')
+
+    def test_admin_role_id(self):
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = _A.admin_role_id()
+        # look at tests/mocked.py, near line 100
+        self.assertEquals(result, u'ADMIN_ROLE_ID')
+
+    def test_admin_role_id_403(self):
+        # make roles empty
+        self.fake_client_set.http_client.access['user']['roles'] = []
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            try:
+                _A.admin_role_id()
+            except flask_exc.HTTPException, e:
+                self.assertEquals(e.code, 403)
+            else:
+                self.fail('Exception was not raised')
 

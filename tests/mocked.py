@@ -22,8 +22,12 @@
 """Mocked stuff like client set and helpers"""
 
 
+import datetime
+
 from tests import TestCase
 from mox import MoxTestBase
+
+from openstackclient_base.client import HttpClient
 
 from openstackclient_base.keystone.client import IdentityAdminClient
 from openstackclient_base.keystone.client import IdentityPublicClient
@@ -68,6 +72,11 @@ from glanceclient.v1 import images
 from glanceclient.v1 import image_members
 
 
+def _tomorrow():
+    return (datetime.datetime.now()
+            + datetime.timedelta(days=1)).isoformat()
+
+
 def mock_with_attributes(mox, object_type, **kwargs):
     """Create mock from object_type and set some attributes"""
 
@@ -76,12 +85,53 @@ def mock_with_attributes(mox, object_type, **kwargs):
         setattr(m, k, v)
     return m
 
+
 def mock_client_set(mox, aliases=False):
     """Create mocked ClientSet with mocked clients and managers"""
 
+    access = {
+        u'token': {
+            u'expires': _tomorrow(),
+            u'id': u'ACCESS_TOKEN_ID',
+            u'tenant': {
+                u'description': None,
+                u'enabled': True,
+                u'id': u'SYSTENANT_ID',
+                u'name': u'systenant'
+            }
+        },
+        u'serviceCatalog': [], # it's contents is irrelevant
+        u'user': {
+            u'username': u'admin',
+            u'roles_links': [],
+            u'id': u'ADMIN_USER_ID',
+            u'roles': [
+                {
+                    u'id': u'ADMIN_ROLE_ID',
+                    u'name': u'admin'
+                }
+            ],
+            u'name': u'admin'
+        }
+    }
+
     cs = mox.CreateMockAnything()
-    cs.volume = mox.CreateMock(VolumeClient)
-    cs.image = mox.CreateMock(ImageClient)
+
+    cs.http_client = mock_with_attributes(
+        mox, HttpClient,
+        USER_AGENT='python-openstackclient-base',
+        auth_uri='172.18.66.112:5000/v2.0',
+        callback=None,
+        connect_kwargs={},
+        endpoint=None,
+        password='topsecret',
+        region_name=None,
+        tenant_id=None,
+        tenant_name='systenant',
+        token=None,
+        use_ssl=False,
+        username='admin',
+        access=access)
 
     cs.identity_admin = mock_with_attributes(
         mox, IdentityAdminClient,

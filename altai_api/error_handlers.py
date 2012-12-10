@@ -28,7 +28,7 @@ the response entities.
 import sys, traceback
 
 from flask import request, g, url_for
-from openstackclient_base.exceptions import Unauthorized
+from openstackclient_base import exceptions as osc_exc
 
 from altai_api import exceptions as exc
 
@@ -41,7 +41,8 @@ def _exception_to_message(error):
     return '\n'.join(lines).strip()
 
 
-@app.errorhandler(Unauthorized)
+@app.errorhandler(osc_exc.Unauthorized)
+@app.errorhandler(403)
 def authentication_failed_handler(error):
     # TODO(imelnikov): log error
     return make_json_response({ 'message': 'Unauthorized.' },

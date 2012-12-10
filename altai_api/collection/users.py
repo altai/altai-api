@@ -25,6 +25,7 @@ from openstackclient_base import exceptions as osc_exc
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.exceptions import InvalidRequest
+from altai_api.authentication import default_tenant_id, admin_role_id
 
 from altai_api.collection.projects import link_for_project
 
@@ -52,6 +53,30 @@ def _user_from_nova(user):
         u'projects': projects,
         u'completed-registration': user.enabled,
     }
+
+
+def _grant_admin(user_id):
+    """Grant admin permission.
+
+    Add admin role with in admin tenant (aka systenant).
+
+    """
+    g.client_set.identity_admin.roles.add_user_role(
+        user_id, admin_role_id(), default_tenant_id())
+
+
+def _revoke_admin(user_id):
+    """Revoke admin permission.
+
+    Remove admin role in admin tenant (aka systenant).
+
+    """
+    try:
+        g.client_set.identity_admin.roles.remove_user_role(
+            user_id, admin_role_id(), default_tenant_id())
+    except osc_exc.NotFound:
+        pass # user was not admin
+
 
 
 @users.route('/', methods=('GET',))
@@ -90,7 +115,8 @@ def create_user():
             name=name, password=password, email=email)
         if fullname:
             g.client_set.identity_admin.users.update(new_user, fullname=fullname)
-        # TODO(ipersky): add admin role to systenant if 'admin' is set
+        if admin:
+            _grant_admin(new_user.id)
     except osc_exc.BadRequest, e:
         raise InvalidRequest(str(e))
 
@@ -116,11 +142,16 @@ def update_user(user_id):
         g.client_set.identity_admin.users.update_password(user,
                                                           param['password'])
     # update admin flag
-    # TODO(ipersky): correctly set 'admin' param
+    admin = param.get('admin')
+    if admin == True:
+        _grant_admin(user_id)
+    elif admin == False:
+        _revoke_admin(user_id)
 
     # get updated user
     user = g.client_set.identity_admin.users.get(user_id)
     return make_json_response(_user_from_nova(user))
+
 
 @users.route('/<user_id>', methods=('DELETE',))
 def delete_user(user_id):
@@ -129,4 +160,5 @@ def delete_user(user_id):
     except osc_exc.NotFound:
         abort(404)
     return make_json_response(None, status_code=204)
+
 
