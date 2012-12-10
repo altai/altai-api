@@ -20,15 +20,21 @@
 # <http://www.gnu.org/licenses/>.
 
 from openstackclient_base.nova.networks import Network
+
+from keystoneclient.v2_0.roles import Role
 from keystoneclient.v2_0.tenants import Tenant
-from novaclient.v1_1.quotas import QuotaSet
-from novaclient.v1_1.servers import Server
+from keystoneclient.v2_0.users import User
+
 from novaclient.v1_1.flavors import Flavor
-from glanceclient.v1.images import Image
-from novaclient.v1_1.security_groups import SecurityGroup
+from novaclient.v1_1.quotas import QuotaSet
 from novaclient.v1_1.security_group_rules import SecurityGroupRule
+from novaclient.v1_1.security_groups import SecurityGroup
+from novaclient.v1_1.servers import Server
+
+from glanceclient.v1.images import Image
 
 from tests.mocked import mock_with_attributes
+
 
 # INFO remembers data from several real-life objects
 
@@ -186,6 +192,23 @@ INFO = {
         u'parent_group_id': 5,
         u'ip_range': { u'cidr': u'10.20.30.0/24' },
         u'id': 3
+    },
+    User: {
+        u'id': u'42',
+        u'tenantId': u'6cd68209bf4846c9ad82538b602af120',
+        u'enabled': False,
+        u'name': u'user',
+        u'email': u'user@example.com'
+    },
+    Role: {
+        u'role': {
+            u'id': u'7cbae24a4c1b46849ae51784387f4257',
+            u'name': u'admin'
+        },
+        u'tenant': {
+            u'id': u'6cd68209bf4846c9ad82538b602af120',
+            u'name': u'TENANT'
+        }
     }
 }
 

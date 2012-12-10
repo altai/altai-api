@@ -21,19 +21,72 @@
 
 import json
 from openstackclient_base import exceptions as osc_exc
+
 from altai_api.collection import users
+
 from tests.mocked import MockedTestCase
+from tests import doubles
+
+
+class UserFromNovaTestCaset(MockedTestCase):
+    maxDiff = None
+
+    def test_user_from_nova_works(self):
+        user = doubles.make(self.mox, doubles.User,
+                            id=u'42', name=u'iv', email=u'iv@example.com',
+                            enabled=True)
+
+        user.list_roles().AndReturn([
+            doubles.make(self.mox, doubles.Role,
+                         role={'id': u'42', 'name': u'admin'},
+                         tenant={'id': 'SYS', 'name': 'systenant'}),
+            doubles.make(self.mox, doubles.Role,
+                         role={'id': u'43', 'name': u'member'},
+                         tenant={'id': 'PID', 'name': 'ptest'}),
+            doubles.make(self.mox, doubles.Role,
+                         role={'id': u'44', 'name': u'member'},
+                         tenant={'id': 'PID2', 'name': 'other'})
+        ])
+
+        expected = {
+            u'id': u'42',
+            u'name': u'iv',
+            u'href': u'/v1/users/42',
+            u'email': u'iv@example.com',
+            u'fullname': '',
+            u'admin': True,
+            u'projects': [
+                {
+                    u'id': 'PID',
+                    u'name': 'ptest',
+                    u'href': '/v1/projects/PID'
+                },
+                {
+                    u'id': 'PID2',
+                    u'name': 'other',
+                    u'href': '/v1/projects/PID2'
+                }
+            ],
+            u'completed-registration': True
+        }
+
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            data = users._user_from_nova(user)
+        self.assertEquals(data, expected)
+
 
 class UsersCollectionTestCase(MockedTestCase):
 
     def setUp(self):
         super(UsersCollectionTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_to_dict')
+        self.mox.StubOutWithMock(users, '_user_from_nova')
 
     def test_list_users(self):
         self.fake_client_set.identity_admin.users.list().AndReturn(['user-a', 'user-b'])
-        users.user_to_dict('user-a').AndReturn('dict-a')
-        users.user_to_dict('user-b').AndReturn('dict-b')
+        users._user_from_nova('user-a').AndReturn('dict-a')
+        users._user_from_nova('user-b').AndReturn('dict-b')
         expected = {
             'collection': {
                 'name': 'users',
@@ -51,7 +104,7 @@ class UsersCollectionTestCase(MockedTestCase):
     def test_get_user(self):
         # prepare
         self.fake_client_set.identity_admin.users.get('user-a').AndReturn('user-a')
-        users.user_to_dict('user-a').AndReturn('dict-a')
+        users._user_from_nova('user-a').AndReturn('dict-a')
         self.mox.ReplayAll()
         # test
         rv = self.client.get('/v1/users/user-a')
@@ -77,7 +130,7 @@ class UsersCollectionTestCase(MockedTestCase):
         client.identity_admin.users.create(
             name=name, password=passw, email=email).AndReturn('new-user')
         client.identity_admin.users.update('new-user', fullname=fullname)
-        users.user_to_dict('new-user').AndReturn('new-user-dict')
+        users._user_from_nova('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
         # test
         post_params = {
@@ -126,7 +179,7 @@ class UsersCollectionTestCase(MockedTestCase):
                                            fullname=fullname).AndReturn('new-user')
         client.identity_admin.users.update_password('new-user', passw).AndReturn('new-user')
         client.identity_admin.users.get('new-user').AndReturn('new-user')
-        users.user_to_dict('new-user').AndReturn('new-user-dict')
+        users._user_from_nova('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
         # test
         post_params = {

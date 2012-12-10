@@ -21,33 +21,38 @@
 
 from flask import Blueprint, g, url_for, abort, request
 from openstackclient_base import exceptions as osc_exc
+
+from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.exceptions import InvalidRequest
-from altai_api.main import app
+
+from altai_api.collection.projects import link_for_project
 
 users = Blueprint('users', __name__)
 
-def is_admin(user):
-    return any(x.role["name"].lower() == 'admin'
-               and x.tenant["name"] == app.config['DEFAULT_TENANT']
-               for x in user.list_roles())
 
-def _projects_for_user(user):
-    # TODO(ipersky): implement
-    return []
+def _user_from_nova(user):
+    systenant = app.config['DEFAULT_TENANT']
+    roles = user.list_roles()
 
-def user_to_dict(user):
+    projects = [link_for_project(r.tenant['id'], r.tenant['name'])
+                for r in roles
+                if r.tenant['name'] != systenant]
+
+    is_admin = any((r.role["name"].lower() == 'admin'
+                    for r in roles
+                    if r.tenant['name'] == systenant))
     return {
         u'id': user.id,
         u'href': url_for('users.get_user', user_id=user.id),
         u'name': user.name,
         u'email': user.email,
         u'fullname': user.fullname if hasattr(user, 'fullname') else '',
-        u'admin': is_admin(user),
-        # TODO(ipersky): implement
-        u'projects': _projects_for_user(user),
+        u'admin': is_admin,
+        u'projects': projects,
         u'completed-registration': user.enabled,
     }
+
 
 @users.route('/', methods=('GET',))
 def list_users():
@@ -57,7 +62,7 @@ def list_users():
             'name': 'users',
             'size': len(users)
         },
-        'users': [user_to_dict(user) for user in users]
+        'users': [_user_from_nova(user) for user in users]
     })
 
 @users.route('/<user_id>', methods=('GET',))
@@ -66,7 +71,7 @@ def get_user(user_id):
         user = g.client_set.identity_admin.users.get(user_id)
     except osc_exc.NotFound:
         abort(404)
-    return make_json_response(user_to_dict(user))
+    return make_json_response(_user_from_nova(user))
 
 @users.route('/', methods=('POST',))
 def create_user():
@@ -89,7 +94,7 @@ def create_user():
     except osc_exc.BadRequest, e:
         raise InvalidRequest(str(e))
 
-    return make_json_response(user_to_dict(new_user))
+    return make_json_response(_user_from_nova(new_user))
 
 @users.route('/<user_id>', methods=('PUT',))
 def update_user(user_id):
@@ -115,7 +120,7 @@ def update_user(user_id):
 
     # get updated user
     user = g.client_set.identity_admin.users.get(user_id)
-    return make_json_response(user_to_dict(user))
+    return make_json_response(_user_from_nova(user))
 
 @users.route('/<user_id>', methods=('DELETE',))
 def delete_user(user_id):
