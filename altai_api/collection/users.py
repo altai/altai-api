@@ -24,6 +24,7 @@ from openstackclient_base import exceptions as osc_exc
 
 from altai_api.main import app
 from altai_api.utils import make_json_response
+from altai_api.utils import make_collection_response, setup_sorting
 from altai_api.exceptions import InvalidRequest
 from altai_api.authentication import default_tenant_id, admin_role_id
 
@@ -78,17 +79,14 @@ def _revoke_admin(user_id):
         pass # user was not admin
 
 
-
 @users.route('/', methods=('GET',))
 def list_users():
+    setup_sorting(('id', 'name', 'fullname', 'email',
+                   'admin', 'completed-registration'))
     users = g.client_set.identity_admin.users.list()
-    return make_json_response({
-        'collection': {
-            'name': 'users',
-            'size': len(users)
-        },
-        'users': [_user_from_nova(user) for user in users]
-    })
+    return make_collection_response(u'users',
+                                    [_user_from_nova(user) for user in users])
+
 
 @users.route('/<user_id>', methods=('GET',))
 def get_user(user_id):
