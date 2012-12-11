@@ -130,6 +130,7 @@ def not_found_handler(error):
     }
     return make_json_response(response, status_code=error.code)
 
+
 @app.errorhandler(405)
 def method_not_allowed_handler(error):
     response = {
@@ -138,6 +139,7 @@ def method_not_allowed_handler(error):
         'message': 'Method not allowed for resource.'
     }
     return make_json_response(response, status_code=error.code)
+
 
 @app.errorhandler(301)
 def redirect_handler(error):
@@ -150,10 +152,23 @@ def redirect_handler(error):
                               status_code=error.code,
                               location=error.new_url)
 
+
+@app.errorhandler(411)
+def length_required_handler(error):
+    response = {
+        'path': request.path,
+        'method': request.method,
+        'message': 'Content-Length required for this request.'
+    }
+    return make_json_response(response,
+                              status_code=error.code)
+
+
 @app.errorhandler(417)
 def expectation_failed_handler(error):
     response = {
         'path': request.path,
+        'method': request.method,
         'message': 'Unsupported client expectations.'
     }
     return make_json_response(response,

@@ -93,6 +93,34 @@ def check_request_headers():
     if request.accept_charsets and 'utf-8' not in request.accept_charsets:
         raise exc.InvalidRequest('Unsupported reply charset: %s'
                                  % request.accept_charsets)
+    if any((key.lower().startswith('if-')
+            for key in request.headers.iterkeys())):
+        raise exc.InvalidRequest('Unsupported conditional header')
+    if not _is_data_request():
+        # this two functions raise or abort on error:
+        _check_request_content()
+        _check_request_expectations()
+    return None
+
+
+def _is_data_request():
+    """Whether current request is data request
+
+    Data requests need special processing and their handlers check
+    request content and headers themselves.
+
+    """
+    return all((request.method == 'PUT',
+                request.content_type == 'application/octet-stream',
+                request.path.endswith('/data')))
+
+
+def _check_request_content():
+    """Validates request content type and data
+
+    If request has a body, it must be a JSON object.
+
+    """
     if request.content_type != _JSON and (
             request.content_type or request.data):
         raise exc.InvalidRequest('Unsupported content type: %r'
@@ -101,16 +129,12 @@ def check_request_headers():
             not request.data or not isinstance(request.json, dict)):
         raise exc.InvalidRequest('Bad %s request: object expected'
                                  % request.method)
-    if any((key.lower().startswith('if-')
-            for key in request.headers.iterkeys())):
-        raise exc.InvalidRequest('Unsupported conditional header')
-    expect = request.headers.get('Expect')
-    if expect is not None:
-        code = expect[:4]
-        if code != '200-' and not (code == '204-'
-                                   and request.method == 'DELETE'):
-            abort(417)
-    return None
+
+def _check_request_expectations():
+    expect = request.headers.get('Expect', '')[:4]
+    if expect and expect != '200-' and not (
+            expect == '204-' and request.method == 'DELETE'):
+        abort(417)
 
 
 def setup_args_handling():

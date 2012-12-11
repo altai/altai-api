@@ -72,7 +72,8 @@ _mount_collections((
     ('fw_rules', '/v1/fw-rule-sets/<fw_rule_set_id>/rules'),
     ('users', '/v1/users'),
     ('vms', '/v1/vms'),
-    ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets')
+    ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
+    ('images', '/v1/images')
 ))
 
 
