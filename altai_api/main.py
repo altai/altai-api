@@ -62,6 +62,9 @@ from altai_api.collection.instance_types import instance_types
 app.register_blueprint(instance_types, url_prefix='/v1/instance-types')
 from altai_api.collection.projects import projects
 app.register_blueprint(projects, url_prefix='/v1/projects')
+from altai_api.collection.project_users import project_users
+app.register_blueprint(
+    project_users, url_prefix='/v1/projects/<project_id>/users')
 from altai_api.collection.fw_rule_sets import fw_rule_sets
 app.register_blueprint(fw_rule_sets, url_prefix='/v1/fw-rule-sets')
 from altai_api.collection.fw_rules import fw_rules
@@ -69,6 +72,7 @@ app.register_blueprint(
     fw_rules, url_prefix='/v1/fw-rule-sets/<fw_rule_set_id>/rules')
 from altai_api.collection.users import users
 app.register_blueprint(users, url_prefix='/v1/users')
+
 
 
 def main():

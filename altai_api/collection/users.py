@@ -33,6 +33,22 @@ from altai_api.collection.projects import link_for_project
 users = Blueprint('users', __name__)
 
 
+def link_for_user(user):
+    return {
+        u'id': user.id,
+        u'name': user.name,
+        u'href': url_for('users.get_user', user_id=user.id)
+    }
+
+
+def fetch_user(user_id):
+    try:
+        return g.client_set.identity_admin.users.get(user_id)
+    except osc_exc.NotFound:
+        abort(404)
+
+
+
 def _user_from_nova(user):
     systenant = app.config['DEFAULT_TENANT']
     roles = user.list_roles()
@@ -90,11 +106,9 @@ def list_users():
 
 @users.route('/<user_id>', methods=('GET',))
 def get_user(user_id):
-    try:
-        user = g.client_set.identity_admin.users.get(user_id)
-    except osc_exc.NotFound:
-        abort(404)
+    user = fetch_user(user_id)
     return make_json_response(_user_from_nova(user))
+
 
 @users.route('/', methods=('POST',))
 def create_user():
@@ -122,12 +136,9 @@ def create_user():
 
 @users.route('/<user_id>', methods=('PUT',))
 def update_user(user_id):
-    try:
-        user = g.client_set.identity_admin.users.get(user_id)
-    except osc_exc.NotFound:
-        abort(404)
-
+    user = fetch_user(user_id)
     param = request.json
+ 
     fields_to_update = {}
     # update name, email, fullname
     for key in ('name', 'email', 'fullname'):

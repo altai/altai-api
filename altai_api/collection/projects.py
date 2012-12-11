@@ -100,7 +100,7 @@ def _servers_for_project(project_id):
     })
 
 
-def _get_tenant(project_id):
+def get_tenant(project_id):
     try:
         tenant = g.client_set.identity_admin.tenants.get(project_id)
     except osc_exc.NotFound:
@@ -114,7 +114,7 @@ def _get_tenant(project_id):
 
 @projects.route('/<project_id>', methods=('GET',))
 def get_project(project_id):
-    tenant = _get_tenant(project_id)
+    tenant = get_tenant(project_id)
     net = _network_for_project(project_id)
     quotaset = _quotaset_for_project(project_id)
 
@@ -140,7 +140,7 @@ def list_projects():
 
 @projects.route('/<project_id>/stats', methods=('GET',))
 def get_project_stats(project_id):
-    tenant = _get_tenant(project_id)
+    tenant = get_tenant(project_id)
 
     users = tenant.list_users()
     servers = _servers_for_project(tenant.id)
@@ -190,7 +190,7 @@ def create_project():
 
 @projects.route('/<project_id>', methods=('DELETE',))
 def delete_project(project_id):
-    tenant = _get_tenant(project_id)
+    tenant = get_tenant(project_id)
 
     # kill all vms
     for server in _servers_for_project(tenant.id):
@@ -209,7 +209,7 @@ def delete_project(project_id):
 @projects.route('/<project_id>', methods=('PUT',))
 def update_project(project_id):
     data = request.json
-    tenant = _get_tenant(project_id)
+    tenant = get_tenant(project_id)
 
     tenant = tenant.update(
         name=data.get('name', tenant.name),
