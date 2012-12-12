@@ -31,6 +31,7 @@ from altai_api import exceptions as exc
 from altai_api.utils import make_json_response, make_collection_response
 from altai_api.utils import int_from_string, int_from_user
 from altai_api.utils import _parse_sortby, _apply_sortby
+from altai_api.utils import timestamp_from_openstack
 
 
 class MakeResponseTestCase(TestCase):
@@ -301,4 +302,34 @@ class SortByTestCase(unittest.TestCase):
         ]
         sortby = _parse_sortby('first,second:desc', self.allowed)
         self.assertEquals(result, _apply_sortby(sortby, victim))
+
+
+class TimestampFromOpenstackTestCase(unittest.TestCase):
+
+    def test_timestamp_can_be_parsed(self):
+        value = "2012-09-13T15:00:42Z"
+        expected = datetime(2012, 9, 13, 15, 0, 42)
+        self.assertEquals(expected,
+                          timestamp_from_openstack(value))
+
+    def test_timestamp_without_zone_can_be_parsed(self):
+        value = "2012-09-13T15:00:42"
+        expected = datetime(2012, 9, 13, 15, 0, 42)
+        self.assertEquals(expected,
+                          timestamp_from_openstack(value))
+
+    def test_timestamp_with_microseconds_can_be_parsed(self):
+        value = "2012-09-13T15:00:42.000Z"
+        expected = datetime(2012, 9, 13, 15, 0, 42)
+        self.assertEquals(expected,
+                          timestamp_from_openstack(value))
+
+    def test_invalid_timestamp_shall_not_pass(self):
+        value = "2012-09-13T15:00:42ZZ"
+        self.assertRaises(ValueError,
+                          timestamp_from_openstack, value)
+
+    def test_invalid_type_rejected(self):
+        self.assertRaises(TypeError,
+                          timestamp_from_openstack, 42)
 

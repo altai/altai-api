@@ -160,6 +160,30 @@ def _apply_pagination_and_sorting(result):
     return result
 
 
+
+_OS_TIMESTAMP_FORMATS = (
+    # NOTE(imelnikov): git grep strftime enlightenes
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%SZ",
+    "%Y-%m-%dT%H:%M:%S.000Z"
+)
+
+def timestamp_from_openstack(date):
+    """Parse date from a string OpenStack gave us.
+
+    OpenStack API may give us strings in several formats.
+
+    """
+    if not isinstance(date, basestring):
+        raise TypeError('%r is not a date value' % date)
+    for fmt in _OS_TIMESTAMP_FORMATS:
+        try:
+            return datetime.strptime(date, fmt)
+        except ValueError:
+            pass
+    raise ValueError('Invalid timestamp: %r' % date)
+
+
 def _raise(value, on_error):
     if callable(on_error):
         on_error(value)
