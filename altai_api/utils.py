@@ -23,6 +23,7 @@
 """
 
 from flask import json, request, abort, g, after_this_request
+from datetime import datetime
 
 import altai_api
 
@@ -35,15 +36,30 @@ from altai_api import exceptions as exc
 _JSON = 'application/json'
 _IMPELEMENTATION = 'Altai API service v%s' % altai_api.__version__
 
+_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+
+def _json_default(obj):
+    """A function that we use as default= parameter for json.dumps
+
+    Now it just adds serialization of datetime.datetime
+
+    """
+    if isinstance(obj, datetime):
+        return obj.strftime(_TIMESTAMP_FORMAT)
+    raise TypeError('%r is not JSON serializable' % obj)
+
 
 def make_json_response(data, status_code=200, location=None):
     """Make json response from response data.
     """
     if data is not None:
         if app.config.get('PRETTY_PRINT_JSON'):
-            data = json.dumps(data, indent=4, sort_keys=True)
+            data = json.dumps(data, indent=4, sort_keys=True,
+                              default=_json_default)
+            data += '\n'
         else:
-            data = json.dumps(data, separators=(',',':'))
+            data = json.dumps(data, separators=(',',':'),
+                              default=_json_default)
     else:
         data = ""
     response = app.make_response((data, status_code))

@@ -23,8 +23,9 @@ import sys
 import unittest
 import flask
 
-from tests import TestCase
+from datetime import datetime
 
+from tests import TestCase
 from altai_api import exceptions as exc
 
 from altai_api.utils import make_json_response, make_collection_response
@@ -54,10 +55,22 @@ class MakeResponseTestCase(TestCase):
         self.app.config['PRETTY_PRINT_JSON'] = True
 
         resp = make_json_response({'one': 1})
-        self.assertEquals(resp.data, '{\n    "one": 1\n}')
+        self.assertEquals(resp.data, '{\n    "one": 1\n}\n')
         self.assertEquals(resp.status_code, 200)
         self.assertEquals(resp.headers.get('Content-type'),
                           'application/json')
+
+    def test_dates_in_response(self):
+        self.app.config['PRETTY_PRINT_JSON'] = False
+        timestamp = datetime(2012, 9, 13, 15, 03, 42)
+        resp = make_json_response({'created':timestamp})
+        self.assertEquals(resp.data, '{"created":"2012-09-13T15:03:42Z"}')
+
+    def test_dates_in_pretty_response(self):
+        self.app.config['PRETTY_PRINT_JSON'] = True
+        timestamp = datetime(2012, 9, 13, 15, 03, 42)
+        resp = make_json_response({'created':timestamp})
+        self.assertTrue('"2012-09-13T15:03:42Z"' in resp.data)
 
 
 class IntParseAndCheckTestCase(unittest.TestCase):
