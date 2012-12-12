@@ -218,6 +218,72 @@ INFO = {
             u'id': u'6cd68209bf4846c9ad82538b602af120',
             u'name': u'TENANT'
         }
+    },
+    Server: {
+        #u'OS-EXT-STS:vm_state': u'building',
+        #u'OS-EXT-SRV-ATTR:instance_name': u'instance-00000001',
+        #u'OS-EXT-STS:task_state': u'spawning',
+        #u'OS-DCF:diskConfig': u'MANUAL',
+        #u'OS-EXT-STS:power_state': 0,
+        #u'OS-EXT-SRV-ATTR:host': u'test',
+        #u'OS-EXT-SRV-ATTR:hypervisor_hostname': None,
+        u'id': u'7ce6269b-76fb-488f-ab23-bd72e2289161',
+        u'name': u't1',
+        u'user_id': u'adbf4849f0554bddbfa9e08923f1f79b',
+        u'tenant_id': u'3148e35190904805b26ee128fb856b69',
+        u'addresses': {
+            u'net42': [
+                {
+                    u'version': 4,
+                    u'addr': u'10.5.1.3'
+                }
+            ]
+        },
+        u'accessIPv4': u'',
+        u'accessIPv6': u'',
+        u'links': [
+            {
+                u'rel': u'self',
+                u'href': u'http://172.18.66.112:8774/v2/'
+                        '6cd68209bf4846c9ad82538b602af120/servers/'
+                        '7ce6269b-76fb-488f-ab23-bd72e2289161'
+            },
+            {
+                u'href': u'http://172.18.66.112:8774/'
+                        '6cd68209bf4846c9ad82538b602af120/servers/'
+                        '7ce6269b-76fb-488f-ab23-bd72e2289161',
+                u'rel': u'bookmark'
+            }
+        ],
+        u'image': {
+            u'id': u'27307cfa-7c2b-4b3d-ab8e-f0d462426faa',
+            u'links': [
+                {
+                    u'href': u'http://172.18.66.112:8774/'
+                            '6cd68209bf4846c9ad82538b602af120/images/'
+                            '27307cfa-7c2b-4b3d-ab8e-f0d462426faa',
+                    u'rel': u'bookmark'
+                }
+            ]
+        },
+        u'flavor': {
+            u'id': u'1',
+            u'links': [
+                {
+                    u'href': u'http://172.18.66.112:8774/'
+                            '6cd68209bf4846c9ad82538b602af120/flavors/1',
+                    u'rel': u'bookmark'
+                }
+            ]
+        },
+        u'progress': 0,
+        u'config_drive': u'',
+        u'status': u'BUILD',
+        u'updated': u'2012-12-12T06:20:37Z',
+        u'hostId': u'6186525952c6568e1f6f5ae666c64baac9a595c5c3da17e869faa3ea',
+        u'key_name': u'',
+        u'created': u'2012-12-12T06:20:27Z',
+        u'metadata': {}
     }
 }
 

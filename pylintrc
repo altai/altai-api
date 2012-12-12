@@ -27,7 +27,7 @@ method-rgx=([a-z_][a-z0-9_]{2,50}|setUp|tearDown)$
 module-rgx=[a-z_][a-z0-9_]*$
 
 # Module-scope variables: allow lowercase names for blueprins and app
-const-rgx=(([a-z][a-z_]{2,14}[a-z])|([A-Z_][A-Z0-9_]*)|(__.*__))$
+const-rgx=(([a-z][a-z_]{1,14}[a-z])|([A-Z_][A-Z0-9_]*)|(__.*__))$
 
 # Don't require docstrings on tests.
 no-docstring-rgx=((__.*__)|([tT]est.*)|setUp|tearDown)$

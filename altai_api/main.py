@@ -72,6 +72,8 @@ app.register_blueprint(
     fw_rules, url_prefix='/v1/fw-rule-sets/<fw_rule_set_id>/rules')
 from altai_api.collection.users import users
 app.register_blueprint(users, url_prefix='/v1/users')
+from altai_api.collection.vms import vms
+app.register_blueprint(vms, url_prefix='/v1/vms')
 
 
 
