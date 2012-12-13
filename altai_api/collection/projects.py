@@ -19,15 +19,15 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-import itertools
 from flask import url_for, g, Blueprint, abort, request
 
+import openstackclient_base.exceptions as osc_exc
 from altai_api import exceptions as exc
+
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
 from altai_api.authentication import client_set_for_tenant
-import openstackclient_base.exceptions as osc_exc
 
 projects = Blueprint('projects', __name__)
 

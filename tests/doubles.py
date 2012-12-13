@@ -123,7 +123,8 @@ INFO = {
             u'id': u'1',
             u'links': [
                 {
-                    u'href': u'http://172.18.66.112:8774/6cd68209bf4846c9ad82538b602af120/flavors/1',
+                    u'href': u'http://localhost:8774/'
+                            '6cd68209bf4846c9ad82538b602af120/flavors/1',
                     u'rel': u'bookmark'
                 } ] },
         u'hostId': u'3a360c741b76e0e337c80f88c1bdec28e25821b4810b29f76dad2af2',
@@ -132,17 +133,23 @@ INFO = {
             u'id': u'9c943146-dfa1-4585-93ac-086739ac271c',
             u'links': [
                 {
-                    u'href': u'http://172.18.66.112:8774/6cd68209bf4846c9ad82538b602af120/images/9c943146-dfa1-4585-93ac-086739ac271c',
+                    u'href': u'http://localhost:8774/'
+                            '6cd68209bf4846c9ad82538b602af120/images/'
+                            '9c943146-dfa1-4585-93ac-086739ac271c',
                     u'rel': u'bookmark'
                 } ] },
         u'key_name': u'',
         u'links': [
             {
-                u'href': u'http://172.18.66.112:8774/v2/6cd68209bf4846c9ad82538b602af120/servers/586b3c69-ba81-493e-b8cc-1f5abde3d486',
+                u'href': u'http://localhost:8774/v2/'
+                            '6cd68209bf4846c9ad82538b602af120/servers/'
+                            '586b3c69-ba81-493e-b8cc-1f5abde3d486',
                 u'rel': u'self'
             },
             {
-                u'href': u'http://172.18.66.112:8774/6cd68209bf4846c9ad82538b602af120/servers/586b3c69-ba81-493e-b8cc-1f5abde3d486',
+                u'href': u'http://localhost:8774/'
+                            '6cd68209bf4846c9ad82538b602af120/servers/'
+                            '586b3c69-ba81-493e-b8cc-1f5abde3d486',
                 u'rel': u'bookmark'
             }
         ],
@@ -163,11 +170,13 @@ INFO = {
         u'id': u'1',
         u'links': [
             {
-                u'href': u'http://172.18.66.112:8774/v2/6cd68209bf4846c9ad82538b602af120/flavors/1',
+                u'href': u'http://localhost:8774/v2/'
+                            '6cd68209bf4846c9ad82538b602af120/flavors/1',
                 u'rel': u'self'
             },
             {
-                u'href': u'http://172.18.66.112:8774/6cd68209bf4846c9ad82538b602af120/flavors/1',
+                u'href': u'http://localhost:8774/'
+                            '6cd68209bf4846c9ad82538b602af120/flavors/1',
                 u'rel': u'bookmark'
             }
         ],

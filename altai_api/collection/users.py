@@ -30,8 +30,8 @@ from altai_api.authentication import default_tenant_id, admin_role_id
 
 from altai_api.collection.projects import link_for_project
 
-users = Blueprint('users', __name__)
 
+users = Blueprint('users', __name__)
 
 def link_for_user(user):
     return {
@@ -65,7 +65,7 @@ def _user_from_nova(user):
         u'href': url_for('users.get_user', user_id=user.id),
         u'name': user.name,
         u'email': user.email,
-        u'fullname': user.fullname if hasattr(user, 'fullname') else '',
+        u'fullname': getattr(user, 'fullname', ''),
         u'admin': is_admin,
         u'projects': projects,
         u'completed-registration': user.enabled,
@@ -99,9 +99,9 @@ def _revoke_admin(user_id):
 def list_users():
     setup_sorting(('id', 'name', 'fullname', 'email',
                    'admin', 'completed-registration'))
-    users = g.client_set.identity_admin.users.list()
-    return make_collection_response(u'users',
-                                    [_user_from_nova(user) for user in users])
+    user_mgr = g.client_set.identity_admin.users
+    return make_collection_response(u'users', [_user_from_nova(user)
+                                               for user in user_mgr.list()])
 
 
 @users.route('/<user_id>', methods=('GET',))
@@ -123,10 +123,11 @@ def create_user():
         raise InvalidRequest("One of params is missing or invalid")
     # create user
     try:
-        new_user = g.client_set.identity_admin.users.create(
+        user_mgr = g.client_set.identity_admin.users
+        new_user = user_mgr.create(
             name=name, password=password, email=email)
         if fullname:
-            g.client_set.identity_admin.users.update(new_user, fullname=fullname)
+            user_mgr.update(new_user, fullname=fullname)
         if admin:
             _grant_admin(new_user.id)
     except osc_exc.BadRequest, e:
@@ -134,22 +135,24 @@ def create_user():
 
     return make_json_response(_user_from_nova(new_user))
 
+
 @users.route('/<user_id>', methods=('PUT',))
 def update_user(user_id):
     user = fetch_user(user_id)
     param = request.json
- 
+    user_mgr = g.client_set.identity_admin.users
+
+
     fields_to_update = {}
     # update name, email, fullname
     for key in ('name', 'email', 'fullname'):
         if key in param:
             fields_to_update[key] = param[key]
-    if len(fields_to_update):
-        g.client_set.identity_admin.users.update(user, **fields_to_update)
+    if fields_to_update:
+        user_mgr.update(user, **fields_to_update)
     # update password
     if 'password' in param:
-        g.client_set.identity_admin.users.update_password(user,
-                                                          param['password'])
+        user_mgr.update_password(user, param['password'])
     # update admin flag
     admin = param.get('admin')
     if admin == True:
@@ -158,7 +161,7 @@ def update_user(user_id):
         _revoke_admin(user_id)
 
     # get updated user
-    user = g.client_set.identity_admin.users.get(user_id)
+    user = user_mgr.get(user_id)
     return make_json_response(_user_from_nova(user))
 
 

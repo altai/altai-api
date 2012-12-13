@@ -206,7 +206,8 @@ class SortByTestCase(unittest.TestCase):
         self.assertEquals(sortby[0][1], True)
 
     def test_invalid_direction_raises(self):
-        self.assertRaises(exc.InvalidRequest, _parse_sortby, 'first:i am bad', self.allowed)
+        self.assertRaises(exc.InvalidRequest, _parse_sortby,
+                          'first:i am bad', self.allowed)
 
     def test_invalid_parameter_raises(self):
         self.assertRaises(exc.InvalidRequest, _parse_sortby,

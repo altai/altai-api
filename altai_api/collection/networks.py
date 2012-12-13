@@ -22,7 +22,7 @@
 import flask
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
-from altai_api.exceptions import UnknownElement, InvalidRequest
+from altai_api.exceptions import InvalidRequest
 from openstackclient_base import exceptions as osc_exc
 from altai_api.collection.projects import link_for_project
 

@@ -162,7 +162,8 @@ class FwRulesTestCase(MockedTestCase):
         self.fake_client_set.compute.security_group_rules.delete(ruleid)
 
         self.mox.ReplayAll()
-        rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s' % (sg.id, ruleid))
+        rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s'
+                                % (sg.id, ruleid))
         self.check_and_parse_response(rv, 204)
 
     def test_delete_group_not_found(self):
@@ -186,7 +187,8 @@ class FwRulesTestCase(MockedTestCase):
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
 
         self.mox.ReplayAll()
-        rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s' % (sg.id, ruleid))
+        rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s'
+                                % (sg.id, ruleid))
         self.check_and_parse_response(rv, 404)
 
 

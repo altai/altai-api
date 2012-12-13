@@ -19,15 +19,12 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from tests.mocked import MockedTestCase
-
-from flask import g
 from flask import exceptions as flask_exc
 from base64 import b64encode
 
 from openstackclient_base.exceptions import Unauthorized
 
-
+from tests.mocked import MockedTestCase
 import altai_api.authentication as _A
 
 

@@ -27,7 +27,7 @@ the response entities.
 
 import sys, traceback
 
-from flask import request, g, url_for
+from flask import request, url_for
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api import exceptions as exc

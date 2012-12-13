@@ -200,8 +200,6 @@ class CreateFwRuleSetTestCase(MockedTestCase):
             'name': u'Test SG',
             'description': u'Description'
         }
-
-        tcs = mock_client_set(self.mox)
         self.fake_client_set.identity_admin.tenants\
                 .get(u'TENANT').AndRaise(osc_exc.NotFound('failure'))
 

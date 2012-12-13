@@ -34,7 +34,7 @@ class UserFromNovaTestCaset(MockedTestCase):
     def test_user_from_nova_works(self):
         user = doubles.make(self.mox, doubles.User,
                             id=u'42', name=u'iv', email=u'iv@example.com',
-                            enabled=True)
+                            fullname=u'Example User', enabled=True)
 
         user.list_roles().AndReturn([
             doubles.make(self.mox, doubles.Role,
@@ -53,7 +53,7 @@ class UserFromNovaTestCaset(MockedTestCase):
             u'name': u'iv',
             u'href': u'/v1/users/42',
             u'email': u'iv@example.com',
-            u'fullname': '',
+            u'fullname': 'Example User',
             u'admin': True,
             u'projects': [
                 {
@@ -84,7 +84,8 @@ class UsersCollectionTestCase(MockedTestCase):
         self.mox.StubOutWithMock(users, '_user_from_nova')
 
     def test_list_users(self):
-        self.fake_client_set.identity_admin.users.list().AndReturn(['user-a', 'user-b'])
+        self.fake_client_set.identity_admin \
+                .users.list().AndReturn(['user-a', 'user-b'])
         users._user_from_nova('user-a').AndReturn('dict-a')
         users._user_from_nova('user-b').AndReturn('dict-b')
         expected = {
@@ -103,7 +104,8 @@ class UsersCollectionTestCase(MockedTestCase):
 
     def test_get_user(self):
         # prepare
-        self.fake_client_set.identity_admin.users.get('user-a').AndReturn('user-a')
+        self.fake_client_set.identity_admin.users\
+                .get('user-a').AndReturn('user-a')
         users._user_from_nova('user-a').AndReturn('dict-a')
         self.mox.ReplayAll()
         # test
@@ -175,7 +177,8 @@ class UsersCollectionTestCase(MockedTestCase):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         fullname = "User Userovich"
         client.identity_admin.users.create(
-            name=name, email=email, password=passw).AndRaise(osc_exc.BadRequest('fail'))
+            name=name, email=email, password=passw) \
+                .AndRaise(osc_exc.BadRequest('fail'))
         self.mox.ReplayAll()
         # test
         post_params = {
@@ -189,18 +192,19 @@ class UsersCollectionTestCase(MockedTestCase):
                               data=json.dumps(post_params),
                               content_type='application/json')
 
-        data = self.check_and_parse_response(rv, status_code=400)
+        self.check_and_parse_response(rv, status_code=400)
 
     def test_update_user(self):
-        client = self.fake_client_set
+        ia = self.fake_client_set.identity_admin
         # prepare
-        (name, email, passw) = ('user-upd', 'user-upd@example.com', 'banana-upd')
+        (name, email, passw) = ('user-upd', 'user-upd@example.com', 'orange')
+
         fullname = "User Userovich Upd"
-        client.identity_admin.users.get('new-user').AndReturn('new-user')
-        client.identity_admin.users.update('new-user', name=name, email=email,
-                                           fullname=fullname).AndReturn('new-user')
-        client.identity_admin.users.update_password('new-user', passw).AndReturn('new-user')
-        client.identity_admin.users.get('new-user').AndReturn('new-user')
+        ia.users.get('new-user').AndReturn('new-user')
+        ia.users.update('new-user', name=name, email=email,
+                        fullname=fullname).AndReturn('new-user')
+        ia.users.update_password('new-user', passw).AndReturn('new-user')
+        ia.users.get('new-user').AndReturn('new-user')
         users._user_from_nova('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
         # test
@@ -220,7 +224,7 @@ class UsersCollectionTestCase(MockedTestCase):
     def test_update_user_not_found(self):
         client = self.fake_client_set
 
-        (name, email, passw) = ('user-upd', 'user-upd@example.com', 'banana-upd')
+        (name, email, passw) = ('user-upd', 'user-upd@example.com', 'orange')
         client.identity_admin.users.get('new-user')\
                 .AndRaise(osc_exc.NotFound('failure'))
 

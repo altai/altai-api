@@ -99,7 +99,8 @@ def check_request_headers():
                                  % request.content_type)
     if request.method in ('POST', 'PUT') and (
             not request.data or not isinstance(request.json, dict)):
-        raise exc.InvalidRequest('Bad %s request: object expected' % request.method)
+        raise exc.InvalidRequest('Bad %s request: object expected'
+                                 % request.method)
     if any((key.lower().startswith('if-')
             for key in request.headers.iterkeys())):
         raise exc.InvalidRequest('Unsupported conditional header')
@@ -216,12 +217,12 @@ def int_from_string(value, min_val=0, max_val=None,
         _raise(value, on_error)
 
 
-def _get_nested(x, keys):
+def _get_nested(data, keys):
     for k in keys:
-        x = x.get(k)
-        if x is None:
+        data = data.get(k)
+        if data is None:
             return None
-    return x
+    return data
 
 
 def _parse_one_sortby_item(item, allowed_names):
@@ -275,9 +276,9 @@ def _apply_sortby(how, result):
     if how is None:
         return result
 
-    def compare(a, b):
+    def compare(val1, val2):
         for _, is_asc, keyfun in how:
-            res = cmp(keyfun(a), keyfun(b))
+            res = cmp(keyfun(val1), keyfun(val2))
             if res != 0:
                 return res if is_asc else -res
         return 0

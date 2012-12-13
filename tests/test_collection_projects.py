@@ -31,21 +31,21 @@ class ConvertersTestCase(MockedTestCase):
 
     def test_project_from_nova_works(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
-            id=u'c4fc65e395e8408b97f6c1a27da95c43', name=u'Project X')
+            id=u'c4fc65e', name=u'Project X')
         net = doubles.make(self.mox, doubles.Network,
                            label=u'net22', id=u'2699a5')
         quotaset = doubles.make(self.mox, doubles.QuotaSet)
 
         gb = 1024 * 1024 * 1024
         expected = {
-            u'id': u'c4fc65e395e8408b97f6c1a27da95c43',
-            u'href': u'/v1/projects/c4fc65e395e8408b97f6c1a27da95c43',
+            u'id': u'c4fc65e',
+            u'href': u'/v1/projects/c4fc65e',
             u'name': u'Project X',
             u'description': u'Rather long description.',
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
-            u'stats-href': u'/v1/projects/c4fc65e395e8408b97f6c1a27da95c43/stats',
+            u'stats-href': u'/v1/projects/c4fc65e/stats',
             u'network': {
                 u'id': u'2699a5',
                 u'name':  u'net22',
@@ -59,19 +59,19 @@ class ConvertersTestCase(MockedTestCase):
 
     def test_project_from_nova_no_network(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
-            id=u'c4fc65e395e8408b97f6c1a27da95c43', name=u'Project X')
+            id=u'c4fc65e', name=u'Project X')
         quotaset = doubles.make(self.mox, doubles.QuotaSet)
 
         gb = 1024 * 1024 * 1024
         expected = {
-            u'id': u'c4fc65e395e8408b97f6c1a27da95c43',
-            u'href': u'/v1/projects/c4fc65e395e8408b97f6c1a27da95c43',
+            u'id': u'c4fc65e',
+            u'href': u'/v1/projects/c4fc65e',
             u'name': u'Project X',
             u'description': u'Rather long description.',
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
-            u'stats-href': u'/v1/projects/c4fc65e395e8408b97f6c1a27da95c43/stats',
+            u'stats-href': u'/v1/projects/c4fc65e/stats',
             'network': None
         }
 
@@ -81,16 +81,16 @@ class ConvertersTestCase(MockedTestCase):
 
     def test_project_from_nova_no_quota(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
-            id=u'c4fc65e395e8408b97f6c1a27da95c43', name=u'Project X')
+            id=u'c4fc65e', name=u'Project X')
         net = doubles.make(self.mox, doubles.Network,
                            label=u'net22', id=u'2699a5')
 
         expected = {
-            u'id': u'c4fc65e395e8408b97f6c1a27da95c43',
-            u'href': u'/v1/projects/c4fc65e395e8408b97f6c1a27da95c43',
+            u'id': u'c4fc65e',
+            u'href': u'/v1/projects/c4fc65e',
             u'name': u'Project X',
             u'description': u'Rather long description.',
-            u'stats-href': u'/v1/projects/c4fc65e395e8408b97f6c1a27da95c43/stats',
+            u'stats-href': u'/v1/projects/c4fc65e/stats',
             u'network': {
                 u'id': u'2699a5',
                 u'name':  u'net22',
@@ -154,7 +154,7 @@ class ProjectsTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         rv = self.client.get('/v1/projects/pid')
-        data = self.check_and_parse_response(rv, status_code=404)
+        self.check_and_parse_response(rv, status_code=404)
 
     def test_systenant_not_found(self):
         systenant = doubles.make(self.mox, doubles.Tenant,
@@ -163,7 +163,7 @@ class ProjectsTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         rv = self.client.get('/v1/projects/%s' % systenant.id)
-        data = self.check_and_parse_response(rv, status_code=404)
+        self.check_and_parse_response(rv, status_code=404)
 
     def test_get_all_projects(self):
         tenants = (
@@ -173,7 +173,7 @@ class ProjectsTestCase(MockedTestCase):
                          name=u'systenant', id=u'SYSTENANT_ID'))
         nets = (
             self.net(label=u'net2', id=u'netid2', project_id=u't2'),
-            self.net(label=u'net_', id=u'netid_', project_id=None), # unused network
+            self.net(label=u'net_', id=u'netid_', project_id=None), # unused
             self.net(label=u'net1', id=u'netid1', project_id=u't1'))
 
         self.tm_mock.list().AndReturn(tenants)
@@ -290,7 +290,7 @@ class CreateProjectTestCase(MockedTestCase):
         self.assertEquals(data, 'REPLY')
 
     def test_project_creation_checks_network_exists(self):
-        name, description, net_id = 'ptest', 'DECRIPTION', 'NETID'
+        net_id = 'NETID'
         self.fake_client_set.compute. \
             networks.get(net_id).AndRaise(osc_exc.NotFound('network'))
 
@@ -299,11 +299,11 @@ class CreateProjectTestCase(MockedTestCase):
         self.assertEquals(data.get('element-name'), 'network')
 
     def test_project_creation_checks_network_unused(self):
-        name, description, net_id = 'ptest', 'DECRIPTION', 'NETID'
+        net_id = 'NETID'
         self.fake_client_set.compute. \
             networks.get(net_id).AndReturn(
                 doubles.make(self.mox, doubles.Network,
-                             label='LABEL', id='NETID', project_id='42'))
+                             label='LABEL', id=net_id, project_id='42'))
 
         self.mox.ReplayAll()
         data = self.interact(expected_status_code=400)
@@ -340,6 +340,10 @@ class DeleteProjectTestCase(MockedTestCase):
         return self.check_and_parse_response(
             rv, status_code=expected_status_code)
 
+    def _net(self, **kwargs):
+        return doubles.make(self.mox, doubles.Network, **kwargs)
+
+
     def test_project_deletion_checks_existance(self):
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndRaise(osc_exc.NotFound('failure'))
@@ -352,9 +356,9 @@ class DeleteProjectTestCase(MockedTestCase):
         servers = [doubles.make(self.mox, doubles.Server, id=vmid)
                    for vmid in ('vm1', 'vm2', 'vm3')]
         nets = [
-            doubles.make(self.mox, doubles.Network, id='n1', project_id=self.tenant_id),
-            doubles.make(self.mox, doubles.Network, id='n2', project_id=u'other'),
-            doubles.make(self.mox, doubles.Network, id='n3', project_id=self.tenant_id)
+            self._net(id='n1', project_id=self.tenant_id),
+            self._net(id='n2', project_id=u'other'),
+            self._net(id='n3', project_id=self.tenant_id)
         ]
 
         self.fake_client_set.identity_admin \
@@ -408,11 +412,12 @@ class UpdatePojectTestCase(MockedTestCase):
 
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndReturn(tenant)
-        tenant.update(name=updated.name, description=updated.description)\
-                .AndReturn(updated)
+        tenant.update(name=updated.name,
+                      description=updated.description).AndReturn(updated)
         projects._network_for_project(self.tenant_id).AndReturn('NET')
         projects._quotaset_for_project(self.tenant_id).AndReturn('QUOTA')
-        projects._project_from_nova(updated, 'NET', 'QUOTA').AndReturn('UPDATED')
+        projects._project_from_nova(updated, 'NET', 'QUOTA')\
+                .AndReturn('UPDATED')
 
         self.mox.ReplayAll()
         data = self.interact({'name': updated.name,

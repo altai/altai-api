@@ -23,12 +23,12 @@ import uuid
 
 from flask import Blueprint, abort, url_for, request, g
 
-import openstackclient_base.exceptions as osc_exc
+from openstackclient_base import exceptions as osc_exc
+from altai_api import exceptions as exc
 
-from altai_api import exceptions
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
-from altai_api import exceptions as exc
+
 
 instance_types = Blueprint('instance_types', __name__)
 

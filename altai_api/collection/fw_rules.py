@@ -20,13 +20,10 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import url_for, g, Blueprint, abort, request
+from openstackclient_base import exceptions as osc_exc
 
-from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
-
-from altai_api import exceptions as exc
-from openstackclient_base import exceptions as osc_exc
 
 
 fw_rules = Blueprint('fw_rules', __name__)

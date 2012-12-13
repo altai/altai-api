@@ -35,7 +35,6 @@ from openstackclient_base.nova.client import ComputeClient
 from openstackclient_base.nova.client import VolumeClient
 from openstackclient_base.glance.v1.client import ImageClient
 
-from keystoneclient.v2_0 import ec2
 from keystoneclient.v2_0 import endpoints
 from keystoneclient.v2_0 import roles
 from keystoneclient.v2_0 import services

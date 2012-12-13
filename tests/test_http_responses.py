@@ -20,13 +20,11 @@
 # <http://www.gnu.org/licenses/>.
 
 import flask
-from mox import MoxTestBase
 
 from tests import TestCase
 
-from altai_api import error_handlers, utils
-from altai_api.exceptions import (
-    InvalidRequest, MissingElement, IllegalValue, UnknownElement)
+from altai_api import error_handlers
+from altai_api.exceptions import InvalidRequest, IllegalValue, UnknownElement
 
 
 class HttpResponsesTestCase(TestCase):
@@ -183,13 +181,11 @@ class ErrorHandlerTestCase(TestCase):
         self.assertTrue('Test message' in resp.data)
         self.assertTrue('traceback' not in resp.data)
 
-    def test_authorized_500_other_error(self):
+    def test_unauthorized_500_other_error(self):
         with self.app.test_request_context():
-            self.install_fake_auth()
             resp = self.app.make_response(
                 error_handlers.exception_handler(RuntimeError('Test message')))
-        self.assertEqual(resp.status_code, 500)
-        self.assertTrue('X-GD-Altai-Implementation' not in resp.headers)
+        self.check_and_parse_response(resp, status_code=500)
         self.assertTrue('Test message' in resp.data)
 
     def test_authorized_500(self):
