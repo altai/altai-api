@@ -18,8 +18,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Application entry point
-"""
+"""Application entry point"""
 
 import os
 import flask
@@ -55,26 +54,25 @@ def check_request():
     return None
 
 
-# register blueprints
-from altai_api.collection.networks import networks
-app.register_blueprint(networks, url_prefix='/v1/networks')
-from altai_api.collection.instance_types import instance_types
-app.register_blueprint(instance_types, url_prefix='/v1/instance-types')
-from altai_api.collection.projects import projects
-app.register_blueprint(projects, url_prefix='/v1/projects')
-from altai_api.collection.project_users import project_users
-app.register_blueprint(
-    project_users, url_prefix='/v1/projects/<project_id>/users')
-from altai_api.collection.fw_rule_sets import fw_rule_sets
-app.register_blueprint(fw_rule_sets, url_prefix='/v1/fw-rule-sets')
-from altai_api.collection.fw_rules import fw_rules
-app.register_blueprint(
-    fw_rules, url_prefix='/v1/fw-rule-sets/<fw_rule_set_id>/rules')
-from altai_api.collection.users import users
-app.register_blueprint(users, url_prefix='/v1/users')
-from altai_api.collection.vms import vms
-app.register_blueprint(vms, url_prefix='/v1/vms')
+def _mount_collections(iterable):
+    """Import collection blueprints and register them"""
+    for name, path in iterable:
+        module = __import__('altai_api.collection.%s' % name,
+                            level=0, fromlist=[name])
+        blueprint = getattr(module, name)
+        app.register_blueprint(blueprint, url_prefix=path)
 
+
+_mount_collections((
+    ('networks', '/v1/networks'),
+    ('instance_types', '/v1/instance-types'),
+    ('projects', '/v1/projects'),
+    ('project_users', '/v1/projects/<project_id>/users'),
+    ('fw_rule_sets', '/v1/fw-rule-sets'),
+    ('fw_rules', '/v1/fw-rule-sets/<fw_rule_set_id>/rules'),
+    ('users', '/v1/users'),
+    ('vms', '/v1/vms')
+))
 
 
 def main():
