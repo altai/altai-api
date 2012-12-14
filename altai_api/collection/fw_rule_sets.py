@@ -34,19 +34,27 @@ from openstackclient_base import exceptions as osc_exc
 fw_rule_sets = Blueprint('fw_rule_sets', __name__)
 
 
+def link_for_security_group(sg):
+    """Make link object for given security group"""
+    sgid = unicode(sg.id)
+    return {
+        u'id': sgid,
+        u'href': url_for('fw_rule_sets.get_fw_rule_set', fw_rule_set_id=sgid),
+        u'name': sg.name
+    }
+
+
 def _sg_from_nova(sg, tenant):
     if sg.tenant_id != tenant.id:
         # this is a bit of well tested paranoia
         raise ValueError('Firewall rule set %s is from tenant %s, not %s'
                          % (sg.name, sg.tenant_id, tenant.id))
-    sgid = unicode(sg.id)
-    return {
-        u'id': sgid,
-        u'href': url_for('fw_rule_sets.get_fw_rule_set', fw_rule_set_id=sgid),
-        u'name': sg.name,
-        u'description': sg.description,
-        u'project': link_for_tenant(tenant)
-    }
+    result = link_for_security_group(sg)
+    result.update((
+        (u'description', sg.description),
+        (u'project', link_for_tenant(tenant))
+    ))
+    return result
 
 
 @fw_rule_sets.route('/', methods=('GET',))
