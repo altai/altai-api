@@ -27,6 +27,7 @@ from tests.mocked import mock_client_set, MockedTestCase
 
 from altai_api.collection import projects
 
+
 class ConvertersTestCase(MockedTestCase):
 
     def test_project_from_nova_works(self):
@@ -45,10 +46,11 @@ class ConvertersTestCase(MockedTestCase):
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
+            u'vms-limit': 10,
             u'stats-href': u'/v1/projects/c4fc65e/stats',
             u'network': {
                 u'id': u'2699a5',
-                u'name':  u'net22',
+                u'name': u'net22',
                 u'href': u'/v1/networks/2699a5'
             }
         }
@@ -71,6 +73,7 @@ class ConvertersTestCase(MockedTestCase):
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
+            u'vms-limit': 10,
             u'stats-href': u'/v1/projects/c4fc65e/stats',
             'network': None
         }
@@ -93,7 +96,7 @@ class ConvertersTestCase(MockedTestCase):
             u'stats-href': u'/v1/projects/c4fc65e/stats',
             u'network': {
                 u'id': u'2699a5',
-                u'name':  u'net22',
+                u'name': u'net22',
                 u'href': u'/v1/networks/2699a5'
             }
         }
@@ -103,12 +106,10 @@ class ConvertersTestCase(MockedTestCase):
         self.assertEquals(expected, result)
 
 
-
 class ProjectsTestCase(MockedTestCase):
 
     def net(self, **kwargs):
         return doubles.make(self.mox, doubles.Network, **kwargs)
-
 
     def setUp(self):
         super(ProjectsTestCase, self).setUp()
@@ -117,7 +118,6 @@ class ProjectsTestCase(MockedTestCase):
 
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')
         self.mox.StubOutWithMock(projects, '_project_from_nova')
-
 
     def test_network_for_project(self):
         nets = (self.net(label=u'net1', id=u'netid1', project_id=u'pid1'),
@@ -173,7 +173,7 @@ class ProjectsTestCase(MockedTestCase):
                          name=u'systenant', id=u'SYSTENANT_ID'))
         nets = (
             self.net(label=u'net2', id=u'netid2', project_id=u't2'),
-            self.net(label=u'net_', id=u'netid_', project_id=None), # unused
+            self.net(label=u'net_', id=u'netid_', project_id=None),  # unused
             self.net(label=u'net1', id=u'netid1', project_id=u't1'))
 
         self.tm_mock.list().AndReturn(tenants)
@@ -206,7 +206,6 @@ class ProjectsTestCase(MockedTestCase):
 
         rv = self.client.get('/v1/projects/pid/stats')
         self.check_and_parse_response(rv, 404)
-
 
 
 class ProjectStatsTestCase(MockedTestCase):
@@ -343,7 +342,6 @@ class DeleteProjectTestCase(MockedTestCase):
     def _net(self, **kwargs):
         return doubles.make(self.mox, doubles.Network, **kwargs)
 
-
     def test_project_deletion_checks_existance(self):
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndRaise(osc_exc.NotFound('failure'))
@@ -384,6 +382,14 @@ class DeleteProjectTestCase(MockedTestCase):
 class UpdatePojectTestCase(MockedTestCase):
     tenant_id = u'PID'
 
+    def setUp(self):
+        super(UpdatePojectTestCase, self).setUp()
+
+        self.mox.StubOutWithMock(projects, '_network_for_project')
+        self.mox.StubOutWithMock(projects, '_quotaset_for_project')
+        self.mox.StubOutWithMock(projects, '_project_from_nova')
+
+
     def interact(self, put_params, expected_status_code=200):
         rv = self.client.put('/v1/projects/%s' % self.tenant_id,
                              data=json.dumps(put_params),
@@ -398,10 +404,6 @@ class UpdatePojectTestCase(MockedTestCase):
         self.interact({}, expected_status_code=404)
 
     def test_update_project_updates(self):
-        self.mox.StubOutWithMock(projects, '_network_for_project')
-        self.mox.StubOutWithMock(projects, '_quotaset_for_project')
-        self.mox.StubOutWithMock(projects, '_project_from_nova')
-
         tenant = doubles.make(self.mox, doubles.Tenant,
                               id=self.tenant_id, name='old name',
                               description='old description')
@@ -422,5 +424,31 @@ class UpdatePojectTestCase(MockedTestCase):
         self.mox.ReplayAll()
         data = self.interact({'name': updated.name,
                               'description': updated.description})
+        self.assertEquals(data, 'UPDATED')
+
+    def test_update_project_limits(self):
+        tenant = doubles.make(self.mox, doubles.Tenant,
+                              id=self.tenant_id, name='old name',
+                              description='old description')
+        gb = 1024 * 1024 * 1024
+        params = {
+            u'cpus-limit': 13,
+            u'ram-limit': 11 * gb,
+            u'storage-limit': 1000 * gb,
+            u'vms-limit': 8
+        }
+
+        self.fake_client_set.identity_admin \
+            .tenants.get(self.tenant_id).AndReturn(tenant)
+        self.fake_client_set.compute.quotas.update(self.tenant_id,
+            instances=8, ram=11 * 1024, gigabytes=1000, cores=13)
+
+        projects._network_for_project(self.tenant_id).AndReturn('NET')
+        projects._quotaset_for_project(self.tenant_id).AndReturn('QUOTA')
+        projects._project_from_nova(tenant, 'NET', 'QUOTA')\
+                .AndReturn('UPDATED')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
         self.assertEquals(data, 'UPDATED')
 

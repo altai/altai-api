@@ -38,6 +38,7 @@ _IMPELEMENTATION = 'Altai API service v%s' % altai_api.__version__
 
 _TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
+
 def _json_default(obj):
     """A function that we use as default= parameter for json.dumps
 
@@ -58,7 +59,7 @@ def make_json_response(data, status_code=200, location=None):
                               default=_json_default)
             data += '\n'
         else:
-            data = json.dumps(data, separators=(',',':'),
+            data = json.dumps(data, separators=(',', ':'),
                               default=_json_default)
     else:
         data = ""
@@ -130,6 +131,7 @@ def _check_request_content():
         raise exc.InvalidRequest('Bad %s request: object expected'
                                  % request.method)
 
+
 def _check_request_expectations():
     expect = request.headers.get('Expect', '')[:4]
     if expect and expect != '200-' and not (
@@ -185,13 +187,13 @@ def _apply_pagination_and_sorting(result):
     return result
 
 
-
 _OS_TIMESTAMP_FORMATS = (
     # NOTE(imelnikov): git grep strftime enlightenes
     "%Y-%m-%dT%H:%M:%S",
     "%Y-%m-%dT%H:%M:%SZ",
     "%Y-%m-%dT%H:%M:%S.000Z"
 )
+
 
 def timestamp_from_openstack(date):
     """Parse date from a string OpenStack gave us.
@@ -307,4 +309,33 @@ def _apply_sortby(how, result):
                 return res if is_asc else -res
         return 0
     return sorted(list(result), compare)
+
+
+_MB = 1024 * 1024
+_GB = 1024 * 1024 * 1024
+
+
+def _div_ceil(dividend, divisor):
+    """Divide dividend to divisor with rounding up"""
+    return int((dividend + divisor - 1) / divisor)
+
+
+def to_mb(size):
+    """Convert size from bytes to megabytes, rounding up"""
+    return _div_ceil(size, _MB)
+
+
+def from_mb(size):
+    """Convert size from megabytes to bytes"""
+    return size * _MB
+
+
+def to_gb(size):
+    """Convert size from bytes to gigabytes, rounding up"""
+    return _div_ceil(size, _GB)
+
+
+def from_gb(size):
+    """Convert size from gigabytes to bytes"""
+    return size * _GB
 

@@ -26,18 +26,12 @@ from flask import Blueprint, abort, url_for, request, g
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
+from altai_api.utils import from_mb, from_gb, to_mb, to_gb
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
 
 
 instance_types = Blueprint('instance_types', __name__)
-
-_MB = 1024 * 1024
-_GB = 1024 * 1024 * 1024
-
-def _div(a, b):
-    """Divide a to b with rounding up"""
-    return int((a + b - 1) / b)
 
 
 def _instance_type_from_nova(flavor):
@@ -47,9 +41,9 @@ def _instance_type_from_nova(flavor):
                          instance_type_id=flavor.id),
         u'name': flavor.name,
         u'cpus': flavor.vcpus,
-        u'ram': flavor.ram * _MB,
-        u'root-size': flavor.disk * _GB,
-        u'ephemeral-size': flavor.ephemeral * _GB
+        u'ram': from_mb(flavor.ram),
+        u'root-size': from_gb(flavor.disk),
+        u'ephemeral-size': from_gb(flavor.ephemeral)
     }
 
 def _instance_type_for_nova(data):
@@ -57,10 +51,10 @@ def _instance_type_for_nova(data):
         raise exc.UnknownElement(u'id')
     return  {
         u'name': data['name'],
-        u'ram': _div(data['ram'], _MB),
+        u'ram': to_mb(data['ram']),
         u'vcpus': data['cpus'],
-        u'disk': _div(data['root-size'], _GB),
-        u'ephemeral': _div(data['ephemeral-size'], _GB)
+        u'disk': to_gb(data['root-size']),
+        u'ephemeral': to_gb(data['ephemeral-size'])
     }
 
 

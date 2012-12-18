@@ -27,12 +27,11 @@ from altai_api import exceptions as exc
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import from_mb, from_gb, to_mb, to_gb
 from altai_api.authentication import client_set_for_tenant
 
-projects = Blueprint('projects', __name__)
 
-_MB = 1024 * 1024
-_GB = 1024 * 1024 * 1024
+projects = Blueprint('projects', __name__)
 
 
 def link_for_project(project_id, project_name=None):
@@ -50,6 +49,7 @@ def link_for_project(project_id, project_name=None):
         u'name': project_name,
         u'href': url_for('projects.get_project', project_id=project_id)
     }
+
 
 def link_for_tenant(tenant):
     """Make link object for project identified by tenant"""
@@ -70,14 +70,15 @@ def _project_from_nova(tenant, net, quotaset):
         u'description': tenant.description,
         u'network': network,
         u'stats-href': url_for('projects.get_project_stats',
-                               project_id=tenant.id)}
+                               project_id=tenant.id)
+    }
 
     if quotaset is not None:
-        result[u'cpus-limit'] =  quotaset.cores
-        result[u'ram-limit'] = quotaset.ram * _MB
-        result[u'storage-limit'] = quotaset.gigabytes * _GB
+        result[u'cpus-limit'] = quotaset.cores
+        result[u'ram-limit'] = from_mb(quotaset.ram)
+        result[u'storage-limit'] = from_gb(quotaset.gigabytes)
+        result[u'vms-limit'] = quotaset.instances
     return result
-
 
 
 def _network_for_project(project_id):
@@ -88,9 +89,7 @@ def _network_for_project(project_id):
 
 
 def _quotaset_for_project(project_id):
-    # TODO(imelnikov): make this work
-    # return g.client_set.compute.quotas.get(project_id)
-    return None
+    return g.client_set.compute.quotas.get(project_id)
 
 
 def _servers_for_project(project_id):
@@ -159,6 +158,23 @@ def get_project_stats(project_id):
     })
 
 
+def _set_quota(tenant_id, data):
+    """Set project limits from project dict"""
+    kwargs = {}
+
+    if 'cpus-limit' in data:
+        kwargs['cores'] = data.get('cpus-limit')
+    if 'ram-limit' in data:
+        kwargs['ram'] = to_mb(data.get('ram-limit'))
+    if 'storage-limit' in data:
+        kwargs['gigabytes'] = to_gb(data.get('storage-limit'))
+    if 'vms-limit' in data:
+        kwargs['instances'] = data.get('vms-limit')
+
+    if kwargs:
+        g.client_set.compute.quotas.update(tenant_id, **kwargs)
+
+
 @projects.route('/', methods=('POST',))
 def create_project():
     data = request.json
@@ -182,7 +198,7 @@ def create_project():
         tenant.delete()
         raise exc.InvalidRequest('Failed to associate network %r '
                                  'with created project' % data['network'])
-
+    _set_quota(tenant.id, data)
     result = _project_from_nova(tenant, networks.get(net.id),
                                 _quotaset_for_project(tenant.id))
     return make_json_response(result)
@@ -211,13 +227,15 @@ def update_project(project_id):
     data = request.json
     tenant = get_tenant(project_id)
 
-    tenant = tenant.update(
-        name=data.get('name', tenant.name),
-        description=data.get('description', tenant.description))
+    if 'name' in data or 'description' in data:
+        tenant = tenant.update(
+            name=data.get('name', tenant.name),
+            description=data.get('description', tenant.description))
+
+    _set_quota(project_id, data)
 
     net = _network_for_project(project_id)
     quotaset = _quotaset_for_project(project_id)
-
     result = _project_from_nova(tenant, net, quotaset)
     return make_json_response(result)
 

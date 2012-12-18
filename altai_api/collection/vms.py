@@ -127,15 +127,21 @@ def create_vm():
     security_groups = _security_group_ids_to_names(data.get('fw-rule-sets'),
                                                    tcs.compute.security_groups)
 
-    # TODO(imelnikov): implement metatada (meta= arg) and tags
-    server = tcs.compute.servers.create(
-        name=name,
-        image=image_id,
-        flavor=instance_type_id,
-        security_groups=security_groups,
-        key_name=data.get('ssh-key-pair'),
-        admin_pass=data.get('admin-pass')
-    )
+    # TODO(imelnikov): implement metatada (meta=arg) and tags
+    try:
+        server = tcs.compute.servers.create(
+            name=name,
+            image=image_id,
+            flavor=instance_type_id,
+            security_groups=security_groups,
+            key_name=data.get('ssh-key-pair'),
+            admin_pass=data.get('admin-pass'))
+    except osc_exc.OverLimit, e:
+        return make_json_response(status_code=403, data={
+            'path': request.path,
+            'method': request.method,
+            'message': 'Limits exceeded (%s)' % str(e)
+        })
     return make_json_response(_vm_from_nova(server))
 
 

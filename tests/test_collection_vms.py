@@ -206,6 +206,27 @@ class CreateTestCase(MockedTestCase):
         data = self.interact(params)
         self.assertEquals(data, 'REPLY')
 
+    def test_create_overlimit(self):
+        params = {
+            u'project': u'PID',
+            u'name': u'name',
+            u'image': u'image',
+            u'instance-type': u'flavor'
+        }
+        vms.client_set_for_tenant(u'PID').AndReturn(self.tcs)
+        self.tcs.compute.servers.create(
+            name=u'name',
+            image=u'image',
+            flavor=u'flavor',
+            security_groups=None,
+            key_name=None,
+            admin_pass=None
+        ).AndRaise(osc_exc.OverLimit('failure'))
+
+        self.mox.ReplayAll()
+        data = self.interact(params, expected_status_code=403)
+        self.assertTrue('limits' in data.get('message', '').lower())
+
     def test_create_keypair(self):
         params = {
             u'project': u'PID',
