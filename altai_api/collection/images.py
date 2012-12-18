@@ -46,11 +46,19 @@ def _fetch_image(image_id):
     return image
 
 
+def link_for_image(image_id, image_name=None):
+    if image_name is None:
+        image_name = g.client_set.image.images.get(image_id).name
+    return {
+        u'id': image_id,
+        u'href': url_for('images.get_image', image_id=image_id),
+        u'name': image_name
+    }
+
+
 def _image_from_nova(image, tenant=None):
-    result =  {
-        u'id': image.id,
-        u'href': url_for('images.get_image', image_id=image.id),
-        u'name': image.name,
+    result = link_for_image(image.id, image.name)
+    result.update({
         u'status': image.status,
         u'disk-format': image.disk_format,
         u'container-format': image.container_format,
@@ -63,7 +71,7 @@ def _image_from_nova(image, tenant=None):
             u'remove-tags': url_for('images.remove_image_tags',
                                     image_id=image.id)
         }
-    }
+    })
     if image.owner == default_tenant_id():
         result[u'global'] = True
     else:
@@ -71,11 +79,10 @@ def _image_from_nova(image, tenant=None):
         result[u'project'] = link_for_project(image.owner,
                                               tenant.name if tenant else None)
 
-    # TODO(imelnikov): replace IDs with link objects
     if 'kernel_id' in image.properties:
-        result['kernel'] = image.properties['kernel_id']
+        result['kernel'] = link_for_image(image.properties['kernel_id'])
     if 'ramdisk_id' in image.properties:
-        result['ramdisk'] = image.properties['ramdisk_id']
+        result['ramdisk'] = link_for_image(image.properties['ramdisk_id'])
 
     if image.status == 'queued':
         result['actions']['upload'] = url_for('images.upload_image_data',

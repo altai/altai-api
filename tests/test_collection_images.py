@@ -162,6 +162,12 @@ class ImageFromNovaWorks(MockedTestCase):
                              disk_format=u'ami', container_format=u'ami',
                              checksum='831a05f7bdeadbabe5l1k3133715e7ea',
                              status=u'active', properties=image_properties)
+        kernel = doubles.make(self.mox, doubles.Image,
+                              id=u'KERNEL', name=u'TestKernel',
+                              disk_format=u'aki', container_format=u'aki')
+        ramdisk = doubles.make(self.mox, doubles.Image,
+                               id=u'RAMDISK', name=u'TestRamdisk',
+                               disk_format=u'ari', container_format=u'ari')
         expected = {
             u'id': u'IMAGE',
             u'href': '/v1/images/IMAGE',
@@ -178,9 +184,21 @@ class ImageFromNovaWorks(MockedTestCase):
                 u'add-tags': '/v1/images/IMAGE/add-tags',
                 u'remove-tags': '/v1/images/IMAGE/remove-tags',
             },
-            u'kernel': u'KERNEL',
-            u'ramdisk': u'RAMDISK'
+            u'kernel': {
+                u'id': u'KERNEL',
+                u'name': u'TestKernel',
+                u'href': '/v1/images/KERNEL'
+            },
+            u'ramdisk': {
+                u'id': u'RAMDISK',
+                u'name': u'TestRamdisk',
+                u'href': '/v1/images/RAMDISK'
+            }
         }
+
+        images_mgr = self.fake_client_set.image.images
+        images_mgr.get(u'KERNEL').AndReturn(kernel)
+        images_mgr.get(u'RAMDISK').AndReturn(ramdisk)
 
         self.mox.ReplayAll()
         with self.app.test_request_context():

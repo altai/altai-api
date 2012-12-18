@@ -32,6 +32,7 @@ from altai_api.utils import make_collection_response, setup_sorting
 from altai_api.authentication import client_set_for_tenant
 from altai_api.collection.users import link_for_user, fetch_user
 from altai_api.collection.projects import link_for_tenant
+from altai_api.collection.images import link_for_image
 
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 
@@ -50,8 +51,7 @@ def _vm_from_nova(server):
         u'name': server.name,
         u'project': link_for_tenant(tenant),
         u'created-by': link_for_user(user),
-        # TODO(imelnikov): make this link object when images are implemented
-        u'image': server.image['id'],
+        u'image': link_for_image(server.image['id']),
         u'instance-type': {
             u'id': flavor.id,
             u'name': flavor.name,

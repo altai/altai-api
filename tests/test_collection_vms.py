@@ -69,6 +69,9 @@ class VmFromNovaTestCase(MockedTestCase):
                               name=u'test instance type', id=u'1')
         user = doubles.make(self.mox, doubles.User,
                             name=u'test user', id=u'UID')
+        image = doubles.make(self.mox, doubles.Image,
+                            name=u'test image', id=u'IMAGE')
+
         expected = {
             u'id': u'VMID',
             u'href': '/v1/vms/VMID',
@@ -80,7 +83,11 @@ class VmFromNovaTestCase(MockedTestCase):
             },
             u'state': u'BUILD',
             u'ipv4': [ u'10.5.1.3' ],
-            u'image': u'IMAGE',
+            u'image': {
+                u'id': u'IMAGE',
+                u'name': u'test image',
+                u'href': '/v1/images/IMAGE'
+            },
             u'created': datetime(2012, 12, 12, 6, 20, 27),
             u'created-by': {
                 u'id': u'UID',
@@ -107,6 +114,7 @@ class VmFromNovaTestCase(MockedTestCase):
         client.identity_admin.tenants.get(u'TENANT').AndReturn(tenant)
         client.compute.flavors.get(u'1').AndReturn(flavor)
         client.identity_admin.users.get(u'UID').AndReturn(user)
+        client.image.images.get(u'IMAGE').AndReturn(image)
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
