@@ -30,7 +30,6 @@ class ConfigTestCase(TestCase):
         super(ConfigTestCase, self).setUp()
 
     def test_settings_are_read(self):
-        self.assertTrue('DEBUG' in app.config)
         # we promise we will never redefine TEST_STRING
         self.assertEquals(app.config['TEST_STRING'], 'Test')
 

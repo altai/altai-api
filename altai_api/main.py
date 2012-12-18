@@ -78,7 +78,7 @@ _mount_collections((
 
 
 def main():
-    app.run(debug=app.config['DEBUG'],
+    app.run(use_reloader=app.config['USE_RELOADER'],
             host=app.config['HOST'],
             port=app.config['PORT'])
 

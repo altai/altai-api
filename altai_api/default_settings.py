@@ -22,8 +22,8 @@
 """Default settings for service
 """
 
-# debug: disabled by default
-DEBUG = False
+# watch sources and reload service on update
+USE_RELOADER = False
 
 # host to listen on
 HOST = '0.0.0.0'

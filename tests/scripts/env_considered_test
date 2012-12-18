@@ -11,12 +11,10 @@ os.environ['ALTAI_API_SETTINGS'] = _FILE
 from altai_api.main import app
 
 # Additional parameters for test_environment_considered
-DEBUG=True
 I_REALLY_READ_THIS='Yes, I really read this'
 TEST_STRING='Overriden'
 
 if __name__ == '__main__':
-    assert app.config['DEBUG']
     assert 'I_REALLY_READ_THIS' in app.config
     assert app.config['TEST_STRING'] == TEST_STRING
 
