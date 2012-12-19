@@ -99,7 +99,7 @@ def mock_client_set(mox, aliases=False):
                 u'name': u'systenant'
             }
         },
-        u'serviceCatalog': [], # it's contents is irrelevant
+        u'serviceCatalog': [],  # it's contents is irrelevant
         u'user': {
             u'username': u'admin',
             u'roles_links': [],
@@ -192,7 +192,5 @@ def mock_client_set(mox, aliases=False):
 
 
 class MockedTestCase(TestCase, MoxTestBase):
-    def setUp(self):
-        super(MockedTestCase, self).setUp()
-        self.fake_client_set = mock_client_set(self.mox)
-
+    def _fake_client_set_factory(self):
+        return mock_client_set(self.mox)

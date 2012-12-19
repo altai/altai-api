@@ -19,12 +19,15 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-import json, os, unittest
+import os
+import unittest
 import altai_api.main
 import altai_api.authentication as _A
-from flask import g
+from flask import g, json
+
 
 _SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), 'scripts')
+
 
 def scrpit_path(name):
     return os.path.join(_SCRIPTS_DIR, name)
@@ -41,9 +44,12 @@ class TestCase(unittest.TestCase):
         self.install_fake_auth()
         return True
 
+    def _fake_client_set_factory(self):
+        return _Fake()
+
     def install_fake_auth(self, auth_=None):
         if not hasattr(self, 'fake_client_set'):
-            self.fake_client_set = _Fake()
+            self.fake_client_set = self._fake_client_set_factory()
         g.client_set = self.fake_client_set
 
     def setUp(self):
@@ -53,7 +59,7 @@ class TestCase(unittest.TestCase):
         self.__config = self.app.config
         self.app.config = self.app.config.copy()
         if self.FAKE_AUTH:
-            self.fake_client_set = _Fake()
+            self.fake_client_set = self._fake_client_set_factory()
             self.__keystone_auth = _A.keystone_auth
             _A.keystone_auth = self.__keystone_auth_test_double
 
@@ -78,8 +84,7 @@ class TestCase(unittest.TestCase):
                               status_code, resp.status_code,
                               json.dumps(data, indent=4, sort_keys=True)))
         self.assertEquals(resp.content_type, 'application/json')
-        if status_code not in (401, 403) and (
-                status_code != 500 or hasattr(self, 'fake_client_set')):
+        if hasattr(self, 'fake_client_set'):
             self.assertTrue('X-GD-Altai-Implementation' in resp.headers)
         else:
             self.assertTrue('X-GD-Altai-Implementation' not in resp.headers)

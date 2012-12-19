@@ -64,8 +64,8 @@ class AuthenticationTestCase(MockedTestCase):
             _A.keystone_auth(Auth('u$3R', 'p@ssw0rd'))
             self.assertTrue(_A.is_authenticated())
 
-
     def test_no_headers_401(self):
+        self.mox.ReplayAll()
         rv = self.client.get('/')
         self.check_and_parse_response(rv, status_code=401)
         self.assertTrue('X-GD-Altai-Implementation' not in rv.headers)
