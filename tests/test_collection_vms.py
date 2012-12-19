@@ -182,7 +182,6 @@ class CreateTestCase(MockedTestCase):
         return self.check_and_parse_response(
             rv, status_code=expected_status_code)
 
-
     def test_create_password(self):
         params = {
             u'project': u'PID',
@@ -296,6 +295,67 @@ class CreateTestCase(MockedTestCase):
         self.assertEquals(u'3', data.get('element-value'))
         self.assertEquals(u'fw-rule-sets', data.get('element-name'))
 
+
+class UpdateTestCase(MockedTestCase):
+    vm_id = u'VMID'
+
+    def setUp(self):
+        super(UpdateTestCase, self).setUp()
+        self.mox.StubOutWithMock(vms, '_vm_from_nova')
+
+    def interact(self, data, expected_status_code=200):
+        rv = self.client.put('/v1/vms/%s' % self.vm_id,
+                              data=json.dumps(data),
+                              content_type='application/json')
+        return self.check_and_parse_response(
+            rv, status_code=expected_status_code)
+
+    def test_rename_works(self):
+        params = { 'name': u'new name' }
+        client = self.fake_client_set
+
+        client.compute.servers.update(self.vm_id, name=u'new name')
+        client.compute.servers.get(self.vm_id).AndReturn('VM')
+        vms._vm_from_nova('VM').AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
+
+    def test_rename_not_found(self):
+        params = { 'name': u'new name' }
+        client = self.fake_client_set
+
+        client.compute.servers.update(self.vm_id, name=u'new name')\
+                .AndRaise(osc_exc.NotFound('failure'))
+        self.mox.ReplayAll()
+        self.interact(params, expected_status_code=404)
+
+    def test_update_empty(self):
+        params = {}
+        client = self.fake_client_set
+
+        client.compute.servers.get(self.vm_id).AndReturn('VM')
+        vms._vm_from_nova('VM').AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
+
+    def test_rename_extra(self):
+        params = {
+            'name': 'new name',
+            'test-parameter': u'catch me'
+        }
+
+        client = self.fake_client_set
+        client.compute.servers.update(self.vm_id, name=u'new name')
+
+        self.mox.ReplayAll()
+        data = self.interact(params, expected_status_code=400)
+        self.assertEquals('test-parameter', data.get('element-name'))
+
+
 class ActionsTestCase(MockedTestCase):
 
     def setUp(self):
@@ -334,7 +394,6 @@ class ActionsTestCase(MockedTestCase):
                              {'role': 'victim'},
                              expected_status_code=400)
         self.assertEquals('role', data.get('element-name'))
-
 
     # NOTE(imelnikov): reset is almost the same as reboot, so
     #  there is no need to repeat all that tests once again
@@ -379,6 +438,7 @@ class ActionsTestCase(MockedTestCase):
         self.mox.ReplayAll()
         self.interact('/v1/vms/%s/remove' % s.id, {},
                       expected_status_code=404)
+
     def test_remove_vm_checks_input(self):
         self.mox.ReplayAll()
         data = self.interact('/v1/vms/%s/remove' % self.server.id,
@@ -406,5 +466,4 @@ class ActionsTestCase(MockedTestCase):
         self.mox.ReplayAll()
         rv = self.client.delete('/v1/vms/%s' % s.id)
         self.check_and_parse_response(rv, status_code=202)
-
 

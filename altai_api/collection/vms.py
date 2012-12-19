@@ -39,6 +39,7 @@ from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 
 vms = Blueprint('vms', __name__)
 
+
 def _vm_from_nova(server):
     client = g.client_set
     tenant = client.identity_admin.tenants.get(server.tenant_id)
@@ -102,7 +103,7 @@ def _security_group_ids_to_names(security_groups_ids, sg_manager):
     """Get security group IDs list and return list of their names
 
     Returns None if argument evaluates to false (e.g. is None or
-    empty list.
+    empty list).
 
     """
     if not security_groups_ids:
@@ -145,6 +146,20 @@ def create_vm():
     return make_json_response(_vm_from_nova(server))
 
 
+@vms.route('/<vm_id>', methods=('PUT',))
+def update_vm(vm_id):
+    data = dict(request.json)
+    if 'name' in data:
+        name = data.pop('name')
+        try:
+            g.client_set.compute.servers.update(vm_id, name=name)
+        except osc_exc.NotFound:
+            abort(404)
+    if data:
+        raise exc.UnknownElement(name=data.keys()[0])
+    return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
+
+
 def _do_remove_vm(vm_id):
     """The real VM removal implementation"""
     server = fetch_vm(vm_id)
@@ -153,6 +168,7 @@ def _do_remove_vm(vm_id):
         return fetch_vm(vm_id)
     except HTTPException:
         return None
+
 
 @vms.route('/<vm_id>/remove', methods=('POST',))
 def remove_vm(vm_id):
@@ -164,6 +180,7 @@ def remove_vm(vm_id):
         return make_json_response(_vm_from_nova(server))
     else:
         return make_json_response(None, status_code=204)
+
 
 @vms.route('/<vm_id>', methods=('DELETE',))
 def delete_vm(vm_id):
@@ -192,9 +209,11 @@ def _do_reboot_vm(vm_id, method):
     # and fetch it again, with new status
     return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
 
+
 @vms.route('/<vm_id>/reboot', methods=('POST',))
 def reboot_vm(vm_id):
     return _do_reboot_vm(vm_id, REBOOT_SOFT)
+
 
 @vms.route('/<vm_id>/reset', methods=('POST',))
 def reset_vm(vm_id):
