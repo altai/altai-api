@@ -45,15 +45,15 @@ from altai_api import stats
 from altai_api import error_handlers
 from altai_api import authentication
 
-from altai_api import utils
+from altai_api.utils import communication
 
 
 @app.before_request
 def check_request():
     authentication.require_auth()
-    utils.check_request_headers()
-    utils.setup_args_handling()
-    utils.parse_common_args()
+    communication.check_request_headers()
+    communication.setup_args_handling()
+    communication.parse_common_args()
     return None
 
 
@@ -67,16 +67,16 @@ def _mount_collections(iterable):
 
 
 _mount_collections((
-    ('networks', '/v1/networks'),
-    ('instance_types', '/v1/instance-types'),
-    ('projects', '/v1/projects'),
-    ('project_users', '/v1/projects/<project_id>/users'),
-    ('fw_rule_sets', '/v1/fw-rule-sets'),
-    ('fw_rules', '/v1/fw-rule-sets/<fw_rule_set_id>/rules'),
-    ('users', '/v1/users'),
-    ('vms', '/v1/vms'),
-    ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
-    ('images', '/v1/images')
+     ('networks', '/v1/networks'),
+     ('instance_types', '/v1/instance-types'),
+     ('projects', '/v1/projects'),
+     ('project_users', '/v1/projects/<project_id>/users'),
+     ('fw_rule_sets', '/v1/fw-rule-sets'),
+     ('fw_rules', '/v1/fw-rule-sets/<fw_rule_set_id>/rules'),
+     ('users', '/v1/users'),
+     ('vms', '/v1/vms'),
+     ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
+     ('images', '/v1/images')
 ))
 
 

@@ -22,10 +22,10 @@
 from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.utils import (make_json_response,
-                             timestamp_from_openstack,
                              make_collection_response,
                              setup_sorting)
 
+from altai_api.utils.parsers import timestamp_from_openstack
 from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 

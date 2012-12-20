@@ -26,8 +26,8 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import make_json_response
-from altai_api.utils import timestamp_from_openstack, int_from_string
 from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils.parsers import timestamp_from_openstack, int_from_string
 
 from altai_api.authentication import client_set_for_tenant
 from altai_api.collection.users import link_for_user, fetch_user

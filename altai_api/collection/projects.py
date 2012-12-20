@@ -27,7 +27,7 @@ from altai_api import exceptions as exc
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
-from altai_api.utils import from_mb, from_gb, to_mb, to_gb
+from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
 from altai_api.authentication import client_set_for_tenant
 
 

@@ -26,7 +26,7 @@ from flask import Blueprint, abort, url_for, request, g
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
-from altai_api.utils import from_mb, from_gb, to_mb, to_gb
+from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response, setup_sorting
 

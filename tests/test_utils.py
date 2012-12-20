@@ -29,9 +29,9 @@ from tests import TestCase
 from altai_api import exceptions as exc
 
 from altai_api.utils import make_json_response, make_collection_response
-from altai_api.utils import int_from_string, int_from_user
-from altai_api.utils import _parse_sortby, _apply_sortby
-from altai_api.utils import timestamp_from_openstack
+from altai_api.utils.sorting import parse_sortby, apply_sortby
+from altai_api.utils.parsers import int_from_string, int_from_user
+from altai_api.utils.parsers import timestamp_from_openstack
 
 
 class MakeResponseTestCase(TestCase):
@@ -39,14 +39,16 @@ class MakeResponseTestCase(TestCase):
     def test_default_response(self):
         self.app.config['PRETTY_PRINT_JSON'] = False
 
-        resp = make_json_response({'one': 1})
+        with self.app.test_request_context():
+            resp = make_json_response({'one': 1})
         self.assertEquals(resp.data, '{"one":1}')
         self.assertEquals(resp.status_code, 200)
         self.assertEquals(resp.headers.get('Content-type'),
                           'application/json')
 
     def test_empty_400_response(self):
-        resp = make_json_response(None, status_code=400)
+        with self.app.test_request_context():
+            resp = make_json_response(None, status_code=400)
         self.assertEquals(resp.data, '')
         self.assertEquals(resp.status_code, 400)
         self.assertEquals(resp.headers.get('Content-type'),
@@ -55,7 +57,8 @@ class MakeResponseTestCase(TestCase):
     def test_pretty_response(self):
         self.app.config['PRETTY_PRINT_JSON'] = True
 
-        resp = make_json_response({'one': 1})
+        with self.app.test_request_context():
+            resp = make_json_response({'one': 1})
         self.assertEquals(resp.data, '{\n    "one": 1\n}\n')
         self.assertEquals(resp.status_code, 200)
         self.assertEquals(resp.headers.get('Content-type'),
@@ -64,13 +67,15 @@ class MakeResponseTestCase(TestCase):
     def test_dates_in_response(self):
         self.app.config['PRETTY_PRINT_JSON'] = False
         timestamp = datetime(2012, 9, 13, 15, 03, 42)
-        resp = make_json_response({'created':timestamp})
+        with self.app.test_request_context():
+            resp = make_json_response({'created': timestamp})
         self.assertEquals(resp.data, '{"created":"2012-09-13T15:03:42Z"}')
 
     def test_dates_in_pretty_response(self):
         self.app.config['PRETTY_PRINT_JSON'] = True
         timestamp = datetime(2012, 9, 13, 15, 03, 42)
-        resp = make_json_response({'created':timestamp})
+        with self.app.test_request_context():
+            resp = make_json_response({'created': timestamp})
         self.assertTrue('"2012-09-13T15:03:42Z"' in resp.data)
 
 
@@ -118,7 +123,6 @@ class IntParseAndCheckTestCase(unittest.TestCase):
 
 
 class MakeCollectionResponseTestCase(TestCase):
-
 
     def setUp(self):
         super(MakeCollectionResponseTestCase, self).setUp()
@@ -200,17 +204,17 @@ class SortByTestCase(unittest.TestCase):
     allowed = ('first', 'second')
 
     def test_parses_simple(self):
-        sortby = _parse_sortby('first', self.allowed)
+        sortby = parse_sortby('first', self.allowed)
         self.assertEquals(len(sortby), 1)
         self.assertEquals(sortby[0][0], 'first')
         self.assertEquals(sortby[0][1], True)
 
     def test_invalid_direction_raises(self):
-        self.assertRaises(exc.InvalidRequest, _parse_sortby,
+        self.assertRaises(exc.InvalidRequest, parse_sortby,
                           'first:i am bad', self.allowed)
 
     def test_invalid_parameter_raises(self):
-        self.assertRaises(exc.InvalidRequest, _parse_sortby,
+        self.assertRaises(exc.InvalidRequest, parse_sortby,
                           'fw-rule-sets:desc', self.allowed)
 
     def test_applies_nothing(self):
@@ -219,7 +223,7 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 2 },
             { 'first': 1 }
         ]
-        self.assertEquals(victim, _apply_sortby(None, victim))
+        self.assertEquals(victim, apply_sortby(None, victim))
 
     def test_aplies_one(self):
         victim = [
@@ -232,8 +236,8 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 2 },
             { 'first': 3 }
         ]
-        sortby = _parse_sortby('first', self.allowed)
-        self.assertEquals(result, _apply_sortby(sortby, victim))
+        sortby = parse_sortby('first', self.allowed)
+        self.assertEquals(result, apply_sortby(sortby, victim))
 
     def test_key_not_found(self):
         victim = [
@@ -241,12 +245,11 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 2 },
             { 'first': 1 }
         ]
-        sortby = _parse_sortby('second', self.allowed)
+        sortby = parse_sortby('second', self.allowed)
         try:
-            _apply_sortby(sortby, victim)
+            apply_sortby(sortby, victim)
         except Exception, e:
             self.fail('Unexpected exception: %s', e)
-
 
     def test_sort_by_two(self):
         victim = [
@@ -259,8 +262,8 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 2, 'second': 1 },
             { 'first': 2, 'second': 2 }
         ]
-        sortby = _parse_sortby('first,second', self.allowed)
-        self.assertEquals(result, _apply_sortby(sortby, victim))
+        sortby = parse_sortby('first,second', self.allowed)
+        self.assertEquals(result, apply_sortby(sortby, victim))
 
     def test_sort_one_asc(self):
         victim = [
@@ -273,8 +276,8 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 2 },
             { 'first': 3 }
         ]
-        sortby = _parse_sortby('first:asc', self.allowed)
-        self.assertEquals(result, _apply_sortby(sortby, victim))
+        sortby = parse_sortby('first:asc', self.allowed)
+        self.assertEquals(result, apply_sortby(sortby, victim))
 
     def test_sort_one_desc(self):
         victim = [
@@ -287,8 +290,8 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 2 },
             { 'first': 1 }
         ]
-        sortby = _parse_sortby('first:desc', self.allowed)
-        self.assertEquals(result, _apply_sortby(sortby, victim))
+        sortby = parse_sortby('first:desc', self.allowed)
+        self.assertEquals(result, apply_sortby(sortby, victim))
 
     def test_sort_two_different(self):
         victim = [
@@ -301,8 +304,8 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 2, 'second': 2 },
             { 'first': 2, 'second': 1 }
         ]
-        sortby = _parse_sortby('first,second:desc', self.allowed)
-        self.assertEquals(result, _apply_sortby(sortby, victim))
+        sortby = parse_sortby('first,second:desc', self.allowed)
+        self.assertEquals(result, apply_sortby(sortby, victim))
 
 
 class TimestampFromOpenstackTestCase(unittest.TestCase):

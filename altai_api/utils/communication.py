@@ -22,13 +22,14 @@
 """Miscellanious utility functions
 """
 
-from flask import json, request, abort, g, after_this_request
+from flask import json, request, abort, g, after_this_request, current_app
 from datetime import datetime
 
 import altai_api
 
-from altai_api.main import app
 from altai_api.authentication import is_authenticated
+from altai_api.utils.parsers import int_from_string
+from altai_api.utils.sorting import apply_sortby
 from altai_api import exceptions as exc
 
 
@@ -54,7 +55,7 @@ def make_json_response(data, status_code=200, location=None):
     """Make json response from response data.
     """
     if data is not None:
-        if app.config.get('PRETTY_PRINT_JSON'):
+        if current_app.config.get('PRETTY_PRINT_JSON'):
             data = json.dumps(data, indent=4, sort_keys=True,
                               default=_json_default)
             data += '\n'
@@ -63,7 +64,7 @@ def make_json_response(data, status_code=200, location=None):
                               default=_json_default)
     else:
         data = ""
-    response = app.make_response((data, status_code))
+    response = current_app.make_response((data, status_code))
     response.headers['Content-Type'] = _JSON
     if location is not None:
         response.headers['Location'] = location
@@ -183,159 +184,6 @@ def _apply_pagination_and_sorting(result):
         result = result[:g.limit]
     if 'sortby' in g.unused_args:
         g.unused_args.discard('sortby')
-        result = _apply_sortby(g.sortby, result)
+        result = apply_sortby(g.sortby, result)
     return result
-
-
-_OS_TIMESTAMP_FORMATS = (
-    # NOTE(imelnikov): git grep strftime enlightenes
-    "%Y-%m-%dT%H:%M:%S",
-    "%Y-%m-%dT%H:%M:%SZ",
-    "%Y-%m-%dT%H:%M:%S.000Z"
-)
-
-
-def timestamp_from_openstack(date):
-    """Parse date from a string OpenStack gave us.
-
-    OpenStack API may give us strings in several formats.
-
-    """
-    if not isinstance(date, basestring):
-        raise TypeError('%r is not a date value' % date)
-    for fmt in _OS_TIMESTAMP_FORMATS:
-        try:
-            return datetime.strptime(date, fmt)
-        except ValueError:
-            pass
-    raise ValueError('Invalid timestamp: %r' % date)
-
-
-def _raise(value, on_error):
-    if callable(on_error):
-        on_error(value)
-    else:
-        raise ValueError('%s: %r' % (on_error or 'Invalid value', value))
-
-
-def int_from_user(value, min_val=0, max_val=None, on_error=None):
-    """Check that value is good int"""
-    try:
-        assert isinstance(value, int) or isinstance(value, long)
-        assert value >= min_val
-        if max_val is not None:
-            assert value <= max_val
-        return value
-    except AssertionError:
-        _raise(value, on_error)
-
-
-def int_from_string(value, min_val=0, max_val=None,
-                    on_error=None, allow_none=False):
-    """Convert a string to an int, with strong checks."""
-    try:
-        if value is None and allow_none:
-            return None
-        assert isinstance(value, basestring)
-        assert value == '0' or not value.startswith('0')
-        return int_from_user(int(value), min_val, max_val)
-    except (ValueError, AssertionError):
-        _raise(value, on_error)
-
-
-def _get_nested(data, keys):
-    for k in keys:
-        data = data.get(k)
-        if data is None:
-            return None
-    return data
-
-
-def _parse_one_sortby_item(item, allowed_names):
-    """Convert one item of sortby list to internal represintation."""
-    elems = item.rsplit(':', 1)
-
-    name = elems[0]
-    if name not in allowed_names:
-        raise exc.InvalidRequest(
-            'Could not sort: bad parameter: %r' % elems[0])
-
-    if len(elems) == 1 or elems[1] == 'asc':
-        is_asc = True
-    elif elems[1] == 'desc':
-        is_asc = False
-    else:
-        raise exc.InvalidRequest('Invalid sorting direction: %r' % elems[1])
-
-    keys = name.split('.')
-    if len(keys) == 1:
-        keyfun = lambda x: x.get(name)
-    else:
-        keyfun = lambda x: _get_nested(x, keys)
-    return name, is_asc, keyfun
-
-
-def _parse_sortby(param, allowed_names):
-    """Parse sortby query parameter.
-
-    Performs some checking and returns special data structure
-    that can be passed to _apply_sortby function (see below).
-    """
-    if param is None:
-        return None
-    return [_parse_one_sortby_item(x, allowed_names)
-            for x in param.split(',')]
-
-
-def setup_sorting(allowed_names):
-    """Parses sortby parameter and saves it to flask.g fr farther use"""
-    param = request.args.get('sortby')
-    g.sortby = _parse_sortby(param, set(allowed_names))
-
-
-def _apply_sortby(how, result):
-    """Apply sorting to target.
-
-    Takes result of parse_sortby and a list and sorts list as
-    specified.
-    """
-    if how is None:
-        return result
-
-    def compare(val1, val2):
-        for _, is_asc, keyfun in how:
-            res = cmp(keyfun(val1), keyfun(val2))
-            if res != 0:
-                return res if is_asc else -res
-        return 0
-    return sorted(list(result), compare)
-
-
-_MB = 1024 * 1024
-_GB = 1024 * 1024 * 1024
-
-
-def _div_ceil(dividend, divisor):
-    """Divide dividend to divisor with rounding up"""
-    return int((dividend + divisor - 1) / divisor)
-
-
-def to_mb(size):
-    """Convert size from bytes to megabytes, rounding up"""
-    return _div_ceil(size, _MB)
-
-
-def from_mb(size):
-    """Convert size from megabytes to bytes"""
-    return size * _MB
-
-
-def to_gb(size):
-    """Convert size from bytes to gigabytes, rounding up"""
-    return _div_ceil(size, _GB)
-
-
-def from_gb(size):
-    """Convert size from gigabytes to bytes"""
-    return size * _GB
 

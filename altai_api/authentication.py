@@ -20,9 +20,9 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import request, g, abort
+from flask import current_app as app
 from openstackclient_base.client_set import ClientSet
 
-from altai_api.main import app
 
 def require_auth():
     """Handle request authentication
