@@ -22,7 +22,11 @@
 from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
 
 from altai_api.collection.projects import get_tenant
 from altai_api.collection.users import link_for_user, fetch_user
@@ -31,9 +35,15 @@ from altai_api.collection.users import link_for_user, fetch_user
 project_users = Blueprint('project_users', __name__)
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name')
+))
+
+
 @project_users.route('/', methods=('GET',))
 def list_project_users(project_id):
-    setup_sorting(('id', 'name'))
+    parse_collection_request(_SCHEMA)
     tenant = get_tenant(project_id)
     result = [link_for_user(user) for user in tenant.list_users()]
     parent_href = url_for('projects.get_project', project_id=project_id)

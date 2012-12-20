@@ -31,6 +31,7 @@ from altai_api import exceptions as exc
 from altai_api.utils import make_json_response, make_collection_response
 from altai_api.utils.sorting import parse_sortby, apply_sortby
 from altai_api.utils.parsers import int_from_string, int_from_user
+from altai_api.utils.parsers import cidr_from_user, ipv4_from_user
 from altai_api.utils.parsers import timestamp_from_openstack
 
 
@@ -78,6 +79,19 @@ class MakeResponseTestCase(TestCase):
             resp = make_json_response({'created': timestamp})
         self.assertTrue('"2012-09-13T15:03:42Z"' in resp.data)
 
+    def test_rises_nicely(self):
+        class A(object):
+            def __repr__(self):
+                return 'TEST CLASS'
+        with self.app.test_request_context():
+            try:
+                make_json_response({'a': A()})
+            except TypeError, error:
+                pass
+            else:
+                self.fail('TypeError was not raised')
+        self.assertTrue('TEST CLASS' in str(error))
+
 
 class IntParseAndCheckTestCase(unittest.TestCase):
 
@@ -120,6 +134,42 @@ class IntParseAndCheckTestCase(unittest.TestCase):
     def test_from_user_accepts_logns(self):
         l = 311915573212624289544582358376647421533L
         self.assertEquals(l, int_from_user(l))
+
+
+class IpAndCidrCheckTestCase(unittest.TestCase):
+
+    def test_ipv4_parses(self):
+        self.assertEquals(ipv4_from_user('192.168.1.42'),
+                          '192.168.1.42')
+
+    def test_ipv4_parses_zero(self):
+        self.assertEquals(ipv4_from_user('192.0.1.42'),
+                          '192.0.1.42')
+
+    def test_ipv4_no_leading_zeroes(self):
+        self.assertRaises(ValueError, ipv4_from_user,
+                          '192.168.01.42')
+
+    def test_ipv4_check_bounds(self):
+        self.assertRaises(ValueError, ipv4_from_user, '192.368.1.42')
+
+    def test_ipv4_all_octets(self):
+        self.assertRaises(ValueError, ipv4_from_user, '192.168.1.')
+
+    def test_ipv4_all_octets_no_dot(self):
+        self.assertRaises(ValueError, ipv4_from_user, '192.168.1')
+
+    def test_cidr_parses(self):
+        self.assertEquals(cidr_from_user('192.168.1.0/24'),
+                          '192.168.1.0/24')
+
+    def test_cidr_checks_big_net(self):
+        self.assertRaises(ValueError,
+                          cidr_from_user, '192.168.1.0/42')
+
+    def test_cidr_no_leading_zeroes(self):
+        self.assertRaises(ValueError,
+                          cidr_from_user, '192.168.1.0/023')
 
 
 class MakeCollectionResponseTestCase(TestCase):

@@ -22,7 +22,6 @@
 """Collection sorting"""
 
 
-from flask import request, g
 from altai_api import exceptions as exc
 
 
@@ -68,12 +67,6 @@ def parse_sortby(param, allowed_names):
         return None
     return [_parse_one_sortby_item(x, allowed_names)
             for x in param.split(',')]
-
-
-def setup_sorting(allowed_names):
-    """Parses sortby parameter and saves it to flask.g fr farther use"""
-    param = request.args.get('sortby')
-    g.sortby = parse_sortby(param, set(allowed_names))
 
 
 def apply_sortby(how, result):

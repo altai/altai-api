@@ -28,8 +28,6 @@ from datetime import datetime
 import altai_api
 
 from altai_api.authentication import is_authenticated
-from altai_api.utils.parsers import int_from_string
-from altai_api.utils.sorting import apply_sortby
 from altai_api import exceptions as exc
 
 
@@ -71,20 +69,6 @@ def make_json_response(data, status_code=200, location=None):
     if is_authenticated():
         response.headers['X-GD-Altai-Implementation'] = _IMPELEMENTATION
     return response
-
-
-def make_collection_response(name, elements, parent_href=None):
-    """Return a collection to client"""
-    result = {
-        u'collection': {
-            u'name': name,
-            u'size': len(elements)
-        },
-        name: _apply_pagination_and_sorting(elements)
-    }
-    if parent_href is not None:
-        result[u'collection'][u'parent-href'] = parent_href
-    return make_json_response(result)
 
 
 def check_request_headers():
@@ -160,30 +144,4 @@ def _check_unused_args_empty(response):
     # so, to be consistent, we call handler directly
     return altai_api.error_handlers.unknown_param_handler(
         exc.UnknownArgument(g.unused_args.pop()))
-
-
-def parse_common_args():
-    try:
-        g.limit = int_from_string(request.args.get('limit'),
-                                  on_error='Invalid limit value',
-                                  allow_none=True)
-        g.offset = int_from_string(request.args.get('offset'),
-                                   on_error='Invalid offset value',
-                                   allow_none=True)
-    except ValueError, e:
-        raise exc.InvalidRequest(str(e))
-
-
-def _apply_pagination_and_sorting(result):
-    """Apply previously parsed pagination to given request result."""
-    g.unused_args.discard('limit')
-    g.unused_args.discard('offset')
-    if g.offset:
-        result = result[g.offset:]
-    if g.limit:
-        result = result[:g.limit]
-    if 'sortby' in g.unused_args:
-        g.unused_args.discard('sortby')
-        result = apply_sortby(g.sortby, result)
-    return result
 

@@ -23,7 +23,12 @@ from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.main import app
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
 from altai_api.authentication import client_set_for_tenant
 from altai_api.collection.projects import link_for_tenant
 
@@ -57,9 +62,17 @@ def _sg_from_nova(sg, tenant):
     return result
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.String('description'),
+    st.LinkObject('project')
+))
+
+
 @fw_rule_sets.route('/', methods=('GET',))
 def list_fw_rule_sets():
-    setup_sorting(('id', 'name', 'description', 'project.id', 'project.name'))
+    parse_collection_request(_SCHEMA)
     tenants = g.client_set.identity_admin.tenants.list()
     systenant = app.config['DEFAULT_TENANT']
 

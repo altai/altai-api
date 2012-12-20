@@ -191,13 +191,13 @@ class NetworksCollectionTestCase(MockedTestCase):
         self.assertEquals(rv.status_code, 404)
 
 
-class NetworksCollectionSortingTestCase(MockedTestCase):
+class NetworksCollectionArgsTestCase(MockedTestCase):
 
     def _net(self, **kwargs):
         return doubles.make(self.mox, doubles.Network, **kwargs)
 
     def test_all_sorts(self):
-        nets = [self._net(id=unicode(i), label='n%s'%i, project_id=None)
+        nets = [self._net(id=unicode(i), label='n%s' % i, project_id=None)
                 for i in (3, 1, 2)]
         self.fake_client_set.compute.networks.list().AndReturn(nets)
 
@@ -208,7 +208,6 @@ class NetworksCollectionSortingTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals([u'1', u'2', u'3'],
                           [net['id'] for net in data['networks']])
-
 
     def test_sorts_by_project_name(self):
         client = self.fake_client_set
@@ -231,4 +230,26 @@ class NetworksCollectionSortingTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(expected_ids,
                           [net['id'] for net in data['networks']])
+
+    def test_filters_by_name(self):
+        client = self.fake_client_set
+        nets = [
+            self._net(id='1', label='net1', project_id='pid1'),
+            self._net(id='3', label='badnet', project_id=None),
+            self._net(id='2', label='net2', project_id='pid2')
+        ]
+        tenant1 = doubles.make(self.mox, doubles.Tenant, id='pid1', name='B')
+        tenant2 = doubles.make(self.mox, doubles.Tenant, id='pid2', name='A')
+
+        client.compute.networks.list().AndReturn(nets)
+        client.identity_admin.tenants.get(u'pid1').AndReturn(tenant1)
+        client.identity_admin.tenants.get(u'pid2').AndReturn(tenant2)
+        expected_ids = set([u'1', u'2'])
+
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/networks/?name:startswith=net')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(expected_ids,
+                          set((net['id'] for net in data['networks'])))
 

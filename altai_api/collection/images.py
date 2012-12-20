@@ -21,9 +21,12 @@
 
 from flask import url_for, g, Blueprint, abort, request
 
-from altai_api.utils import (make_json_response,
-                             make_collection_response,
-                             setup_sorting)
+from altai_api.utils import make_json_response
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
 
 from altai_api.utils.parsers import timestamp_from_openstack
 from altai_api import exceptions as exc
@@ -100,10 +103,19 @@ def list_all_images():
     return g.client_set.image.images.list(filters={'is_public': None})
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.String('format'),
+    st.Timestamp('created'),
+    st.Boolean('global'),
+    st.LinkObject('project')
+))
+
+
 @images.route('/', methods=('GET',))
 def list_images():
-    setup_sorting(('id', 'name', 'format', 'created',
-                   'global', 'project.id', 'project.name'))
+    parse_collection_request(_SCHEMA)
 
     tenants = g.client_set.identity_admin.tenants.list()
     tenant_dict = dict(((tenant.id, tenant) for tenant in tenants))

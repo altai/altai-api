@@ -20,10 +20,17 @@
 # <http://www.gnu.org/licenses/>.
 
 import flask
+
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
-from altai_api.exceptions import InvalidRequest
+from altai_api.utils import parse_collection_request
+from altai_api.utils import make_collection_response
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
+from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
+
 from altai_api.collection.projects import link_for_project
 
 networks = flask.Blueprint('networks', __name__)
@@ -47,9 +54,19 @@ def _net_to_dict(net):
     return d
 
 
+_SCHEMA = Schema((
+    st.String('name'),
+    st.String('id'),
+    st.Int('vlan'),
+    st.Cidr('cidr'),
+    st.Boolean('used'),
+    st.LinkObject('project')
+))
+
+
 @networks.route('/', methods=('GET',))
 def list_networks():
-    setup_sorting(('name', 'id', 'vlan', 'cidr', 'project.name', 'project.id'))
+    parse_collection_request(_SCHEMA)
     nets = flask.g.client_set.compute.networks.list()
     return make_collection_response(u'networks',
                                     [_net_to_dict(net) for net in nets])
@@ -69,26 +86,22 @@ def get_network(net_id):
 @networks.route('/', methods=('POST',))
 def create_network():
     client = flask.g.client_set
-    # validate input
+    # TOOD(imelnikov) validate input
     param = flask.request.json
-    try:
-        (name, vlan, cidr) = param["name"], int(param["vlan"]), param["cidr"]
-    except:
-        raise InvalidRequest("One of <name>, <vlan> or <cidr> params is missing"
-                             " or invalid")
+    (name, vlan, cidr) = param["name"], int(param["vlan"]), param["cidr"]
+
     # create network
     try:
         new_net = client.compute.networks.create(label=name,
                                                  vlan_start=vlan,
                                                  cidr=cidr)
     except osc_exc.BadRequest, e:
-        raise InvalidRequest(str(e))
+        raise exc.InvalidRequest(str(e))
 
     if isinstance(new_net, list) and len(new_net) == 1:
         new_net = new_net[0]
     else:
         raise ValueError('Network created with strange result: %r' % new_net)
-
 
     return make_json_response(_net_to_dict(new_net))
 

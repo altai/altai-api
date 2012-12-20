@@ -23,8 +23,14 @@ from flask import Blueprint, g, url_for, abort, request
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.main import app
+
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
 from altai_api.exceptions import InvalidRequest
 from altai_api.authentication import default_tenant_id, admin_role_id
 
@@ -32,6 +38,7 @@ from altai_api.collection.projects import link_for_project
 
 
 users = Blueprint('users', __name__)
+
 
 def link_for_user(user):
     return {
@@ -46,7 +53,6 @@ def fetch_user(user_id):
         return g.client_set.identity_admin.users.get(user_id)
     except osc_exc.NotFound:
         abort(404)
-
 
 
 def _user_from_nova(user):
@@ -95,10 +101,19 @@ def _revoke_admin(user_id):
         pass # user was not admin
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.String('fullname'),
+    st.String('email'),
+    st.Boolean('admin'),
+    st.Boolean('completed-registration')
+))
+
+
 @users.route('/', methods=('GET',))
 def list_users():
-    setup_sorting(('id', 'name', 'fullname', 'email',
-                   'admin', 'completed-registration'))
+    parse_collection_request(_SCHEMA)
     user_mgr = g.client_set.identity_admin.users
     return make_collection_response(u'users', [_user_from_nova(user)
                                                for user in user_mgr.list()])
@@ -141,7 +156,6 @@ def update_user(user_id):
     user = fetch_user(user_id)
     param = request.json
     user_mgr = g.client_set.identity_admin.users
-
 
     fields_to_update = {}
     # update name, email, fullname

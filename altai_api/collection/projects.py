@@ -26,7 +26,12 @@ from altai_api import exceptions as exc
 
 from altai_api.main import app
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
 from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
 from altai_api.authentication import client_set_for_tenant
 
@@ -121,9 +126,17 @@ def get_project(project_id):
     return make_json_response(result)
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.String('description'),
+    st.LinkObject('network')
+))
+
+
 @projects.route('/', methods=('GET',))
 def list_projects():
-    setup_sorting(('id', 'name', 'description', 'network.id', 'network.name'))
+    parse_collection_request(_SCHEMA)
     cs = g.client_set
     tenants = cs.identity_admin.tenants.list()
     networks = dict(((net.project_id, net)

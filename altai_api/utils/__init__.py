@@ -22,8 +22,7 @@
 """Altai API miscellaneous utilities"""
 
 
-from altai_api.utils.communication import (make_json_response,
-                                           make_collection_response)
-
-from altai_api.utils.sorting import setup_sorting
+from altai_api.utils.communication import make_json_response
+from altai_api.utils.collection import parse_collection_request
+from altai_api.utils.collection import make_collection_response
 

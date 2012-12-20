@@ -53,7 +53,6 @@ def check_request():
     authentication.require_auth()
     communication.check_request_headers()
     communication.setup_args_handling()
-    communication.parse_common_args()
     return None
 
 

@@ -28,15 +28,18 @@ from altai_api import exceptions as exc
 
 from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
 
+from altai_api.schema import Schema
+from altai_api.schema import types as st
 
 instance_types = Blueprint('instance_types', __name__)
 
 
 def _instance_type_from_nova(flavor):
     return {
-        u'id' : flavor.id,
+        u'id': flavor.id,
         u'href': url_for('instance_types.get_instance_type',
                          instance_type_id=flavor.id),
         u'name': flavor.name,
@@ -45,6 +48,7 @@ def _instance_type_from_nova(flavor):
         u'root-size': from_gb(flavor.disk),
         u'ephemeral-size': from_gb(flavor.ephemeral)
     }
+
 
 def _instance_type_for_nova(data):
     if u'id' in data:
@@ -58,11 +62,19 @@ def _instance_type_for_nova(data):
     }
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.Int('cpus'),
+    st.Int('ram'),
+    st.Int('root-size'),
+    st.Int('ephemeral-size')
+))
+
+
 @instance_types.route('/', methods=('GET',))
 def list_instance_types():
-    setup_sorting(('id', 'name', 'cpus', 'ram',
-                   'root-size', 'ephemeral-size'))
-
+    parse_collection_request(_SCHEMA)
     all_flavors = g.client_set.compute.flavors.list()
     result = [_instance_type_from_nova(flavor)
               for flavor in all_flavors]

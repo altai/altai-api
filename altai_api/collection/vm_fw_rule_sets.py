@@ -22,7 +22,11 @@
 from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
 
 from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
@@ -57,9 +61,15 @@ def _find_sg_on_server(server, set_id):
     return sg
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name')
+))
+
+
 @vm_fw_rule_sets.route('/', methods=('GET',))
 def list_vm_fw_rule_sets(vm_id):
-    setup_sorting(('id', 'name'))
+    parse_collection_request(_SCHEMA)
     server = fetch_vm(vm_id)
     result = [link_for_security_group(sg)
               for sg in _security_groups_for_server(server)]

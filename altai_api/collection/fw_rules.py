@@ -23,7 +23,11 @@ from flask import url_for, g, Blueprint, abort, request
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
 
 
 fw_rules = Blueprint('fw_rules', __name__)
@@ -72,11 +76,19 @@ def _get_security_group(sg_id):
     return sg
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.String('protocol'),
+    st.Cidr('source'),
+    st.Int('port-range-first', min_val=-1, max_val=65535),
+    st.Int('port-range-last', min_val=-1, max_val=65535)
+))
+
+
 @fw_rules.route('/', methods=('GET',))
 def list_fw_rules(fw_rule_set_id):
-    setup_sorting(('id', 'protocol', 'source',
-                   'port-range-first', 'port-range-last'))
-
+    parse_collection_request(_SCHEMA)
     result = [_fw_rule_dict_from_nova(rule)
               for rule in _get_security_group(fw_rule_set_id).rules]
     parent_href = url_for('fw_rule_sets.get_fw_rule_set',

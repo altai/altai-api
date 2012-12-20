@@ -26,7 +26,12 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response, setup_sorting
+from altai_api.utils import make_collection_response
+from altai_api.utils import parse_collection_request
+
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
 from altai_api.utils.parsers import timestamp_from_openstack, int_from_string
 
 from altai_api.authentication import client_set_for_tenant
@@ -96,12 +101,21 @@ def fetch_vm(vm_id):
         abort(404)
 
 
+_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.String('state'),
+    st.Timestamp('created'),
+    st.LinkObject('project'),
+    st.LinkObject('image')
+))
+
+
 @vms.route('/', methods=('GET',))
 def list_vms():
-    setup_sorting(('id', 'name', 'state', 'created',
-                   'project.name', 'project.id', 'image.name', 'image.id'))
+    parse_collection_request(_SCHEMA)
     servers = g.client_set.compute.servers.list(
-        search_opts={'all_tenants': 1})
+            search_opts={'all_tenants': 1})
     return make_collection_response( u'vms', [_vm_from_nova(vm)
                                               for vm in servers])
 

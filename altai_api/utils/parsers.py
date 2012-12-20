@@ -19,6 +19,10 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
+
+"""Parsers and validators for external data"""
+
+
 from datetime import datetime
 
 
@@ -77,4 +81,36 @@ def int_from_string(value, min_val=0, max_val=None,
     except (ValueError, AssertionError):
         _raise(value, on_error)
 
+
+def ipv4_from_user(value, on_error=None):
+    """Check that string represents IPv4
+
+    Returns value in canonical form.
+
+    """
+    try:
+        assert isinstance(value, basestring)
+        str_octets = value.split('.')
+        assert len(str_octets) == 4
+        int_octets = [int_from_string(x, 0, 255)
+                      for x in str_octets]
+        return '.'.join((str(x) for x in int_octets))
+    except (ValueError, AssertionError):
+        _raise(value, on_error)
+
+
+def cidr_from_user(value, on_error=None):
+    """Check that string represents IPv4 CIDR
+
+    Returns value in canonical form
+
+    """
+    try:
+        assert isinstance(value, basestring)
+        addr, net = value.split('/')
+        ret_addr = ipv4_from_user(addr)
+        ret_net = int_from_string(net, min_val=0, max_val=32)
+        return '%s/%s' % (ret_addr, ret_net)
+    except (AssertionError, ValueError):
+        _raise(value, on_error)
 
