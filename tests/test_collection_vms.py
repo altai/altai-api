@@ -105,7 +105,9 @@ class VmFromNovaTestCase(MockedTestCase):
                 u'reset': '/v1/vms/VMID/reset',
                 u'remove': '/v1/vms/VMID/remove',
                 u'add-tags': '/v1/vms/VMID/add-tags',
-                u'remove-tags': '/v1/vms/VMID/remove-tags'
+                u'remove-tags': '/v1/vms/VMID/remove-tags',
+                u'vnc': '/v1/vms/VMID/vnc',
+                u'console-output': '/v1/vms/VMID/console-output'
             }
         }
 
@@ -360,7 +362,8 @@ class ActionsTestCase(MockedTestCase):
 
     def setUp(self):
         super(ActionsTestCase, self).setUp()
-        self.server = doubles.make(self.mox, doubles.Server, id=u'VICTIM')
+        self.server = doubles.make(self.mox, doubles.Server,
+                                   id=u'VICTIM', name=u'VICTIM VM')
         self.mox.StubOutWithMock(vms, '_vm_from_nova')
 
     def interact(self, url, data, expected_status_code=200):
@@ -466,4 +469,84 @@ class ActionsTestCase(MockedTestCase):
         self.mox.ReplayAll()
         rv = self.client.delete('/v1/vms/%s' % s.id)
         self.check_and_parse_response(rv, status_code=202)
+
+    def test_console_output_works(self):
+        s = self.server
+        expected = {
+            'vm': {
+                'id': s.id,
+                'name': s.name,
+                'href': '/v1/vms/%s' % s.id
+            },
+            'console-output': 'CONSOLE LOG'
+        }
+
+        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        s.get_console_output(length=None).AndReturn('CONSOLE LOG')
+
+        self.mox.ReplayAll()
+        data = self.interact('/v1/vms/%s/console-output' % s.id, {})
+        self.assertEquals(expected, data)
+
+    def test_console_output_length(self):
+        s = self.server
+        expected = {
+            'vm': {
+                'id': s.id,
+                'name': s.name,
+                'href': '/v1/vms/%s' % s.id
+            },
+            'console-output': 'CONSOLE LOG'
+        }
+        length = 42
+
+        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        s.get_console_output(length=length).AndReturn('CONSOLE LOG')
+
+        self.mox.ReplayAll()
+        url = '/v1/vms/%s/console-output?length=%s' % (s.id, length)
+        data = self.interact(url, {})
+        self.assertEquals(expected, data)
+
+    def test_console_output_not_found(self):
+        s = self.server
+        self.fake_client_set.compute.servers.get(s.id)\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        self.interact('/v1/vms/%s/console-output' % s.id, {},
+                      expected_status_code=404)
+
+    def test_vnc_works(self):
+        s = self.server
+        expected = {
+            'vm': {
+                'id': s.id,
+                'name': s.name,
+                'href': '/v1/vms/%s' % s.id
+            },
+            'url': 'CONSOLE URL',
+            'console-type': 'novnc'
+        }
+        console = {
+            'url': 'CONSOLE URL',
+            'type': 'novnc'
+        }
+
+        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        s.get_vnc_console(console_type='novnc')\
+                .AndReturn({'console': console})
+
+        self.mox.ReplayAll()
+        data = self.interact('/v1/vms/%s/vnc' % s.id, {})
+        self.assertEquals(expected, data)
+
+    def test_vnc_not_found(self):
+        s = self.server
+        self.fake_client_set.compute.servers.get(s.id)\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        self.interact('/v1/vms/%s/vnc' % s.id, {},
+                      expected_status_code=404)
 

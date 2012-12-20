@@ -26,7 +26,7 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import make_json_response
-from altai_api.utils import timestamp_from_openstack
+from altai_api.utils import timestamp_from_openstack, int_from_string
 from altai_api.utils import make_collection_response, setup_sorting
 
 from altai_api.authentication import client_set_for_tenant
@@ -38,6 +38,14 @@ from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 
 
 vms = Blueprint('vms', __name__)
+
+
+def link_for_server(server):
+    return {
+        u'id': server.id,
+        u'href': url_for('vms.get_vm', vm_id=server.id),
+        u'name': server.name
+    }
 
 
 def _vm_from_nova(server):
@@ -70,6 +78,9 @@ def _vm_from_nova(server):
             u'remove': url_for('vms.remove_vm', vm_id=server.id),
             u'add-tags': url_for('vms.add_vm_tags', vm_id=server.id),
             u'remove-tags': url_for('vms.remove_vm_tags', vm_id=server.id),
+            u'vnc': url_for('vms.vm_vnc_console', vm_id=server.id),
+            u'console-output': url_for('vms.vm_console_output',
+                                       vm_id=server.id),
         },
         u'tags': [
             # TODO(imelnikov): implement it
@@ -89,9 +100,10 @@ def fetch_vm(vm_id):
 def list_vms():
     setup_sorting(('id', 'name', 'state', 'created',
                    'project.name', 'project.id', 'image.name', 'image.id'))
-    l = g.client_set.compute.servers.list
-    return make_collection_response(
-        u'vms', [_vm_from_nova(vm) for vm in l(search_opts={'all_tenants': 1})])
+    servers = g.client_set.compute.servers.list(
+        search_opts={'all_tenants': 1})
+    return make_collection_response( u'vms', [_vm_from_nova(vm)
+                                              for vm in servers])
 
 
 @vms.route('/<vm_id>', methods=('GET',))
@@ -206,7 +218,7 @@ def _do_reboot_vm(vm_id, method):
     server = fetch_vm(vm_id)
     server.reboot(method)
     # TODO(imelnikov): error handling
-    # and fetch it again, with new status
+    # Fetch it again, with new status:
     return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
 
 
@@ -218,6 +230,29 @@ def reboot_vm(vm_id):
 @vms.route('/<vm_id>/reset', methods=('POST',))
 def reset_vm(vm_id):
     return _do_reboot_vm(vm_id, REBOOT_HARD)
+
+
+@vms.route('/<vm_id>/console-output', methods=('POST',))
+def vm_console_output(vm_id):
+    server = fetch_vm(vm_id)
+    length = int_from_string(request.args.get('length'), allow_none=True)
+    g.unused_args.discard('length')
+    data = server.get_console_output(length=length)
+    return make_json_response({
+        'vm': link_for_server(server),
+        'console-output': data
+    })
+
+
+@vms.route('/<vm_id>/vnc', methods=('POST',))
+def vm_vnc_console(vm_id):
+    server = fetch_vm(vm_id)
+    vnc = server.get_vnc_console(console_type='novnc')['console']
+    return make_json_response({
+        'vm': link_for_server(server),
+        'url': vnc['url'],
+        'console-type': vnc['type']
+    })
 
 
 @vms.route('/<vm_id>/add-tags')
