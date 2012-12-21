@@ -75,7 +75,8 @@ _mount_collections((
      ('users', '/v1/users'),
      ('vms', '/v1/vms'),
      ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
-     ('images', '/v1/images')
+     ('images', '/v1/images'),
+     ('my_ssh_keys', '/v1/me/ssh-keys')
 ))
 
 
