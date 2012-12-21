@@ -19,9 +19,12 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for
+from flask import url_for, g
+
 from altai_api.main import app
 from altai_api.utils import make_json_response
+
+from altai_api.collection.users import get_user
 
 
 def _make_v1_info():
@@ -49,4 +52,11 @@ def get_v1_endpoint():
         'instance-types-href': url_for('instance_types.list_instance_types')
     }
     return make_json_response(response)
+
+
+@app.route('/v1/me')
+def get_current_user():
+    """Current user resource shortcut"""
+    uid = g.client_set.http_client.access['user']['id']
+    return get_user(uid)
 

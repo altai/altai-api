@@ -114,6 +114,17 @@ class UsersCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'dict-a')
 
+    def test_get_me(self):
+        self.fake_client_set.http_client.access['user']['id'] = 'user-a'
+        self.fake_client_set.identity_admin.users\
+                .get('user-a').AndReturn('user-a')
+        users._user_from_nova('user-a').AndReturn('dict-a')
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/me')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'dict-a')
+
     def test_get_user_not_found(self):
         # prepare
         self.fake_client_set.identity_admin.users.get('user-a') \
