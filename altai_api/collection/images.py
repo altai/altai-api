@@ -35,6 +35,7 @@ from altai_api.authentication import client_set_for_tenant, default_tenant_id
 
 images = Blueprint('images', __name__)
 
+
 def _fetch_image(image_id):
     try:
         image = g.client_set.image.images.get(image_id)
@@ -90,6 +91,15 @@ def _image_from_nova(image, tenant=None):
     return result
 
 
+def list_all_images():
+    """Get list of all images from all tenants"""
+    # NOTE(imelnikov): When is_public is True (the default), images
+    # available for current tenant are returned (public images and
+    # images from current tenant). When is_public is set to None
+    # explicitly, current tenant is ignored.
+    return g.client_set.image.images.list(filters={'is_public': None})
+
+
 @images.route('/', methods=('GET',))
 def list_images():
     setup_sorting(('id', 'name', 'format', 'created',
@@ -98,14 +108,9 @@ def list_images():
     tenants = g.client_set.identity_admin.tenants.list()
     tenant_dict = dict(((tenant.id, tenant) for tenant in tenants))
 
-    result_dict = {}
-    for tenant in tenants:
-        tcs = client_set_for_tenant(tenant_id=tenant.id)
-        result_dict.update(((image.id, image)
-                            for image in tcs.image.images.list()))
     result = [_image_from_nova(image,
                                tenant_dict[image.owner])
-              for image in sorted(result_dict.itervalues())]
+              for image in list_all_images()]
     return make_collection_response(u'images', result)
 
 
@@ -168,7 +173,6 @@ def create_image():
         properties=props)
 
     return make_json_response(_image_from_nova(image))
-
 
 
 @images.route('/<image_id>', methods=('DELETE',))

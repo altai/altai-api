@@ -114,7 +114,6 @@ class ImageFromNovaWorks(MockedTestCase):
             data = images._image_from_nova(image)
         self.assertEquals(data, expected)
 
-
     def test_queued_image_from_nova(self):
         image = doubles.make(self.mox, doubles.Image,
                              id=u'IMAGE', name=u'TestImage', size=123456,
@@ -147,7 +146,6 @@ class ImageFromNovaWorks(MockedTestCase):
             image.owner = images.default_tenant_id()
             data = images._image_from_nova(image)
         self.assertEquals(data, expected)
-
 
     def test_global_ami_image_from_nova(self):
         image_properties = {
@@ -224,19 +222,15 @@ class ListImagesTestCase(MockedTestCase):
             doubles.make(self.mox, doubles.Image, id=u'IMAGE3', owner=u'PID'),
         ]
 
-
     def test_list_works(self):
         client = self.fake_client_set
         tcs1 = mock_client_set(self.mox)
         tcs2 = mock_client_set(self.mox)
 
         client.identity_admin.tenants.list().AndReturn(self.tenants)
-        images.client_set_for_tenant(tenant_id=u'SYS').AndReturn(tcs1)
-        tcs1.image.images.list().AndReturn([self.images[0]])
+        client.image.images.list(filters={'is_public': None})\
+                .AndReturn(self.images)
         images._image_from_nova(self.images[0], self.tenants[0]).AndReturn('I1')
-
-        images.client_set_for_tenant(tenant_id=u'PID').AndReturn(tcs2)
-        tcs2.image.images.list().AndReturn([self.images[1], self.images[2]])
         images._image_from_nova(self.images[1], self.tenants[1]).AndReturn('I2')
         images._image_from_nova(self.images[2], self.tenants[1]).AndReturn('I3')
 
@@ -247,7 +241,6 @@ class ListImagesTestCase(MockedTestCase):
             },
             u'images': [ 'I1', 'I2', 'I3' ]
         }
-
 
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/images/')
@@ -303,7 +296,6 @@ class UpdateImageTestCase(MockedTestCase):
         return self.check_and_parse_response(
             rv, status_code=expected_status_code)
 
-
     def test_update_image_name(self):
         image = doubles.make(self.mox, doubles.Image,
                              id=u'IMAGE', owner=u'PID')
@@ -331,7 +323,6 @@ class CreateImageTestCase(MockedTestCase):
         return self.check_and_parse_response(
                 rv, status_code=expected_status_code)
 
-
     def test_create_global_image(self):
         params = {
             u'name': u'TestImage',
@@ -351,7 +342,6 @@ class CreateImageTestCase(MockedTestCase):
         self.mox.ReplayAll()
         data = self.interact(params)
         self.assertEquals(data, 'REPLY')
-
 
     def test_create_local_requires_project(self):
         params = {
