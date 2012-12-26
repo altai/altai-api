@@ -31,6 +31,8 @@ from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response
 from altai_api.utils import parse_collection_request
 
+from altai_api.utils.decorators import root_endpoint
+
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
@@ -73,6 +75,7 @@ _SCHEMA = Schema((
 
 
 @instance_types.route('/', methods=('GET',))
+@root_endpoint('instance-types')
 def list_instance_types():
     parse_collection_request(_SCHEMA)
     all_flavors = g.client_set.compute.flavors.list()

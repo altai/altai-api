@@ -44,13 +44,18 @@ def get_versions():
     })
 
 
+def _root_endpoints():
+    for endpoint, function in app.view_functions.iteritems():
+        name = getattr(function, 'altai_api_root_endpoint', None)
+        if name:
+            yield name + '-href', url_for(endpoint)
+
+
 @app.route('/v1/', methods=('GET',))
 def get_v1_endpoint():
     """Entry point for API v1"""
     response = _make_v1_info()
-    response['links'] = {
-        'instance-types-href': url_for('instance_types.list_instance_types')
-    }
+    response['links'] = dict(_root_endpoints())
     return make_json_response(response)
 
 

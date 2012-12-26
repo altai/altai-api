@@ -96,9 +96,10 @@ def _is_data_request():
     request content and headers themselves.
 
     """
-    return all((request.method == 'PUT',
-                request.content_type == 'application/octet-stream',
-                request.path.endswith('/data')))
+    if request.url_rule is None:
+        return False
+    return getattr(current_app.view_functions[request.url_rule.endpoint],
+                   'altai_api_is_data_handler', False)
 
 
 def _check_request_content():

@@ -24,12 +24,15 @@ from flask import g
 import openstackclient_base.exceptions as osc_exc
 from altai_api import exceptions as exc
 
+from altai_api.utils.decorators import root_endpoint
+
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.collection.images import list_all_images
 
 
 @app.route('/v1/stats', methods=('GET',))
+@root_endpoint('stats')
 def altai_stats():
     cs = g.client_set
     tenants = cs.identity_admin.tenants.list()

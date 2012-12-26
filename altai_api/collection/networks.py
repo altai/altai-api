@@ -25,6 +25,8 @@ from altai_api.utils import make_json_response
 from altai_api.utils import parse_collection_request
 from altai_api.utils import make_collection_response
 
+from altai_api.utils.decorators import root_endpoint
+
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
@@ -65,6 +67,7 @@ _SCHEMA = Schema((
 
 
 @networks.route('/', methods=('GET',))
+@root_endpoint('networks')
 def list_networks():
     parse_collection_request(_SCHEMA)
     nets = flask.g.client_set.compute.networks.list()

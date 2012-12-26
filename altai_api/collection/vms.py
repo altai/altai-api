@@ -29,6 +29,8 @@ from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response
 from altai_api.utils import parse_collection_request
 
+from altai_api.utils.decorators import root_endpoint
+
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
@@ -112,6 +114,7 @@ _SCHEMA = Schema((
 
 
 @vms.route('/', methods=('GET',))
+@root_endpoint('vms')
 def list_vms():
     parse_collection_request(_SCHEMA)
     servers = g.client_set.compute.servers.list(

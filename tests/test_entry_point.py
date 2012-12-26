@@ -48,9 +48,22 @@ class EntryPointTestCase(TestCase):
     def test_get_v1_entry_point(self):
         rv = self.client.get('/v1/')
         data = self.check_and_parse_response(rv)
-        self.assertEqual(data['major'], 1)
-        self.assertEqual(data['minor'], 0)
-        self.assertEqual(data['href'], '/v1/')
-        self.assertTrue('links' in data)
-        # TODO(imelnikov): check hrefs in links
+        self.assertEqual(data, {
+            'major': 1,
+            'minor': 0,
+            'href': '/v1/',
+            'links': {
+                'projects-href': '/v1/projects/',
+                'networks-href': '/v1/networks/',
+                'fw-rule-sets-href': '/v1/fw-rule-sets/',
+                'users-href': '/v1/users/',
+                # 'invites-href': '/v1/invites/',
+                'vms-href': '/v1/vms/',
+                'instance-types-href': '/v1/instance-types/',
+                'stats-href': '/v1/stats',
+                'images-href': '/v1/images/',
+                # 'config-href': '/v1/config',
+                # 'audit-log-href': '/v1/audit-log/'
+            }
+        })
 
