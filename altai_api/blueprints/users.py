@@ -21,6 +21,7 @@
 
 from flask import Blueprint, g, url_for, abort, request
 from openstackclient_base import exceptions as osc_exc
+from altai_api import exceptions as exc
 
 from altai_api.main import app
 
@@ -33,13 +34,19 @@ from altai_api.utils.decorators import root_endpoint
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.exceptions import InvalidRequest
 from altai_api.authentication import default_tenant_id, admin_role_id
 
 from altai_api.blueprints.projects import link_for_project
 
+from altai_api.db.tokens import TokensDAO
+from altai_api.utils.mail import send_invitation
+
 
 users = Blueprint('users', __name__)
+
+# NOTE(imelnikov): we put it here instead of invites.py in hope
+# to avoid circular dependencies
+InvitesDAO = TokensDAO('invite')
 
 
 def link_for_user(user):
@@ -57,7 +64,7 @@ def fetch_user(user_id):
         abort(404)
 
 
-def _user_from_nova(user):
+def user_from_nova(user, invite=None):
     systenant = app.config['DEFAULT_TENANT']
     roles = user.list_roles()
 
@@ -68,7 +75,7 @@ def _user_from_nova(user):
     is_admin = any((r.role["name"].lower() == 'admin'
                     for r in roles
                     if r.tenant['name'] == systenant))
-    return {
+    result = {
         u'id': user.id,
         u'href': url_for('users.get_user', user_id=user.id),
         u'name': user.name,
@@ -78,6 +85,14 @@ def _user_from_nova(user):
         u'projects': projects,
         u'completed-registration': user.enabled,
     }
+
+    if not user.enabled and invite is None:
+        invite = InvitesDAO.get_for_user(user.id)
+
+    if invite is not None:
+        result['invited-at'] = invite.created_at
+        result['completed-registration'] = invite.complete
+    return result
 
 
 def _grant_admin(user_id):
@@ -118,14 +133,14 @@ _SCHEMA = Schema((
 def list_users():
     parse_collection_request(_SCHEMA)
     user_mgr = g.client_set.identity_admin.users
-    return make_collection_response(u'users', [_user_from_nova(user)
+    return make_collection_response(u'users', [user_from_nova(user)
                                                for user in user_mgr.list()])
 
 
 @users.route('/<user_id>', methods=('GET',))
 def get_user(user_id):
     user = fetch_user(user_id)
-    return make_json_response(_user_from_nova(user))
+    return make_json_response(user_from_nova(user))
 
 
 @users.route('/', methods=('POST',))
@@ -133,43 +148,61 @@ def create_user():
     param = request.json
     try:
         email = param["email"]
-        password = param["password"]
+        password = param.get("password")
         name = param.get("name", email)
-        fullname = param.get("fullname", '')
+        fullname = param.get("fullname")
         admin = bool(param.get("admin", False))
+        invite = param.get('invite', False)
+        link_template = param.get('link-template')
     except:
-        raise InvalidRequest("One of params is missing or invalid")
-    # create user
+        raise exc.InvalidRequest("One of params is missing or invalid")
+
+    if password is None and not invite:
+        raise exc.MissingElement('password')
+
     try:
         user_mgr = g.client_set.identity_admin.users
         new_user = user_mgr.create(
-            name=name, password=password, email=email)
+            name=name, password=password, email=email,
+            enabled=not invite)  # disable user until she accepts invite
         if fullname:
             user_mgr.update(new_user, fullname=fullname)
         if admin:
             _grant_admin(new_user.id)
     except osc_exc.BadRequest, e:
-        raise InvalidRequest(str(e))
+        raise exc.InvalidRequest(str(e))
 
-    return make_json_response(_user_from_nova(new_user))
+    if invite:
+        inv = InvitesDAO.create(new_user.id, email)
+        send_invitation(email, inv.code, link_template,
+                        greeting=fullname)
+
+    return make_json_response(user_from_nova(new_user))
+
+
+def update_user_data(user, data):
+    user_mgr = g.client_set.identity_admin.users
+    fields_to_update = {}
+    # update name, email, fullname
+    for key in ('name', 'email', 'fullname', 'enabled'):
+        if key in data:
+            fields_to_update[key] = data[key]
+    if fields_to_update:
+        user_mgr.update(user, **fields_to_update)
+    # update password
+    if 'password' in data:
+        user_mgr.update_password(user, data['password'])
 
 
 @users.route('/<user_id>', methods=('PUT',))
 def update_user(user_id):
     user = fetch_user(user_id)
     param = request.json
-    user_mgr = g.client_set.identity_admin.users
 
-    fields_to_update = {}
-    # update name, email, fullname
-    for key in ('name', 'email', 'fullname'):
-        if key in param:
-            fields_to_update[key] = param[key]
-    if fields_to_update:
-        user_mgr.update(user, **fields_to_update)
-    # update password
-    if 'password' in param:
-        user_mgr.update_password(user, param['password'])
+    if 'enabled' in param:
+        raise exc.UnknownElement('enabled')
+    update_user_data(user, param)
+
     # update admin flag
     admin = param.get('admin')
     if admin == True:
@@ -178,8 +211,8 @@ def update_user(user_id):
         _revoke_admin(user_id)
 
     # get updated user
-    user = user_mgr.get(user_id)
-    return make_json_response(_user_from_nova(user))
+    user = fetch_user(user_id)
+    return make_json_response(user_from_nova(user))
 
 
 @users.route('/<user_id>', methods=('DELETE',))
@@ -189,5 +222,4 @@ def delete_user(user_id):
     except osc_exc.NotFound:
         abort(404)
     return make_json_response(None, status_code=204)
-
 

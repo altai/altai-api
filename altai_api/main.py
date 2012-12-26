@@ -43,6 +43,9 @@ if CONFIG_ENV in os.environ:
 from altai_api.db import DB
 DB.init_app(app)
 
+from altai_api.utils.mail import MAIL
+MAIL.init_app(app)
+
 from altai_api import entry_points
 from altai_api import stats
 from altai_api import error_handlers
@@ -79,6 +82,7 @@ _mount_blueprints((
      ('vms', '/v1/vms'),
      ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
      ('images', '/v1/images'),
+     ('invites', '/v1/invites'),
      ('my_ssh_keys', '/v1/me/ssh-keys')
 ))
 

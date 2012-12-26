@@ -41,6 +41,7 @@ setup(name='altai-api',
 
       install_requires=['Flask >= 0.9',
                         'Flask-SQLAlchemy >= 0.9.1',
+                        'Flask-Mail >= 0.6.1',
                         'python-openstackclient-base',
                         'python-glanceclient',
                         'python-keystoneclient',

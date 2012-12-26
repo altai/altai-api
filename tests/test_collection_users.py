@@ -20,16 +20,23 @@
 # <http://www.gnu.org/licenses/>.
 
 import json
+
+from datetime import datetime
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.blueprints import users
 
 from tests.mocked import MockedTestCase
 from tests import doubles
+from altai_api.db.tokens import Token
 
 
-class UserFromNovaTestCaset(MockedTestCase):
+class UserFromNovaTestCase(MockedTestCase):
     maxDiff = None
+
+    def setUp(self):
+        super(UserFromNovaTestCase, self).setUp()
+        self.mox.StubOutWithMock(users, 'InvitesDAO')
 
     def test_user_from_nova_works(self):
         user = doubles.make(self.mox, doubles.User,
@@ -73,7 +80,60 @@ class UserFromNovaTestCaset(MockedTestCase):
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
-            data = users._user_from_nova(user)
+            data = users.user_from_nova(user)
+        self.assertEquals(data, expected)
+
+    def test_user_from_nova_disabled_noadmin(self):
+        user = doubles.make(self.mox, doubles.User,
+                            id=u'42', name=u'iv', email=u'iv@example.com',
+                            fullname=u'Example User', enabled=False)
+
+        user.list_roles().AndReturn([])
+        users.InvitesDAO.get_for_user(user.id).AndReturn(None)
+
+        expected = {
+            u'id': u'42',
+            u'name': u'iv',
+            u'href': u'/v1/users/42',
+            u'email': u'iv@example.com',
+            u'fullname': 'Example User',
+            u'admin': False,
+            u'projects': [],
+            u'completed-registration': False
+        }
+
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            data = users.user_from_nova(user)
+        self.assertEquals(data, expected)
+
+    def test_user_from_nova_invite(self):
+        user = doubles.make(self.mox, doubles.User,
+                            id=u'42', name=u'iv', email=u'iv@example.com',
+                            fullname=u'Example User', enabled=False)
+        date = datetime(2012, 9, 15, 15, 03, 00)
+        invite = Token(user_id=user.id, created_at=date, complete=False)
+
+        user.list_roles().AndReturn([])
+        users.InvitesDAO.get_for_user(user.id).AndReturn(invite)
+
+        expected = {
+            u'id': u'42',
+            u'name': u'iv',
+            u'href': u'/v1/users/42',
+            u'email': u'iv@example.com',
+            u'fullname': 'Example User',
+            u'admin': False,
+            u'projects': [],
+            u'completed-registration': False,
+            u'invited-at': date
+        }
+
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            data = users.user_from_nova(user)
         self.assertEquals(data, expected)
 
 
@@ -81,13 +141,13 @@ class UsersCollectionTestCase(MockedTestCase):
 
     def setUp(self):
         super(UsersCollectionTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, '_user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_from_nova')
 
     def test_list_users(self):
         self.fake_client_set.identity_admin \
                 .users.list().AndReturn(['user-a', 'user-b'])
-        users._user_from_nova('user-a').AndReturn('dict-a')
-        users._user_from_nova('user-b').AndReturn('dict-b')
+        users.user_from_nova('user-a').AndReturn('dict-a')
+        users.user_from_nova('user-b').AndReturn('dict-b')
         expected = {
             'collection': {
                 'name': 'users',
@@ -106,7 +166,7 @@ class UsersCollectionTestCase(MockedTestCase):
         # prepare
         self.fake_client_set.identity_admin.users\
                 .get('user-a').AndReturn('user-a')
-        users._user_from_nova('user-a').AndReturn('dict-a')
+        users.user_from_nova('user-a').AndReturn('dict-a')
         self.mox.ReplayAll()
         # test
         rv = self.client.get('/v1/users/user-a')
@@ -118,7 +178,7 @@ class UsersCollectionTestCase(MockedTestCase):
         self.fake_client_set.http_client.access['user']['id'] = 'user-a'
         self.fake_client_set.identity_admin.users\
                 .get('user-a').AndReturn('user-a')
-        users._user_from_nova('user-a').AndReturn('dict-a')
+        users.user_from_nova('user-a').AndReturn('dict-a')
         self.mox.ReplayAll()
 
         rv = self.client.get('/v1/me')
@@ -141,9 +201,10 @@ class UsersCollectionTestCase(MockedTestCase):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         fullname = "User Userovich"
         client.identity_admin.users.create(
-            name=name, password=passw, email=email).AndReturn('new-user')
+            name=name, password=passw, email=email,
+            enabled=True).AndReturn('new-user')
         client.identity_admin.users.update('new-user', fullname=fullname)
-        users._user_from_nova('new-user').AndReturn('new-user-dict')
+        users.user_from_nova('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
         # test
         post_params = {
@@ -160,18 +221,53 @@ class UsersCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'new-user-dict')
 
+    def test_invite_user(self):
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        link_template = 'http://altai.example.com/invite?code={{code}}'
+        user = doubles.make(self.mox, doubles.User,
+                            id='UID', name=name, email=email)
+        invite = Token(user_id=user.id, code='THE_CODE', complete=False)
+        self.mox.StubOutWithMock(users, 'send_invitation')
+        self.mox.StubOutWithMock(users, 'InvitesDAO')
+
+        self.fake_client_set.identity_admin.users.create(
+            name=name, password=passw, email=email,
+            enabled=False).AndReturn(user)
+        users.InvitesDAO.create(user.id, email).AndReturn(invite)
+        users.send_invitation(email, 'THE_CODE',
+                              link_template, greeting=None)
+        users.user_from_nova(user).AndReturn('new-user-dict')
+
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "admin": False,
+            "invite": True,
+            "link-template": link_template
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'new-user-dict')
+
     def test_create_admin(self):
         client = self.fake_client_set
         new_user = doubles.make(self.mox, doubles.User, id='NUID')
 
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         client.identity_admin.users.create(
-            name=name, password=passw, email=email).AndReturn(new_user)
+            name=name, password=passw, email=email,
+            enabled=True).AndReturn(new_user)
 
         # see doubles.py, near line 100 for role id and tenant id here
         client.identity_admin.roles.add_user_role(
             'NUID', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
-        users._user_from_nova(new_user).AndReturn('new-user-dict')
+        users.user_from_nova(new_user).AndReturn('new-user-dict')
 
         self.mox.ReplayAll()
         post_params = {"name": name, "email": email,
@@ -188,7 +284,7 @@ class UsersCollectionTestCase(MockedTestCase):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         fullname = "User Userovich"
         client.identity_admin.users.create(
-            name=name, email=email, password=passw) \
+            name=name, email=email, password=passw, enabled=True) \
                 .AndRaise(osc_exc.BadRequest('fail'))
         self.mox.ReplayAll()
         # test
@@ -216,7 +312,7 @@ class UsersCollectionTestCase(MockedTestCase):
                         fullname=fullname).AndReturn('new-user')
         ia.users.update_password('new-user', passw).AndReturn('new-user')
         ia.users.get('new-user').AndReturn('new-user')
-        users._user_from_nova('new-user').AndReturn('new-user-dict')
+        users.user_from_nova('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
         # test
         post_params = {
@@ -256,7 +352,7 @@ class UsersCollectionTestCase(MockedTestCase):
         client.identity_admin.roles.add_user_role(
             u'user-a', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
         client.identity_admin.users.get(uid).AndReturn('same-user')
-        users._user_from_nova('same-user').AndReturn('REPLY')
+        users.user_from_nova('same-user').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.put(u'/v1/users/%s' % uid,
@@ -274,7 +370,7 @@ class UsersCollectionTestCase(MockedTestCase):
         client.identity_admin.roles.remove_user_role(
             u'user-a', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
         client.identity_admin.users.get(uid).AndReturn('same-user')
-        users._user_from_nova('same-user').AndReturn('REPLY')
+        users.user_from_nova('same-user').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.put(u'/v1/users/%s' % uid,
@@ -294,7 +390,7 @@ class UsersCollectionTestCase(MockedTestCase):
                 .AndRaise(osc_exc.NotFound('failure'))
         # raised, but nothing should happen
         client.identity_admin.users.get(uid).AndReturn('same-user')
-        users._user_from_nova('same-user').AndReturn('REPLY')
+        users.user_from_nova('same-user').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.put(u'/v1/users/%s' % uid,

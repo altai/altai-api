@@ -19,8 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Default settings for service
-"""
+"""Default settings for service"""
 
 # watch sources and reload service on update
 USE_RELOADER = False
@@ -44,4 +43,19 @@ KEYSTONE_URI = 'localhost:5000/v2.0'
 
 # system tenant to use by default
 DEFAULT_TENANT = 'systenant'
+
+# name of Altai installation
+DEFAULT_INSTALLATION_NAME = 'Altai Private Cloud for Developers'
+
+# mail configuration
+MAIL_SERVER = 'smtp.gmail.com'
+MAIL_PORT = 587
+MAIL_USERNAME = 'guess-who@griddynamics.com'
+MAIL_PASSWORD = ''
+MAIL_USE_TLS = True
+DEFAULT_MAIL_SENDER = ('Altai MailBot', MAIL_USERNAME)
+DEFAULT_MAIL_FOOTER = """--
+With best regards,
+Altai MailBot
+"""
 
