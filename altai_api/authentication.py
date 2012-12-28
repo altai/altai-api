@@ -21,27 +21,45 @@
 
 from flask import request, g, abort
 from flask import current_app as app
+
 from openstackclient_base.client_set import ClientSet
+from openstackclient_base import exceptions as osc_exc
+
+
+def _is_no_auth_request():
+    if request.url_rule is None:
+        return False
+    return getattr(app.view_functions[request.url_rule.endpoint],
+                   'altai_api_no_auth_endpoint', False)
 
 
 def require_auth():
     """Handle request authentication
     """
-    if not keystone_auth(request.authorization):
+    auth = request.authorization
+    if _is_no_auth_request():
+        if keystone_auth(app.config['KEYSTONE_ADMIN'],
+                         app.config['KEYSTONE_ADMIN_PASSWORD']):
+            return None
+        raise RuntimeError('Service misconfiguration: '
+                           'invalid administrative credentials')
+    if auth is None:
         abort(401)
+    if not keystone_auth(auth.username, auth.password):
+        abort(403)
     return None
 
 
-def keystone_auth(auth):
+def keystone_auth(username, password):
     """Authorize in keystone and save authorized client set to flask.g."""
-    if auth is None:
-        return False
-    cs = ClientSet(username=auth.username,
-                   password=auth.password,
+    cs = ClientSet(username=username,
+                   password=password,
                    tenant_name=app.config['DEFAULT_TENANT'],
                    auth_uri=app.config['KEYSTONE_URI'])
     try:
-        cs.http_client.authenticate()  # raises exception on failure
+        cs.http_client.authenticate()
+    except osc_exc.Unauthorized:
+        return False
     except IOError, error:
         raise RuntimeError(
             'Failed to connect to authentication service (%s)' % error)

@@ -33,6 +33,20 @@ def root_endpoint(name):
     return decorator
 
 
+def no_auth_endpoint(func):
+    """Mark endpoint as accessible without authentication
+
+    This decorator should be used to mark endpoints that need to be
+    accessible without authentication. For such endpoints authentication
+    headers provided by users are ignored and global client set is
+    authenticated with admin credentials taken from application
+    configuration.
+
+    """
+    func.altai_api_no_auth_endpoint = True
+    return func
+
+
 def data_handler(func):
     """A decorator that marks functions as data handler
 

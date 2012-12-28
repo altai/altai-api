@@ -22,7 +22,7 @@
 import os
 import unittest
 import altai_api.main
-import altai_api.authentication as _A
+import altai_api.authentication as auth
 from flask import g, json
 
 
@@ -36,19 +36,16 @@ def scrpit_path(name):
 class TestCase(unittest.TestCase):
     FAKE_AUTH = True
 
-    def __keystone_auth_test_double(self, auth_):
-        self.install_fake_auth()
-        return True
-
     def _fake_client_set_factory(self):
         class _Fake(object):
             master = self
         return _Fake()
 
-    def install_fake_auth(self, auth_=None):
+    def install_fake_auth(self, *args_):
         if not hasattr(self, 'fake_client_set'):
             self.fake_client_set = self._fake_client_set_factory()
         g.client_set = self.fake_client_set
+        return None
 
     def setUp(self):
         super(TestCase, self).setUp()
@@ -58,14 +55,14 @@ class TestCase(unittest.TestCase):
         self.app.config = self.app.config.copy()
         if self.FAKE_AUTH:
             self.fake_client_set = self._fake_client_set_factory()
-            self.__keystone_auth = _A.keystone_auth
-            _A.keystone_auth = self.__keystone_auth_test_double
+            self.__require_auth = auth.require_auth
+            auth.require_auth = self.install_fake_auth
 
     def tearDown(self):
         if hasattr(self, 'fake_client_set'):
             del self.fake_client_set
         if self.FAKE_AUTH:
-            _A.keystone_auth = self.__keystone_auth
+            auth.require_auth = self.__require_auth
         self.app.config = self.__config
 
     def check_and_parse_response(self, resp, status_code=200):
