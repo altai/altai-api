@@ -37,9 +37,9 @@ from altai_api.schema import types as st
 from altai_api.utils.parsers import timestamp_from_openstack, int_from_string
 
 from altai_api.authentication import client_set_for_tenant
-from altai_api.collection.users import link_for_user, fetch_user
-from altai_api.collection.projects import link_for_tenant
-from altai_api.collection.images import link_for_image
+from altai_api.blueprints.users import link_for_user, fetch_user
+from altai_api.blueprints.projects import link_for_tenant
+from altai_api.blueprints.images import link_for_image
 
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 

@@ -25,7 +25,7 @@ import openstackclient_base.exceptions as osc_exc
 from tests import doubles
 from tests.mocked import mock_client_set, MockedTestCase
 
-from altai_api.collection import projects
+from altai_api.blueprints import projects
 
 
 class ConvertersTestCase(MockedTestCase):

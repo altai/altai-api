@@ -25,7 +25,7 @@ from tests import doubles
 from tests.mocked import MockedTestCase
 
 from openstackclient_base import exceptions as osc_exc
-from altai_api.collection import fw_rules
+from altai_api.blueprints import fw_rules
 
 
 class RuleConvertNovaTestCase(MockedTestCase):

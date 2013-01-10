@@ -33,7 +33,7 @@ from altai_api.schema import types as st
 from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
-from altai_api.collection.projects import link_for_project
+from altai_api.blueprints.projects import link_for_project
 
 networks = flask.Blueprint('networks', __name__)
 

@@ -27,7 +27,7 @@ import openstackclient_base.exceptions as osc_exc
 from tests import doubles
 from tests.mocked import MockedTestCase
 
-from altai_api.collection import instance_types
+from altai_api.blueprints import instance_types
 from altai_api import exceptions as exc
 
 

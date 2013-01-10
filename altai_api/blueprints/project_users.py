@@ -28,8 +28,8 @@ from altai_api.utils import parse_collection_request
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.collection.projects import get_tenant
-from altai_api.collection.users import link_for_user, fetch_user
+from altai_api.blueprints.projects import get_tenant
+from altai_api.blueprints.users import link_for_user, fetch_user
 
 
 project_users = Blueprint('project_users', __name__)

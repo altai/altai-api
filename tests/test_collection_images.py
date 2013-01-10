@@ -27,7 +27,7 @@ from tests import doubles
 from tests.mocked import MockedTestCase, mock_client_set
 
 from openstackclient_base import exceptions as osc_exc
-from altai_api.collection import images
+from altai_api.blueprints import images
 
 
 class StreamWithData(mox.Comparator):

@@ -56,16 +56,16 @@ def check_request():
     return None
 
 
-def _mount_collections(iterable):
-    """Import collection blueprints and register them"""
+def _mount_blueprints(iterable):
+    """Import blueprints and register them"""
     for name, path in iterable:
-        module = __import__('altai_api.collection.%s' % name,
+        module = __import__('altai_api.blueprints.%s' % name,
                             level=0, fromlist=[name])
         blueprint = getattr(module, name)
         app.register_blueprint(blueprint, url_prefix=path)
 
 
-_mount_collections((
+_mount_blueprints((
      ('networks', '/v1/networks'),
      ('instance_types', '/v1/instance-types'),
      ('projects', '/v1/projects'),

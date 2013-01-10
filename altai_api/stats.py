@@ -25,7 +25,7 @@ from altai_api.utils.decorators import root_endpoint
 
 from altai_api.main import app
 from altai_api.utils import make_json_response
-from altai_api.collection.images import list_all_images
+from altai_api.blueprints.images import list_all_images
 
 
 @app.route('/v1/stats', methods=('GET',))

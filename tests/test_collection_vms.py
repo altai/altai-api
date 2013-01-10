@@ -26,7 +26,7 @@ from tests import doubles
 from tests.mocked import MockedTestCase, mock_client_set
 
 from openstackclient_base import exceptions as osc_exc
-from altai_api.collection import vms
+from altai_api.blueprints import vms
 
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 

@@ -36,7 +36,7 @@ from altai_api.schema import types as st
 from altai_api.exceptions import InvalidRequest
 from altai_api.authentication import default_tenant_id, admin_role_id
 
-from altai_api.collection.projects import link_for_project
+from altai_api.blueprints.projects import link_for_project
 
 
 users = Blueprint('users', __name__)

@@ -25,7 +25,7 @@ from tests import doubles
 from tests.mocked import MockedTestCase, mock_client_set
 from openstackclient_base import exceptions as osc_exc
 
-from altai_api.collection import vm_fw_rule_sets
+from altai_api.blueprints import vm_fw_rule_sets
 
 
 class VmRuleSetsTestCase(MockedTestCase):

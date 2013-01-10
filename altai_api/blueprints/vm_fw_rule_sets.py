@@ -32,8 +32,8 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.authentication import client_set_for_tenant
-from altai_api.collection.vms import fetch_vm
-from altai_api.collection.fw_rule_sets import link_for_security_group
+from altai_api.blueprints.vms import fetch_vm
+from altai_api.blueprints.fw_rule_sets import link_for_security_group
 
 
 vm_fw_rule_sets = Blueprint('vm_fw_rule_sets', __name__)

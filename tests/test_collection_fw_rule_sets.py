@@ -26,7 +26,7 @@ from tests.mocked import MockedTestCase, mock_client_set
 
 from openstackclient_base import exceptions as osc_exc
 
-from altai_api.collection import fw_rule_sets
+from altai_api.blueprints import fw_rule_sets
 
 
 class ConvertersTestCase(MockedTestCase):

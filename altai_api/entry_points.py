@@ -24,7 +24,7 @@ from flask import url_for, g
 from altai_api.main import app
 from altai_api.utils import make_json_response
 
-from altai_api.collection.users import get_user
+from altai_api.blueprints.users import get_user
 
 
 def _make_v1_info():
