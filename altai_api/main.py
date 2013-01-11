@@ -40,6 +40,9 @@ if CONFIG_ENV in os.environ:
     app.config.from_envvar(CONFIG_ENV)
 
 
+from altai_api.db import DB
+DB.init_app(app)
+
 from altai_api import entry_points
 from altai_api import stats
 from altai_api import error_handlers

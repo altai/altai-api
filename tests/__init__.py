@@ -20,6 +20,7 @@
 # <http://www.gnu.org/licenses/>.
 
 import os
+import sys
 import unittest
 import altai_api.main
 import altai_api.authentication as auth
@@ -88,4 +89,19 @@ class TestCase(unittest.TestCase):
             self.assertEquals(data, None)
 
         return data
+
+
+class ContextWrappedTestCase(TestCase):
+    """Wraps all tests with request context"""
+
+    def setUp(self):
+        super(ContextWrappedTestCase, self).setUp()
+        self.__context = self.app.test_request_context()
+        self.__context.__enter__()
+        if self.FAKE_AUTH:
+            self.install_fake_auth()
+
+    def tearDown(self):
+        self.__context.__exit__(*sys.exc_info())
+        super(ContextWrappedTestCase, self).tearDown()
 

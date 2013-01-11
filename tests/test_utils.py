@@ -19,13 +19,12 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-import sys
 import unittest
 import flask
 
 from datetime import datetime
 
-from tests import TestCase
+from tests import TestCase, ContextWrappedTestCase
 from altai_api import exceptions as exc
 
 from altai_api.utils import make_json_response, make_collection_response
@@ -172,22 +171,15 @@ class IpAndCidrCheckTestCase(unittest.TestCase):
                           cidr_from_user, '192.168.1.0/023')
 
 
-class MakeCollectionResponseTestCase(TestCase):
+class MakeCollectionResponseTestCase(ContextWrappedTestCase):
 
     def setUp(self):
         super(MakeCollectionResponseTestCase, self).setUp()
-        self.__context = self.app.test_request_context()
-        self.__context.__enter__()
-        self.install_fake_auth()
         flask.g.limit = None
         flask.g.offset = None
         flask.g.unused_args = set([])
         self.result = [u'TEST1', u'TEST2', u'TEST3', u'TEST4',
                        u'TEST5', u'TEST6', u'TEST7']
-
-    def tearDown(self):
-        self.__context.__exit__(*sys.exc_info())
-        super(MakeCollectionResponseTestCase, self).tearDown()
 
     def test_it_works(self):
         expected = {

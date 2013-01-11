@@ -10,6 +10,7 @@ Group:          Development
 Source:         %{name}-%{version}.tar.gz
 
 Requires:       python-flask >= 0.9
+Requires:       python-flask-sqlalchemy >= 0.9.1
 Requires:       python-openstackclient-base
 Requires:       python-glanceclient
 Requires:       python-keystoneclient
