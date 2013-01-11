@@ -33,6 +33,7 @@ class MailTestCase(MockedTestCase):
         class IsCorrectMail(mox.Comparator):
             def equals(inner_self, message):
                 self.assertTrue(message.subject.startswith('Invitation'))
+                self.assertTrue('Dear User Userovich' in message.body)
                 self.assertTrue('https://localhost/invites?code=THE_CODE'
                                 in message.body)
                 return True
@@ -46,6 +47,22 @@ class MailTestCase(MockedTestCase):
                                  'THE_CODE',
                                  'https://localhost/invites?code={{code}}',
                                  'User Userovich')
+
+    def test_send_invitation_minimal(self):
+        class IsCorrectMail(mox.Comparator):
+            def equals(inner_self, message):
+                self.assertTrue(message.subject.startswith('Invitation'))
+                self.assertTrue('Dear ' not in message.body)
+                self.assertTrue('follow the link' not in message.body)
+                return True
+
+        self.mox.StubOutWithMock(mail, 'MAIL')
+        mail.MAIL.send(IsCorrectMail())
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            mail.send_invitation('uuserovich@example.com',
+                                 'THE_CODE')
 
     def test_send_invitation_bad_link(self):
         self.mox.ReplayAll()
@@ -66,4 +83,24 @@ class MailTestCase(MockedTestCase):
                               'THE_CODE',
                               'https://{% if foo %}/foo/{% endif %}/{{code}}',
                               'User Userovich')
+
+    def test_send_reset_password_works(self):
+        class IsCorrectMail(mox.Comparator):
+            def equals(inner_self, message):
+                self.assertTrue(
+                        message.subject.startswith('Password reset for'))
+                self.assertTrue('https://localhost/?code=THE_CODE'
+                                in message.body)
+                self.assertTrue('THE_USERNAME' in message.body)
+                return True
+
+        self.mox.StubOutWithMock(mail, 'MAIL')
+        mail.MAIL.send(IsCorrectMail())
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            mail.send_reset_password(
+                'uuserovich@example.com', 'THE_CODE', 'THE_USERNAME',
+                link_template='https://localhost/?code={{code}}',
+                greeting='User Userowich')
 

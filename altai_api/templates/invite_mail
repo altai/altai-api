@@ -2,11 +2,11 @@
 Dear {{greeting}}!
 {% endif %}
 You have been invited to {{installation_name}}.
-{% if invitation_link %}
+{% if link %}
 To accept invitation and complete registration process please follow the link:
 
-{{invitation_link}}
+{{link}}
 {% endif %}
-Your invitation code: {{invitation_code}}
+Your invitation code: {{code}}
 
 {{footer}}

@@ -83,6 +83,7 @@ _mount_blueprints((
      ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
      ('images', '/v1/images'),
      ('invites', '/v1/invites'),
+     ('me', '/v1/me'),
      ('my_ssh_keys', '/v1/me/ssh-keys')
 ))
 

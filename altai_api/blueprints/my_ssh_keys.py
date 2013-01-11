@@ -59,7 +59,7 @@ def list_my_ssh_keys():
               for keypair in g.client_set.compute.keypairs.list()]
 
     return make_collection_response('ssh-keys', result,
-                                    parent_href=url_for('get_current_user'))
+                                    parent_href=url_for('me.get_current_user'))
 
 
 @my_ssh_keys.route('/<key_name>', methods=('GET',))

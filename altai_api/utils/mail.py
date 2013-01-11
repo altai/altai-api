@@ -19,10 +19,10 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import current_app, render_template
+from flask import current_app, render_template, request
 from flask.ext import mail
-
 from altai_api import exceptions as exc
+
 
 MAIL = mail.Mail()
 
@@ -35,26 +35,41 @@ def _render_link_template(template, code):
     return link
 
 
-def send_invitation(email, code, link_template=None, greeting=None):
-
-    # TODO(imelnikov): read some of parameters from database
-    installation_name = current_app.config['DEFAULT_INSTALLATION_NAME']
-    args = {
-        'greeting': greeting,
-        'invitation_code': code,
-        'installation_name': installation_name,
-        'footer': current_app.config.get('DEFAULT_MAIL_FOOTER')
-    }
-
+def _send_mail(email, link_template, subject, template, args):
+    args = args.copy()
+    args['installation_name'] = current_app.config['DEFAULT_INSTALLATION_NAME']
+    args['footer'] = current_app.config.get('DEFAULT_MAIL_FOOTER')
     if link_template:
-        args['invitation_link'] = _render_link_template(link_template, code)
+        args['link'] = _render_link_template(link_template, args['code'])
+    if not args['greeting']:
+        # empty string and None should mean 'no greeting'
+        del args['greeting']
 
-    msg = mail.Message('Invitation to %s' % installation_name,
-                       recipients=[email])
-    msg.body = render_template('invite_mail', **args)
+    msg = mail.Message(subject % args, recipients=[email])
+    msg.body = render_template(template, **args)
     try:
         MAIL.send(msg)
     except IOError, e:
         e.message = 'Failed to send e-mail'
         raise
+
+
+def send_invitation(email, code, link_template=None, greeting=None):
+    args = {'greeting': greeting, 'code': code}
+    return _send_mail(email, link_template,
+                      'Invitation to %(installation_name)s',
+                      'invite_mail', args)
+
+
+def send_reset_password(email, code, login,
+                        link_template=None, greeting=None):
+    args = {
+        'greeting': greeting,
+        'code': code,
+        'login': login,
+        'remote_addr': request.remote_addr
+    }
+    return _send_mail(email, link_template,
+                      'Password reset for %(installation_name)s',
+                      'password_reset_mail', args)
 
