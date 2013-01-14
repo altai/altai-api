@@ -32,13 +32,15 @@ from altai_api.utils.filters import parse_filters, apply_filters
 
 def make_collection_response(name, elements, parent_href=None):
     """Return a collection to client"""
-    size = len(elements)
-
     if getattr(g, 'filters', None):
         g.unused_args.difference_update(
             (arg for arg in request.args.iterkeys() if ':' in arg))
         elements = apply_filters(elements, g.filters,
                                  g.collection_schema)
+
+    # NOTE(imelnikov): size is number of element matching given
+    # criteria -- calculated after filtering
+    size = len(elements)
 
     if 'sortby' in g.unused_args:
         g.unused_args.discard('sortby')

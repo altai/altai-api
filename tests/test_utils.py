@@ -27,6 +27,9 @@ from datetime import datetime
 from tests import TestCase, ContextWrappedTestCase
 from altai_api import exceptions as exc
 
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
 from altai_api.utils import make_json_response, make_collection_response
 from altai_api.utils.sorting import parse_sortby, apply_sortby
 from altai_api.utils.parsers import int_from_string, int_from_user
@@ -178,8 +181,11 @@ class MakeCollectionResponseTestCase(ContextWrappedTestCase):
         flask.g.limit = None
         flask.g.offset = None
         flask.g.unused_args = set([])
-        self.result = [u'TEST1', u'TEST2', u'TEST3', u'TEST4',
-                       u'TEST5', u'TEST6', u'TEST7']
+        flask.g.collection_schema = Schema((
+            st.Int('test'),
+        ))
+        self.result = [{'test': 1}, {'test': 2}, {'test': 3}, {'test': 4},
+                       {'test': 5}, {'test': 6}, {'test': 7}]
 
     def test_it_works(self):
         expected = {
@@ -202,7 +208,7 @@ class MakeCollectionResponseTestCase(ContextWrappedTestCase):
                 u'parent-href': u'/v1/test',
                 u'size': 7
             },
-            u'test': [u'TEST1', u'TEST2']
+            u'test': [{'test': 1}, {'test': 2}]
         }
         flask.g.limit = 2
         rv = make_collection_response(u'test', self.result,
@@ -217,7 +223,8 @@ class MakeCollectionResponseTestCase(ContextWrappedTestCase):
                 u'parent-href': u'/v1/test',
                 u'size': 7
             },
-            u'test': [u'TEST4', u'TEST5', u'TEST6', u'TEST7']
+            u'test': [{'test': 4}, {'test': 5},
+                      {'test': 6}, {'test': 7}]
         }
         flask.g.offset = 3
         rv = make_collection_response(u'test', self.result,
@@ -232,10 +239,41 @@ class MakeCollectionResponseTestCase(ContextWrappedTestCase):
                 u'parent-href': u'/v1/test',
                 u'size': 7
             },
-            u'test': [u'TEST3', u'TEST4', u'TEST5']
+            u'test': [{'test': 3}, {'test': 4}, {'test': 5}]
         }
         flask.g.limit = 3
         flask.g.offset = 2
+        rv = make_collection_response(u'test', self.result,
+                                      parent_href='/v1/test')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
+    def test_filtered(self):
+        expected = {
+            u'collection': {
+                u'name': u'test',
+                u'parent-href': u'/v1/test',
+                u'size': 3
+            },
+            u'test': [{'test': 5}, {'test': 6}, {'test': 7}]
+        }
+        flask.g.filters = { 'test': { 'ge': 5 } }
+        rv = make_collection_response(u'test', self.result,
+                                      parent_href='/v1/test')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
+    def test_filtered_limit(self):
+        expected = {
+            u'collection': {
+                u'name': u'test',
+                u'parent-href': u'/v1/test',
+                u'size': 3
+            },
+            u'test': [{'test': 5}, {'test': 6}]
+        }
+        flask.g.filters = { 'test': { 'ge': 5 } }
+        flask.g.limit = 2
         rv = make_collection_response(u'test', self.result,
                                       parent_href='/v1/test')
         data = self.check_and_parse_response(rv)
