@@ -55,6 +55,6 @@ def apply_filters(result, parsed_filters, schema):
         for match_type, value in filters.iteritems()]
     return [resource
             for resource in result
-            if all((matches(resource[name], value)
+            if all((matches(resource.get(name), value)
                     for name, value, matches in compiled_filters))]
 

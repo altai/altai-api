@@ -305,7 +305,7 @@ class SortByTestCase(unittest.TestCase):
         ]
         self.assertEquals(victim, apply_sortby(None, victim))
 
-    def test_aplies_one(self):
+    def test_applies_one(self):
         victim = [
             { 'first': 3 },
             { 'first': 2 },
@@ -317,6 +317,32 @@ class SortByTestCase(unittest.TestCase):
             { 'first': 3 }
         ]
         sortby = parse_sortby('first', self.allowed)
+        self.assertEquals(result, apply_sortby(sortby, victim))
+
+    def test_applies_none_is_ok(self):
+        d = datetime(2012, 1, 12, 11, 12, 45, 0)
+        victim = [
+            { 'time': d },
+            { 'time': None }
+        ]
+        result = [
+            { 'time': None },
+            { 'time': d }
+        ]
+        sortby = parse_sortby('time', ('time',))
+        self.assertEquals(result, apply_sortby(sortby, victim))
+
+    def test_applies_none_is_ok_desc(self):
+        d = datetime(2012, 1, 12, 11, 12, 45, 0)
+        victim = [
+            { 'time': None },
+            { 'time': d }
+        ]
+        result = [
+            { 'time': d },
+            { 'time': None }
+        ]
+        sortby = parse_sortby('time:desc', ('time',))
         self.assertEquals(result, apply_sortby(sortby, victim))
 
     def test_key_not_found(self):

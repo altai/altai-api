@@ -96,3 +96,25 @@ class ApplyFiltersTestCase(unittest.TestCase):
         result = apply_filters(param, self.filters, self.schema)
         self.assertEquals(expected, result)
 
+    def test_none_is_ok(self):
+        param = [
+            { 'name': None, 'size': 30 },
+            { 'name': 'test', 'size': 30 },
+        ]
+        expected = [
+            { 'name': 'test', 'size': 30 },
+        ]
+        result = apply_filters(param, self.filters, self.schema)
+        self.assertEquals(expected, result)
+
+    def test_missing_is_ok(self):
+        param = [
+            { 'size': 30 },
+            { 'name': 'test', 'size': 30 },
+        ]
+        expected = [
+            { 'name': 'test', 'size': 30 },
+        ]
+        result = apply_filters(param, self.filters, self.schema)
+        self.assertEquals(expected, result)
+

@@ -34,7 +34,7 @@ def _get_nested(data, keys):
 
 
 def _parse_one_sortby_item(item, allowed_names):
-    """Convert one item of sortby list to internal represintation."""
+    """Convert one item of sortby list to internal representation."""
     elems = item.rsplit(':', 1)
 
     name = elems[0]
@@ -69,6 +69,19 @@ def parse_sortby(param, allowed_names):
             for x in param.split(',')]
 
 
+def _cmp(val1, val2):
+    """Compare two values, considering one of them may be None"""
+    # We make None less than any other value
+    if val1 is None and val2 is None:
+        return 0
+    elif val1 is None:
+        return -1
+    elif val2 is None:
+        return 1
+    else:
+        return cmp(val1, val2)
+
+
 def apply_sortby(how, result):
     """Apply sorting to target.
 
@@ -80,7 +93,7 @@ def apply_sortby(how, result):
 
     def compare(val1, val2):
         for _, is_asc, keyfun in how:
-            res = cmp(keyfun(val1), keyfun(val2))
+            res = _cmp(keyfun(val1), keyfun(val2))
             if res != 0:
                 return res if is_asc else -res
         return 0

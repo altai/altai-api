@@ -93,6 +93,7 @@ class TimestampTestCase(unittest.TestCase):
         super(TimestampTestCase, self).setUp()
         self.ts = st.Timestamp('test')
         self.d = datetime(2012, 9, 13, 19, 46, 0)
+        self.ge = self.ts.get_search_matcher('ge')
 
     def test_timestamp_typename(self):
         self.assertEquals(self.ts.typename, 'timestamp')
@@ -112,6 +113,16 @@ class TimestampTestCase(unittest.TestCase):
     def test_timestamp_forces_Z(self):
         self.assertRaises(exc.IllegalValue, self.ts.from_string,
                           '2012-09-13T19:46:00')
+
+    def test_timestamp_ge_same(self):
+        self.assertEquals(self.ge(self.d, self.d), True)
+
+    def test_timestamp_ge_other(self):
+        other_date = datetime(2012, 9, 13, 19, 46, 1)
+        self.assertEquals(self.ge(self.d, other_date), False)
+
+    def test_timestamp_ge_none(self):
+        self.assertEquals(self.ge(None, self.d), False)
 
 
 class Ipv4TestCase(unittest.TestCase):

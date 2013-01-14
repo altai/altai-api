@@ -13,26 +13,67 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
+from functools import wraps
+from datetime import datetime
 
 from altai_api import exceptions as exc
 from altai_api.utils.parsers import (int_from_string,
                                      cidr_from_user,
                                      ipv4_from_user)
-from datetime import datetime
 
 
-_BASIC_MATCHERS = dict((
-    ('eq', lambda a, b: a == b),
-    # TODO: parser for 'in' matcher
+def matcher(func, none_matches=False):
+    """Make matcher out of function
+
+    The primary goal is to handle None as value correctly.
+    This function may also be used as decorator.
+
+    """
+    if getattr(func, 'altai_api_is_matcher', False):
+        # don't wrap twice
+        return func
+
+    @wraps(func)
+    def _matcher(value, pattern):
+        if value is None:
+            return none_matches
+        return func(value, pattern)
+
+    # tag matcher as such
+    _matcher.altai_api_is_matcher = True
+    return _matcher
+
+
+def _matchers_plus(dst, matchers):
+    """Add matchers to dict
+
+    Never modifies it's args, returns a copy if matchers is not empty.
+
+    """
+    if not matchers:  # None, () and {} are OK
+        return dst
+    result = dst.copy()
+    if isinstance(matchers, dict):
+        matchers = matchers.iteritems()
+    result.update(((name, matcher(value))
+                   for name, value in matchers))
+    return result
+
+
+_BASIC_MATCHERS = _matchers_plus({}, (
+    ('eq', lambda value, pattern: value == pattern),
+    # TODO(imelnikov): parser for 'in' matcher
     # ('in', lambda a, lst: a in lst)
 ))
 
-_ORDERED_MATCHERS = _BASIC_MATCHERS.copy()
-_ORDERED_MATCHERS.update((
-    ('gt', lambda a, b: a > b),
-    ('ge', lambda a, b: a >= b),
-    ('le', lambda a, b: a <= b),
-    ('lt', lambda a, b: a < b)
+_ORDERED_MATCHERS = _matchers_plus(_BASIC_MATCHERS, (
+    # We make None smaller than any value
+    ('gt', matcher(lambda value, pattern: value > pattern)),
+    ('ge', matcher(lambda value, pattern: value >= pattern)),
+    ('le', matcher(lambda value, pattern: value <= pattern,
+                   none_matches=True)),
+    ('lt', matcher(lambda value, pattern: value < pattern,
+                   none_matches=True))
 ))
 
 
@@ -76,10 +117,10 @@ class String(ElementType):
     """'string' element type"""
 
     def __init__(self, name, add_search_matchers=None):
-        matchers = _BASIC_MATCHERS.copy()
-        matchers['startswith'] = lambda a, b: a.startswith(b)
-        if add_search_matchers is not None:
-            matchers.update(add_search_matchers)
+        matchers = _matchers_plus(_BASIC_MATCHERS, {
+            'startswith': lambda value, pattern: value.startswith(pattern)
+        })
+        matchers = _matchers_plus(matchers, add_search_matchers)
         super(String, self).__init__(name=name,
                                      typename='string',
                                      search_matchers=matchers)
@@ -127,7 +168,7 @@ class LinkObject(ElementType):
 
     def __init__(self, name):
         matchers = {
-            'eq': lambda a, b: a['id'] == b,
+            'eq': matcher(lambda value, pattern: value['id'] == pattern),
             # 'in': lambda a, lst: a['id'] in lst,
         }
         super(LinkObject, self).__init__(name=name, typename='link object',

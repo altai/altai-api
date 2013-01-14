@@ -222,7 +222,7 @@ class NetworksCollectionArgsTestCase(MockedTestCase):
         client.compute.networks.list().AndReturn(nets)
         client.identity_admin.tenants.get(u'pid1').AndReturn(tenant1)
         client.identity_admin.tenants.get(u'pid2').AndReturn(tenant2)
-        expected_ids = [u'3', u'2', u'1'] if None < '' else [u'2', u'1', u'3']
+        expected_ids = [u'3', u'2', u'1']
 
         self.mox.ReplayAll()
 

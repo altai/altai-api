@@ -124,7 +124,8 @@ _SCHEMA = Schema((
     st.String('fullname'),
     st.String('email'),
     st.Boolean('admin'),
-    st.Boolean('completed-registration')
+    st.Boolean('completed-registration'),
+    st.Timestamp('invited-at')
 ))
 
 
