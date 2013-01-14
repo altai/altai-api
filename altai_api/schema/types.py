@@ -44,6 +44,11 @@ def matcher(func, none_matches=False):
     return _matcher
 
 
+@matcher
+def not_implemented_matcher(value_, pattern_):
+    raise NotImplementedError('Match is not implemented')
+
+
 def _matchers_plus(dst, matchers):
     """Add matchers to dict
 
@@ -166,11 +171,12 @@ class Int(ElementType):
 class LinkObject(ElementType):
     """'link object' element type"""
 
-    def __init__(self, name):
-        matchers = {
-            'eq': matcher(lambda value, pattern: value['id'] == pattern),
-            # 'in': lambda a, lst: a['id'] in lst,
-        }
+    def __init__(self, name, add_search_matchers=None):
+        matchers = _matchers_plus(
+            {'eq': matcher(lambda value, pattern: value['id'] == pattern)},
+            add_search_matchers
+        )
+
         super(LinkObject, self).__init__(name=name, typename='link object',
                                          search_matchers=matchers)
         self.sortby_names = (name + '.id', name + '.name')

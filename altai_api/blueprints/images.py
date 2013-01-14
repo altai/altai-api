@@ -22,8 +22,7 @@
 from flask import url_for, g, Blueprint, abort, request
 
 from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
+from altai_api.utils import collection
 
 from altai_api.utils.decorators import data_handler, root_endpoint
 
@@ -111,22 +110,50 @@ _SCHEMA = Schema((
     st.String('format'),
     st.Timestamp('created'),
     st.Boolean('global'),
-    st.LinkObject('project')
+    st.LinkObject('project', add_search_matchers={
+        'for': st.not_implemented_matcher
+    })
 ))
+
+
+def _images_for_tenant(tenant_id):
+    try:
+        tenant = g.client_set.identity_admin.tenants.get(tenant_id)
+    except osc_exc.NotFound:
+        return []  # consistent with project:eq
+
+    try:
+        image_list = client_set_for_tenant(tenant_id).image.images.list()
+        # TODO(imelnikov): keystone sometimes returns 500 instead of 403
+        # and in this cases so does glance; we should either fix it or
+        # check permissions manually
+    except osc_exc.Forbidden:
+        abort(403)
+    return [_image_from_nova(image, tenant) for image in image_list]
+
+
+def _images_for_all_tenants():
+    tenants = g.client_set.identity_admin.tenants.list()
+    tenant_dict = dict(((tenant.id, tenant) for tenant in tenants))
+
+    return [_image_from_nova(image,
+                             tenant_dict[image.owner])
+            for image in list_all_images()]
 
 
 @images.route('/', methods=('GET',))
 @root_endpoint('images')
 def list_images():
-    parse_collection_request(_SCHEMA)
+    collection.parse_collection_request(_SCHEMA)
 
-    tenants = g.client_set.identity_admin.tenants.list()
-    tenant_dict = dict(((tenant.id, tenant) for tenant in tenants))
+    tenant_id = collection.get_matcher_argument('project', 'for',
+                                                delete_if_found=True)
+    if tenant_id is not None:
+        result = _images_for_tenant(tenant_id)
+    else:
+        result = _images_for_all_tenants()
 
-    result = [_image_from_nova(image,
-                               tenant_dict[image.owner])
-              for image in list_all_images()]
-    return make_collection_response(u'images', result)
+    return collection.make_collection_response(u'images', result)
 
 
 @images.route('/<image_id>', methods=('GET',))

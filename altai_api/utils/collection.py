@@ -89,3 +89,22 @@ def parse_collection_request(schema):
     g.sortby = parse_sortby(request.args.get('sortby'), schema.sortby_names)
     g.filters = parse_filters(request.args.iteritems(multi=True), schema)
 
+
+def get_matcher_argument(name, match_type, delete_if_found=False):
+    """Get argument for matcher in search, if any
+
+    Returns None if no such match requested.
+
+    """
+    if not g.filters:
+        return None
+
+    matchers = g.filters.get(name)
+    if not matchers or match_type not in matchers:
+        return None
+
+    result = matchers[match_type]
+    if delete_if_found:
+        del matchers[match_type]
+    return result
+

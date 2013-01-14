@@ -249,6 +249,48 @@ class ListImagesTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
+    def test_list_for_project(self):
+        tcs = mock_client_set(self.mox)
+        tenant = self.tenants[1]
+
+        self.fake_client_set.identity_admin.tenants.get(tenant.id)\
+                .AndReturn(tenant)
+        images.client_set_for_tenant(tenant.id).AndReturn(tcs)
+        tcs.image.images.list().AndReturn(['ii1', 'ii2'])
+        images._image_from_nova('ii1', self.tenants[0]).AndReturn('I1')
+        images._image_from_nova('ii2', self.tenants[1]).AndReturn('I2')
+
+        expected = {
+            u'collection': {
+                u'name': u'images',
+                u'size': 2
+            },
+            u'images': [ 'I1', 'I2' ]
+        }
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/?project:for=%s' % tenant.id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
+    def test_list_for_non_existing_project(self):
+        tenant = self.tenants[1]
+
+        self.fake_client_set.identity_admin.tenants.get(tenant.id)\
+                .AndRaise(osc_exc.NotFound('failure'))
+        expected = {
+            u'collection': {
+                u'name': u'images',
+                u'size': 0
+            },
+            u'images': [ ]
+        }
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/?project:for=%s' % tenant.id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
     def test_get_image_works(self):
         client = self.fake_client_set
         image = self.images[-1]

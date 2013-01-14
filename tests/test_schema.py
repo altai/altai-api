@@ -36,6 +36,10 @@ class ElementTypeTestCase(unittest.TestCase):
         self.assertEquals(t.name, 'test')
         self.assertEquals(t.typename, 'test type')
 
+    def test_not_implemented_matcher_is_not_implemented(self):
+        self.assertRaises(NotImplementedError,
+                          st.not_implemented_matcher, 1, 1)
+
 
 class LinkObjectTestCase(unittest.TestCase):
 

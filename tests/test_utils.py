@@ -31,6 +31,7 @@ from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 from altai_api.utils import make_json_response, make_collection_response
+from altai_api.utils.collection import get_matcher_argument
 from altai_api.utils.sorting import parse_sortby, apply_sortby
 from altai_api.utils.parsers import int_from_string, int_from_user
 from altai_api.utils.parsers import cidr_from_user, ipv4_from_user
@@ -172,6 +173,36 @@ class IpAndCidrCheckTestCase(unittest.TestCase):
     def test_cidr_no_leading_zeroes(self):
         self.assertRaises(ValueError,
                           cidr_from_user, '192.168.1.0/023')
+
+
+class GetMatcherArgumentTestCase(ContextWrappedTestCase):
+
+    def test_none(self):
+        flask.g.filters = None
+        self.assertEquals(None, get_matcher_argument('project', 'for'))
+
+    def test_no_matchers(self):
+        flask.g.filters = { 'some': {'other': 'matcher'} }
+        self.assertEquals(None, get_matcher_argument('project', 'for'))
+
+    def test_no_match_type(self):
+        flask.g.filters = { 'project': {'eq': '42'} }
+        self.assertEquals(None, get_matcher_argument('project', 'for'))
+
+    def test_gets(self):
+        value = '42'
+        flask.g.filters = { 'project': {'for': value} }
+        result = get_matcher_argument('project', 'for')
+        self.assertEquals(value, result)
+        self.assertEquals(value, flask.g.filters['project'].get('for'))
+
+    def test_gets_and_deletes(self):
+        value = '42'
+        flask.g.filters = { 'project': {'for': value} }
+        result = get_matcher_argument('project', 'for',
+                                      delete_if_found=True)
+        self.assertEquals(value, result)
+        self.assertTrue('for' not in flask.g.filters['project'])
 
 
 class MakeCollectionResponseTestCase(ContextWrappedTestCase):
