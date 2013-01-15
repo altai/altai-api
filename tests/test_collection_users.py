@@ -142,6 +142,7 @@ class UsersCollectionTestCase(MockedTestCase):
     def setUp(self):
         super(UsersCollectionTestCase, self).setUp()
         self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'member_role_id')
 
     def test_list_users(self):
         self.fake_client_set.identity_admin \
@@ -203,6 +204,35 @@ class UsersCollectionTestCase(MockedTestCase):
                        "fullname": fullname,
                        "admin": False,
                       }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'new-user-dict')
+
+    def test_create_user_with_projects(self):
+        client = self.fake_client_set
+
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        client.identity_admin.users.create(
+            name=name, password=passw, email=email,
+            enabled=True).AndReturn('new-user')
+        users.member_role_id().AndReturn('member-role')
+        client.identity_admin.roles.add_user_role(
+            user='new-user', role='member-role', tenant='PID1')
+        client.identity_admin.roles.add_user_role(
+            user='new-user', role='member-role', tenant='PID2')
+        users.user_from_nova('new-user').AndReturn('new-user-dict')
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "projects": ['PID1', 'PID2'],
+            "admin": False,
+        }
         rv = self.client.post('/v1/users/',
                               data=json.dumps(post_params),
                               content_type='application/json')

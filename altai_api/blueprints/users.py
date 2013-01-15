@@ -34,7 +34,7 @@ from altai_api.utils.decorators import root_endpoint
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.authentication import default_tenant_id, admin_role_id
+from altai_api import authentication as auth
 
 from altai_api.blueprints.projects import link_for_project
 
@@ -58,10 +58,22 @@ def link_for_user(user):
 
 
 def fetch_user(user_id):
+    """Get user from keystone or abort with 404 if user is not found"""
     try:
         return g.client_set.identity_admin.users.get(user_id)
     except osc_exc.NotFound:
         abort(404)
+
+
+def member_role_id():
+    """Get ID of member role that is used to add member to project"""
+    roles = g.client_set.identity_admin.roles.list()
+    try:
+        return (role.id
+                for role in roles
+                if role.name.lower() == 'member').next()
+    except StopIteration:
+        raise RuntimeError('Server misconfiguration: role not found')
 
 
 def user_from_nova(user, invite=None):
@@ -102,7 +114,7 @@ def _grant_admin(user_id):
 
     """
     g.client_set.identity_admin.roles.add_user_role(
-        user_id, admin_role_id(), default_tenant_id())
+        user_id, auth.admin_role_id(), auth.default_tenant_id())
 
 
 def _revoke_admin(user_id):
@@ -113,9 +125,20 @@ def _revoke_admin(user_id):
     """
     try:
         g.client_set.identity_admin.roles.remove_user_role(
-            user_id, admin_role_id(), default_tenant_id())
+            user_id, auth.admin_role_id(), auth.default_tenant_id())
     except osc_exc.NotFound:
         pass  # user was not admin
+
+
+def _add_user_to_projects(user, projects):
+    auth.assert_admin()
+    role_id = member_role_id()
+    for project in projects:
+        try:
+            g.client_set.identity_admin.roles.add_user_role(
+                user=user, role=role_id, tenant=project)
+        except osc_exc.NotFound:
+            raise exc.IllegalValue('projects', 'link object', project)
 
 
 _SCHEMA = Schema((
@@ -155,6 +178,7 @@ def create_user():
         admin = bool(param.get("admin", False))
         invite = param.get('invite', False)
         link_template = param.get('link-template')
+        projects = param.get('projects')
     except:
         raise exc.InvalidRequest("One of params is missing or invalid")
 
@@ -166,6 +190,8 @@ def create_user():
         new_user = user_mgr.create(
             name=name, password=password, email=email,
             enabled=not invite)  # disable user until she accepts invite
+        if projects:
+            _add_user_to_projects(new_user, projects)
         if fullname:
             user_mgr.update(new_user, fullname=fullname)
         if admin:

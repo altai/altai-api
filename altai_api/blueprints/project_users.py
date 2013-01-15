@@ -19,7 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, g, Blueprint, abort, request
+from flask import url_for, Blueprint, abort, request
 
 from altai_api.utils import make_json_response
 from altai_api.utils import make_collection_response
@@ -29,7 +29,8 @@ from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 from altai_api.blueprints.projects import get_tenant
-from altai_api.blueprints.users import link_for_user, fetch_user
+from altai_api.blueprints.users import (link_for_user, fetch_user,
+                                        member_role_id)
 
 
 project_users = Blueprint('project_users', __name__)
@@ -63,17 +64,9 @@ def get_project_user(project_id, user_id):
 def add_project_user(project_id):
     user_id = request.json['id']
     tenant = get_tenant(project_id)
-    user = fetch_user(user_id)
-    roles = g.client_set.identity_admin.roles.list()
+    user = fetch_user(user_id)  # aborts with 404 if user not exists
 
-    try:
-        member_role_id = (role.id
-                          for role in roles
-                          if role.name.lower() == 'member').next()
-    except StopIteration:
-        raise RuntimeError('Server misconfiguration: role not found')
-
-    tenant.add_user(user_id, member_role_id)
+    tenant.add_user(user.id, member_role_id())
     return make_json_response(link_for_user(user))
 
 

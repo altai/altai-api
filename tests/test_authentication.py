@@ -173,3 +173,17 @@ class AuthInfoTestCase(MockedTestCase):
             else:
                 self.fail('Exception was not raised')
 
+    def test_assert_admin_403(self):
+        # make roles empty
+        self.fake_client_set.http_client.access['user']['roles'] = []
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            try:
+                auth.assert_admin()
+            except flask_exc.HTTPException, e:
+                self.assertEquals(e.code, 403)
+            else:
+                self.fail('Exception was not raised')
+

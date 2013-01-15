@@ -107,3 +107,8 @@ def admin_role_id():
     except IndexError:
         abort(403)
 
+
+def assert_admin():
+    """Abort with code 403 if current user is not Altai administrator"""
+    admin_role_id()
+
