@@ -45,9 +45,11 @@ def require_auth():
                            'invalid administrative credentials')
     if auth is None:
         abort(401)
-    if not keystone_auth(auth.username, auth.password):
+    if keystone_auth(auth.username, auth.password):
+        g.audit_data['user_id'] = current_user_id()
+        return None
+    else:
         abort(403)
-    return None
 
 
 def keystone_auth(username, password):
@@ -111,4 +113,12 @@ def admin_role_id():
 def assert_admin():
     """Abort with code 403 if current user is not Altai administrator"""
     admin_role_id()
+
+
+def current_user_id():
+    """Return ID of current user"""
+    try:
+        return g.client_set.http_client.access['user']['id']
+    except KeyError:
+        abort(403)
 

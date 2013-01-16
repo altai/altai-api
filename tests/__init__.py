@@ -54,6 +54,7 @@ class TestCase(unittest.TestCase):
         self.client = self.app.test_client()
         self.__config = self.app.config
         self.app.config = self.app.config.copy()
+        self.app.config['AUDIT_VERBOSITY'] = 0
         if self.FAKE_AUTH:
             self.fake_client_set = self._fake_client_set_factory()
             self.__require_auth = auth.require_auth

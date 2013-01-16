@@ -24,6 +24,7 @@ from flask import Blueprint, g, request, abort
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
+from altai_api.authentication import current_user_id
 from altai_api.utils import make_json_response
 from altai_api.utils.decorators import no_auth_endpoint
 from altai_api.utils.mail import send_reset_password
@@ -38,8 +39,7 @@ ResetTokensDAO = TokensDAO('password-reset')
 @me.route('')
 def get_current_user():
     """Current user resource shortcut"""
-    uid = g.client_set.http_client.access['user']['id']
-    return get_user(uid)
+    return get_user(current_user_id())
 
 
 def _find_user(data):

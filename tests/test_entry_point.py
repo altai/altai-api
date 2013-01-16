@@ -18,8 +18,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Tests for API entry point
-"""
+"""Tests for API entry point"""
 
 from tests import TestCase
 
@@ -56,13 +55,12 @@ class EntryPointTestCase(TestCase):
                 'networks-href': '/v1/networks/',
                 'fw-rule-sets-href': '/v1/fw-rule-sets/',
                 'users-href': '/v1/users/',
-                # 'invites-href': '/v1/invites/',
                 'vms-href': '/v1/vms/',
                 'instance-types-href': '/v1/instance-types/',
                 'stats-href': '/v1/stats',
                 'images-href': '/v1/images/',
                 # 'config-href': '/v1/config',
-                # 'audit-log-href': '/v1/audit-log/'
+                'audit-log-href': '/v1/audit-log/'
             }
         })
 

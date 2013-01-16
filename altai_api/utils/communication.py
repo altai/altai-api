@@ -53,6 +53,10 @@ def make_json_response(data, status_code=200, location=None):
     """Make json response from response data.
     """
     if data is not None:
+        if current_app.config['AUDIT_VERBOSITY'] > 0:
+            if status_code >= 400 and 'message' in data:
+                g.audit_data['message'] = data['message']
+
         if current_app.config.get('PRETTY_PRINT_JSON'):
             data = json.dumps(data, indent=4, sort_keys=True,
                               default=_json_default)

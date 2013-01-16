@@ -51,11 +51,13 @@ from altai_api import stats
 from altai_api import error_handlers
 from altai_api import authentication
 
+from altai_api.utils import audit
 from altai_api.utils import communication
 
 
 @app.before_request
 def check_request():
+    audit.setup_audit()
     authentication.require_auth()
     communication.check_request_headers()
     communication.setup_args_handling()
@@ -83,6 +85,7 @@ _mount_blueprints((
      ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
      ('images', '/v1/images'),
      ('invites', '/v1/invites'),
+     ('audit_log', '/v1/audit-log'),
      ('me', '/v1/me'),
      ('my_ssh_keys', '/v1/me/ssh-keys')
 ))

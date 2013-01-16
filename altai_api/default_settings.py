@@ -44,6 +44,12 @@ KEYSTONE_URI = 'localhost:5000/v2.0'
 # system tenant to use by default
 DEFAULT_TENANT = 'systenant'
 
+# audit verbosity -- possible values
+# 0: don't write anything to audit log
+# 1: write only certain request to audit log
+# 2: write everything to audit log
+AUDIT_VERBOSITY = 1
+
 # name of Altai installation
 DEFAULT_INSTALLATION_NAME = 'Altai Private Cloud for Developers'
 
