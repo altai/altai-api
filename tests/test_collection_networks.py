@@ -141,7 +141,7 @@ class NetworksCollectionTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=404)
 
     def test_create_network(self):
-        (name, vlan, cidr) = ('net-name', 3301, 'ip/mask')
+        (name, vlan, cidr) = ('net-name', 3301, '10.0.0.0/24')
         self.fake_client_set.compute.networks.create(
             label=name, vlan_start=vlan, cidr=cidr).AndReturn(['new-net'])
         networks._net_to_dict('new-net').AndReturn('new-net-dict')
@@ -152,7 +152,7 @@ class NetworksCollectionTestCase(MockedTestCase):
         self.assertEquals(data, 'new-net-dict')
 
     def test_create_network_with_strange_result(self):
-        (name, vlan, cidr) = ('net-name', 3301, 'ip/mask')
+        (name, vlan, cidr) = ('net-name', 3301, '10.0.0.0/24')
         self.fake_client_set.compute.networks.create(
             label=name, vlan_start=vlan, cidr=cidr).AndReturn('new-net')
         self.mox.ReplayAll()
@@ -161,7 +161,7 @@ class NetworksCollectionTestCase(MockedTestCase):
         self.post(post_params, expected_status_code=500)
 
     def test_create_existing_network(self):
-        (name, vlan, cidr) = ('net-name', 3301, 'ip/mask')
+        (name, vlan, cidr) = ('net-name', 3301, '10.0.0.0/24')
         self.fake_client_set.compute.networks.create(
             label=name, vlan_start=vlan, cidr=cidr)\
                 .AndRaise(osc_exc.BadRequest('fail'))

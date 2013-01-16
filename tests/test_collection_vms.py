@@ -349,10 +349,6 @@ class UpdateTestCase(MockedTestCase):
             'name': 'new name',
             'test-parameter': u'catch me'
         }
-
-        client = self.fake_client_set
-        client.compute.servers.update(self.vm_id, name=u'new name')
-
         self.mox.ReplayAll()
         data = self.interact(params, expected_status_code=400)
         self.assertEquals('test-parameter', data.get('element-name'))

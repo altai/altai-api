@@ -28,7 +28,6 @@ from tests import doubles
 from tests.mocked import MockedTestCase
 
 from altai_api.blueprints import instance_types
-from altai_api import exceptions as exc
 
 
 # for multiplying
@@ -75,18 +74,6 @@ class InstanceTypesToNovaTestCase(MockedTestCase):
         }
         converted = instance_types._instance_type_for_nova(data)
         self.assertEquals(converted, expected)
-
-    def test_for_nova_rejects_id(self):
-        data = {
-            u'id': u'42',
-            u'name': u'my test',
-            u'cpus': 4,
-            u'ram': 8 * _GB,
-            u'root-size': 10 * _GB,
-            u'ephemeral-size': 80 * _GB
-        }
-        self.assertRaises(exc.UnknownElement,
-                          instance_types._instance_type_for_nova, data)
 
 
 class InstanceTypesListTestCase(MockedTestCase):
@@ -164,6 +151,14 @@ class InstanceTypesCreateTestCase(MockedTestCase):
         self.mox.StubOutWithMock(instance_types, '_instance_type_from_nova')
         self.mox.StubOutWithMock(uuid, 'uuid4')
 
+        self.fake_params = {
+            u'name': 'fake',
+            u'cpus': 42,
+            u'ram': 4 * _GB,
+            u'root-size': 7 * _GB,
+            u'ephemeral-size': 11 * _GB,
+        }
+
     def interact(self, data, expected_status_code=200):
         rv = self.client.post('/v1/instance-types/',
                               content_type='application/json',
@@ -172,7 +167,6 @@ class InstanceTypesCreateTestCase(MockedTestCase):
             rv, status_code=expected_status_code)
 
     def test_create_instance_type(self):
-        args = {u'name': u'fake'}
         flavorid = uuid.UUID('1beeece5-e4e6-4f50-898d-15c3ab393abf')
         for_nova = {
             u'name': u'my test',
@@ -182,7 +176,8 @@ class InstanceTypesCreateTestCase(MockedTestCase):
             u'ephemeral': 80
         }
 
-        instance_types._instance_type_for_nova(args).AndReturn(for_nova)
+        instance_types._instance_type_for_nova(self.fake_params)\
+                .AndReturn(for_nova)
         uuid.uuid4().AndReturn(flavorid)
         for_nova['flavorid'] = flavorid.int
         self.fake_client_set.compute.flavors.create(**for_nova)\
@@ -190,11 +185,22 @@ class InstanceTypesCreateTestCase(MockedTestCase):
         instance_types._instance_type_from_nova('FLAVOR42').AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        data = self.interact(args)
+        data = self.interact(self.fake_params)
         self.assertEquals(data, 'REPLY')
 
+    def test_create_rejects_id(self):
+        data = {
+            u'id': u'42',
+            u'name': u'my test',
+            u'cpus': 4,
+            u'ram': 8 * _GB,
+            u'root-size': 10 * _GB,
+            u'ephemeral-size': 80 * _GB
+        }
+        self.mox.ReplayAll()
+        self.interact(data, expected_status_code=400)
+
     def test_instance_type_exists(self):
-        args = {u'name': u'fake'}
         flavorid = uuid.UUID('1beeece5-e4e6-4f50-898d-15c3ab393abf')
         for_nova = {
             u'name': u'my test',
@@ -204,14 +210,15 @@ class InstanceTypesCreateTestCase(MockedTestCase):
             u'ephemeral': 80
         }
 
-        instance_types._instance_type_for_nova(args).AndReturn(for_nova)
+        instance_types._instance_type_for_nova(self.fake_params)\
+                .AndReturn(for_nova)
         uuid.uuid4().AndReturn(flavorid)
         for_nova['flavorid'] = flavorid.int
         self.fake_client_set.compute.flavors.create(**for_nova)\
                 .AndRaise(osc_exc.HttpException(409, 'failure'))
 
         self.mox.ReplayAll()
-        self.interact(args, expected_status_code=400)
+        self.interact(self.fake_params, expected_status_code=400)
 
 
 class InstanceTypeDeleteTestCase(MockedTestCase):

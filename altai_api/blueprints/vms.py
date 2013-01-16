@@ -25,10 +25,7 @@ from flask.exceptions import HTTPException
 from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
-
+from altai_api.utils import *
 from altai_api.utils.decorators import root_endpoint
 
 from altai_api.schema import Schema
@@ -108,15 +105,27 @@ _SCHEMA = Schema((
     st.String('name'),
     st.String('state'),
     st.Timestamp('created'),
+    st.Ipv4('ipv4'),
+    st.LinkObject('created-by'),
     st.LinkObject('project'),
-    st.LinkObject('image')
-))
+    st.LinkObject('instance-type'),
+    st.LinkObject('image'),
+    st.List(st.LinkObject('fw-rule-sets')),
+    st.String('admin-pass'),
+    st.String('ssh-key-pair')),
+
+    create_required=('name', 'project', 'image', 'instance-type'),
+    create_allowed=('fw-rule-sets', 'admin-pass', 'ssh-key-pair'),
+    sortby=('id', 'name', 'state', 'created', 'ipv4',
+            'created-by', 'project', 'instance-type', 'image'),
+    updatable=('name',)
+)
 
 
 @vms.route('/', methods=('GET',))
 @root_endpoint('vms')
 def list_vms():
-    parse_collection_request(_SCHEMA)
+    parse_collection_request(_SCHEMA.sortby)
     servers = g.client_set.compute.servers.list(
             search_opts={'all_tenants': 1})
     return make_collection_response( u'vms', [_vm_from_nova(vm)
@@ -149,20 +158,18 @@ def _security_group_ids_to_names(security_groups_ids, sg_manager):
 
 @vms.route('/', methods=('POST',))
 def create_vm():
-    data = request.json
-    name, project_id, image_id, instance_type_id = [
-        data[param] for param in ('name', 'project', 'image', 'instance-type')]
+    data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
-    tcs = client_set_for_tenant(project_id)
+    tcs = client_set_for_tenant(data['project'])
     security_groups = _security_group_ids_to_names(data.get('fw-rule-sets'),
                                                    tcs.compute.security_groups)
 
     # TODO(imelnikov): implement metatada (meta=arg) and tags
     try:
         server = tcs.compute.servers.create(
-            name=name,
-            image=image_id,
-            flavor=instance_type_id,
+            name=data['name'],
+            image=data['image'],
+            flavor=data['instance-type'],
             security_groups=security_groups,
             key_name=data.get('ssh-key-pair'),
             admin_pass=data.get('admin-pass'))
@@ -177,15 +184,12 @@ def create_vm():
 
 @vms.route('/<vm_id>', methods=('PUT',))
 def update_vm(vm_id):
-    data = dict(request.json)
+    data = parse_request_data(_SCHEMA.updatable)
     if 'name' in data:
-        name = data.pop('name')
         try:
-            g.client_set.compute.servers.update(vm_id, name=name)
+            g.client_set.compute.servers.update(vm_id, name=data['name'])
         except osc_exc.NotFound:
             abort(404)
-    if data:
-        raise exc.UnknownElement(name=data.keys()[0])
     return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
 
 
@@ -201,9 +205,7 @@ def _do_remove_vm(vm_id):
 
 @vms.route('/<vm_id>/remove', methods=('POST',))
 def remove_vm(vm_id):
-    if request.json:
-        # it's dict -- checked in check_request_headers
-        raise exc.UnknownElement(name=request.json.keys()[0])
+    parse_request_data()
     server = _do_remove_vm(vm_id)
     if server is not None:
         return make_json_response(_vm_from_nova(server))
@@ -229,9 +231,7 @@ def _do_reboot_vm(vm_id, method):
     common code lives here.
 
     """
-    if request.json != {}:
-        # it must be dict, anyway
-        raise exc.UnknownElement(name=request.json.keys()[0])
+    parse_request_data()
     server = fetch_vm(vm_id)
     server.reboot(method)
     # TODO(imelnikov): error handling

@@ -30,7 +30,9 @@ from altai_api import exceptions as exc
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.utils import make_json_response, make_collection_response
+from altai_api.utils import (make_json_response,
+                             make_collection_response,
+                             parse_request_data)
 from altai_api.utils.collection import get_matcher_argument
 from altai_api.utils.sorting import parse_sortby, apply_sortby
 from altai_api.utils.parsers import int_from_string, int_from_user
@@ -96,6 +98,79 @@ class MakeResponseTestCase(TestCase):
         self.assertTrue('TEST CLASS' in str(error))
 
 
+class ParseRequestDataTestCase(TestCase):
+
+    def request_context(self, data):
+        return self.app.test_request_context(data=flask.json.dumps(data))
+
+    def test_basics(self):
+        params = {}
+        with self.request_context(params):
+            self.assertEquals(params, parse_request_data(None, None))
+
+    def test_bad_json(self):
+        with self.app.test_request_context(data='{'):
+            self.assertRaises(exc.InvalidRequest,
+                              parse_request_data, None, None)
+
+    def test_object_required(self):
+        with self.request_context(data=[]):
+            self.assertRaises(exc.InvalidRequest,
+                              parse_request_data, None, None)
+
+    def test_required_missing(self):
+        schema = Schema((st.Int('req'),))
+        with self.request_context({}):
+            self.assertRaises(exc.MissingElement,
+                              parse_request_data, None, schema)
+
+    def test_required_wrong(self):
+        schema = Schema((st.Int('req'),))
+        with self.request_context({'req': '42'}):
+            self.assertRaises(exc.IllegalValue,
+                              parse_request_data, None, schema)
+
+    def test_required_ok(self):
+        schema = Schema((st.Int('req'),))
+        params = {'req': 42}
+        with self.request_context(params):
+            self.assertEquals(params,
+                              parse_request_data(None, schema))
+
+    def test_allowed_missing(self):
+        schema = Schema((st.Int('req'),))
+        params = {}
+        with self.request_context({}):
+            self.assertEquals(params,
+                              parse_request_data(schema))
+
+    def test_allowed_wrong(self):
+        schema = Schema((st.Int('test'),))
+        with self.request_context({'test': '42'}):
+            self.assertRaises(exc.IllegalValue,
+                              parse_request_data, schema)
+
+    def test_allowed_ok(self):
+        schema = Schema((st.Int('test'),))
+        params = {'test': 42}
+        with self.request_context(params):
+            self.assertEquals(params,
+                              parse_request_data(schema))
+
+    def test_extra_is_caught(self):
+        with self.request_context({'test': '42'}):
+            self.assertRaises(exc.UnknownElement,
+                              parse_request_data, None, None)
+
+    def test_date_is_parsed(self):
+        timestamp = datetime(2012, 5, 11, 17, 42, 53)
+        schema = Schema((st.Timestamp('test'),))
+        params = {'test': '2012-05-11T17:42:53Z'}
+        with self.request_context(params):
+            self.assertEquals({'test': timestamp},
+                              parse_request_data(schema))
+
+
 class IntParseAndCheckTestCase(unittest.TestCase):
 
     def test_parses_string(self):
@@ -110,7 +185,7 @@ class IntParseAndCheckTestCase(unittest.TestCase):
     def test_parses_zero_string(self):
         self.assertEquals(0, int_from_string('0'))
 
-    def test_checkes_zero(self):
+    def test_checks_zero(self):
         self.assertEquals(0, int_from_user(0))
 
     def test_not_parses_negative(self):
@@ -134,7 +209,7 @@ class IntParseAndCheckTestCase(unittest.TestCase):
     def test_from_user_no_floats(self):
         self.assertRaises(ValueError, int_from_user, 42.0)
 
-    def test_from_user_accepts_logns(self):
+    def test_from_user_accepts_longs(self):
         l = 311915573212624289544582358376647421533L
         self.assertEquals(l, int_from_user(l))
 

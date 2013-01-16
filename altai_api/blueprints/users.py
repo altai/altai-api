@@ -19,15 +19,13 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import Blueprint, g, url_for, abort, request
+from flask import Blueprint, g, url_for, abort
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
 from altai_api.main import app
 
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
+from altai_api.utils import *
 
 from altai_api.utils.decorators import root_endpoint
 
@@ -148,14 +146,25 @@ _SCHEMA = Schema((
     st.String('email'),
     st.Boolean('admin'),
     st.Boolean('completed-registration'),
-    st.Timestamp('invited-at')
-))
+    st.Timestamp('invited-at'),
+    st.List(st.LinkObject('projects')),
+    st.Boolean('invite'),
+    st.String('password'),
+    st.String('link-template')),
+
+    create_required=('email',),
+    create_allowed=('name', 'fullname', 'admin', 'projects',
+                    'invite', 'link-template', 'password'),
+    updatable=('name', 'email', 'fullname', 'admin', 'password'),
+    sortby=('id', 'name', 'fullname', 'email',
+            'admin', 'completed-registration', 'invited-at')
+)
 
 
 @users.route('/', methods=('GET',))
 @root_endpoint('users')
 def list_users():
-    parse_collection_request(_SCHEMA)
+    parse_collection_request(_SCHEMA.sortby)
     user_mgr = g.client_set.identity_admin.users
     return make_collection_response(u'users', [user_from_nova(user)
                                                for user in user_mgr.list()])
@@ -169,54 +178,54 @@ def get_user(user_id):
 
 @users.route('/', methods=('POST',))
 def create_user():
-    param = request.json
-    try:
-        email = param["email"]
-        password = param.get("password")
-        name = param.get("name", email)
-        fullname = param.get("fullname")
-        admin = bool(param.get("admin", False))
-        invite = param.get('invite', False)
-        link_template = param.get('link-template')
-        projects = param.get('projects')
-    except:
-        raise exc.InvalidRequest("One of params is missing or invalid")
+    data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
-    if password is None and not invite:
-        raise exc.MissingElement('password')
+    name = data.get('name')
+    if name is None:
+        name = data.get('email').split('@', 1)[0]
+
+    invite = data.get('invite')
+    if not invite:
+        if 'password' not in data:
+            raise exc.MissingElement('password')
+        if 'link-template' in data:
+            raise exc.UnknownElement('link-template')
 
     try:
         user_mgr = g.client_set.identity_admin.users
-        new_user = user_mgr.create(
-            name=name, password=password, email=email,
-            enabled=not invite)  # disable user until she accepts invite
-        if projects:
-            _add_user_to_projects(new_user, projects)
-        if fullname:
-            user_mgr.update(new_user, fullname=fullname)
-        if admin:
+
+        # NOTE(imelnikov): we disable user until she accepts invite
+        new_user = user_mgr.create(name=name,
+                                   password=data.get('password'),
+                                   email=data['email'],
+                                   enabled=not invite)
+        if 'projects' in data:
+            _add_user_to_projects(new_user, data['projects'])
+        if 'fullname' in data:
+            user_mgr.update(new_user, fullname=data['fullname'])
+        if data.get('admin'):
             _grant_admin(new_user.id)
     except osc_exc.BadRequest, e:
         raise exc.InvalidRequest(str(e))
 
     if invite:
-        inv = InvitesDAO.create(new_user.id, email)
-        send_invitation(email, inv.code, link_template,
-                        greeting=fullname)
-
+        inv = InvitesDAO.create(new_user.id, new_user.email)
+        send_invitation(new_user.email, inv.code,
+                        data.get('link-template'),
+                        greeting=data.get('fullname'))
     return make_json_response(user_from_nova(new_user))
 
 
 def update_user_data(user, data):
     user_mgr = g.client_set.identity_admin.users
+
     fields_to_update = {}
-    # update name, email, fullname
     for key in ('name', 'email', 'fullname', 'enabled'):
         if key in data:
             fields_to_update[key] = data[key]
     if fields_to_update:
         user_mgr.update(user, **fields_to_update)
-    # update password
+
     if 'password' in data:
         user_mgr.update_password(user, data['password'])
 
@@ -224,13 +233,10 @@ def update_user_data(user, data):
 @users.route('/<user_id>', methods=('PUT',))
 def update_user(user_id):
     user = fetch_user(user_id)
-    param = request.json
+    param = parse_request_data(_SCHEMA.updatable)
 
-    if 'enabled' in param:
-        raise exc.UnknownElement('enabled')
     update_user_data(user, param)
 
-    # update admin flag
     admin = param.get('admin')
     if admin == True:
         _grant_admin(user_id)

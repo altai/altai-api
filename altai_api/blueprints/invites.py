@@ -19,13 +19,15 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import Blueprint, request, abort
+from flask import Blueprint, abort
 
 from altai_api.blueprints.users import (user_from_nova, fetch_user,
                                         update_user_data, InvitesDAO)
 
-from altai_api import exceptions as exc
-from altai_api.utils import make_json_response
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
+from altai_api.utils import make_json_response, parse_request_data
 from altai_api.utils.decorators import no_auth_endpoint
 
 
@@ -49,14 +51,23 @@ def get_user_by_code(code):
     return make_json_response(user_from_nova(user, invite))
 
 
+_ACCEPT_SCHEMA = Schema((
+    st.String('name'),
+    st.String('fullname'),
+    st.String('email'),
+))
+
+_ACCEPT_REQUIRES = Schema((
+    st.String('password'),
+))
+
+
 @invites.route('/<code>', methods=('PUT',))
 @no_auth_endpoint
 def accept_invite(code):
-    data = request.json
+    data = parse_request_data(_ACCEPT_SCHEMA, _ACCEPT_REQUIRES)
+
     invite, user = _invite_and_user(code)
-    if 'password' not in data:
-        raise exc.MissingElement('password')
-    data = dict(data)
     data['enabled'] = True
     update_user_data(user, data)
     InvitesDAO.complete_for_user(user.id)

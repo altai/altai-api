@@ -46,14 +46,21 @@ class HttpResponsesTestCase(TestCase):
         self.check_and_parse_response(rv, status_code=400)
 
     def test_no_empty_posts(self):
-        rv = self.client.post('/v1/instance-types/',
+        rv = self.client.post('/v1/projects/',
                               content_type='application/json',
                               data='')
         data = self.check_and_parse_response(rv, status_code=400)
-        self.assertTrue('object expected' in data.get('message'))
+        self.assertTrue('syntax error' in data.get('message'))
+
+    def test_no_whitespace_posts(self):
+        rv = self.client.post('/v1/projects/',
+                              content_type='application/json',
+                              data='     ')
+        data = self.check_and_parse_response(rv, status_code=400)
+        self.assertTrue('syntax error' in data.get('message'))
 
     def test_object_reuqired(self):
-        rv = self.client.post('/v1/instance-types/',
+        rv = self.client.post('/v1/projects/',
                               content_type='application/json',
                               data='[]')
         data = self.check_and_parse_response(rv, status_code=400)

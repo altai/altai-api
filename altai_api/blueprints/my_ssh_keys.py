@@ -19,12 +19,9 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, g, Blueprint, abort, request
+from flask import url_for, g, Blueprint, abort
 
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
-
+from altai_api.utils import *
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
@@ -47,8 +44,11 @@ _SCHEMA = Schema((
     st.String('id'),
     st.String('name'),
     st.String('public-key'),
-    st.String('fingerprint')
-))
+    st.String('fingerprint')),
+
+    required=('name'),
+    allowed=('public-key')
+)
 
 
 @my_ssh_keys.route('/', methods=('GET',))
@@ -73,7 +73,7 @@ def get_my_ssh_key(key_name):
 
 @my_ssh_keys.route('/', methods=('POST',))
 def create_my_ssh_key():
-    data = request.json
+    data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
     kp = g.client_set.compute.keypairs.create(data['name'],
                                               data.get('public-key'))
     result = _keypair_from_nova(kp)

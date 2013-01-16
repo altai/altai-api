@@ -19,12 +19,10 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, g, Blueprint, abort, request
+from flask import url_for, g, Blueprint, abort
 
 from altai_api.main import app
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
+from altai_api.utils import *
 
 from altai_api.utils.decorators import root_endpoint
 
@@ -68,8 +66,11 @@ _SCHEMA = Schema((
     st.String('id'),
     st.String('name'),
     st.String('description'),
-    st.LinkObject('project')
-))
+    st.LinkObject('project')),
+
+    required=('name', 'project'),
+    allowed=('description',)
+)
 
 
 @fw_rule_sets.route('/', methods=('GET',))
@@ -101,7 +102,7 @@ def get_fw_rule_set(fw_rule_set_id):
 
 @fw_rule_sets.route('/', methods=('POST',))
 def create_fw_rule_set():
-    data = request.json
+    data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
     try:
         tenant = g.client_set.identity_admin.tenants.get(data['project'])
     except osc_exc.NotFound:
@@ -110,8 +111,8 @@ def create_fw_rule_set():
                                value=data['project'])
 
     tcs = client_set_for_tenant(tenant.id)
-    sg = tcs.compute.security_groups.create(name=data[u'name'],
-                                            description=data[u'description'])
+    sg = tcs.compute.security_groups.create(
+        name=data['name'], description=data.get('description', ''))
     return make_json_response(_sg_from_nova(sg, tenant))
 
 

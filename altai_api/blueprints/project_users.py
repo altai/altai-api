@@ -19,11 +19,9 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, Blueprint, abort, request
+from flask import url_for, Blueprint, abort
 
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
+from altai_api.utils import *
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -38,8 +36,10 @@ project_users = Blueprint('project_users', __name__)
 
 _SCHEMA = Schema((
     st.String('id'),
-    st.String('name')
-))
+    st.String('name')),
+
+    required=('id',)
+)
 
 
 @project_users.route('/', methods=('GET',))
@@ -62,7 +62,8 @@ def get_project_user(project_id, user_id):
 
 @project_users.route('/', methods=('POST',))
 def add_project_user(project_id):
-    user_id = request.json['id']
+    data = parse_request_data(required=_SCHEMA.required)
+    user_id = data['id']
     tenant = get_tenant(project_id)
     user = fetch_user(user_id)  # aborts with 404 if user not exists
 

@@ -112,14 +112,12 @@ def _check_request_content():
     If request has a body, it must be a JSON object.
 
     """
-    if request.content_type != _JSON and (
-            request.content_type or request.data):
-        raise exc.InvalidRequest('Unsupported content type: %r'
-                                 % request.content_type)
-    if request.method in ('POST', 'PUT') and (
-            not request.data or not isinstance(request.json, dict)):
-        raise exc.InvalidRequest('Bad %s request: object expected'
-                                 % request.method)
+    if not request.content_type and not request.data:
+        return
+    if request.content_type:
+        if request.content_type != _JSON:
+            raise exc.InvalidRequest('Unsupported content type: %r'
+                                     % request.content_type)
 
 
 def _check_request_expectations():
@@ -129,11 +127,50 @@ def _check_request_expectations():
         abort(417)
 
 
+def parse_request_data(allowed=None, required=None):
+    """Parse request body and check satisfies schema
+
+    This function gets request data from request.json and checks that
+    all elements from required schema are present, and all other
+    elements are from allowed schema.
+
+    """
+    # NOTE(imelnikov): we don't use request.json because we want
+    # to rise our custom exception
+    try:
+        data = json.loads(request.data)
+    except ValueError:
+        raise exc.InvalidRequest('JSON syntax error')
+
+    if not isinstance(data, dict):
+        raise exc.InvalidRequest('Bad %s request: JSON object expected'
+                                 % request.method)
+
+    result = {}
+
+    if required is not None:
+        for t in required.info:
+            if t.name not in data:
+                raise exc.MissingElement(t.name)
+            result[t.name] = t.from_request(data[t.name])
+
+    if allowed is not None:
+        for t in allowed.info:
+            if t.name in data:
+                result[t.name] = t.from_request(data[t.name])
+
+    for name in data:
+        if name not in result:
+            raise exc.UnknownElement(name=name)
+
+    return result
+
+
 def setup_args_handling():
     """Set up request arguments handling.
 
     It creates g.unused_args set, with names of unused parameters.  It
-    is expected that as parameters gets used, they will be removed from
+    is expected that as parameters get used, they will be removed from
     the set. After request is handled, _check_unused_args_empty verifies
     that all parameters were used, and returns 400 response if not.
 

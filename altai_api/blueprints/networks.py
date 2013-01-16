@@ -21,10 +21,7 @@
 
 import flask
 
-from altai_api.utils import make_json_response
-from altai_api.utils import parse_collection_request
-from altai_api.utils import make_collection_response
-
+from altai_api.utils import *
 from altai_api.utils.decorators import root_endpoint
 
 from altai_api.schema import Schema
@@ -57,13 +54,15 @@ def _net_to_dict(net):
 
 
 _SCHEMA = Schema((
-    st.String('name'),
     st.String('id'),
+    st.String('name'),
     st.Int('vlan'),
     st.Cidr('cidr'),
     st.Boolean('used'),
-    st.LinkObject('project')
-))
+    st.LinkObject('project')),
+
+    required=('name', 'vlan', 'cidr')
+)
 
 
 @networks.route('/', methods=('GET',))
@@ -88,16 +87,14 @@ def get_network(net_id):
 
 @networks.route('/', methods=('POST',))
 def create_network():
+    param = parse_request_data(_SCHEMA.required)
     client = flask.g.client_set
-    # TOOD(imelnikov) validate input
-    param = flask.request.json
-    (name, vlan, cidr) = param["name"], int(param["vlan"]), param["cidr"]
 
     # create network
     try:
-        new_net = client.compute.networks.create(label=name,
-                                                 vlan_start=vlan,
-                                                 cidr=cidr)
+        new_net = client.compute.networks.create(label=param['name'],
+                                                 vlan_start=param['vlan'],
+                                                 cidr=param['cidr'])
     except osc_exc.BadRequest, e:
         raise exc.InvalidRequest(str(e))
 

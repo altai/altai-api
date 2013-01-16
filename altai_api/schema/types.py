@@ -18,6 +18,7 @@ from datetime import datetime
 
 from altai_api import exceptions as exc
 from altai_api.utils.parsers import (int_from_string,
+                                     int_from_user,
                                      cidr_from_user,
                                      ipv4_from_user)
 
@@ -102,6 +103,10 @@ class ElementType(object):
         """Parse string to this type internal representation"""
         self._raise(value)
 
+    def from_request(self, value):
+        """Check that value from request is correct for this type"""
+        self._raise(value)
+
     def get_search_matcher(self, filter_type):
         """Get search matcher by name.
 
@@ -133,6 +138,11 @@ class String(ElementType):
     def from_string(self, string):
         return string
 
+    def from_request(self, value):
+        if not isinstance(value, basestring):
+            self._raise(value)
+        return value
+
 
 class Boolean(ElementType):
     """'boolean' element type"""
@@ -153,6 +163,11 @@ class Boolean(ElementType):
         except KeyError:
             self._raise(value)
 
+    def from_request(self, value):
+        if not isinstance(value, bool):
+            self._raise(value)
+        return value
+
 
 class Int(ElementType):
     """'uint' element type"""
@@ -166,6 +181,10 @@ class Int(ElementType):
     def from_string(self, value):
         return int_from_string(value, self.min_val, self.max_val,
                                on_error=self._raise)
+
+    def from_request(self, value):
+        return int_from_user(value, self.min_val, self.max_val,
+                             on_error=self._raise)
 
 
 class LinkObject(ElementType):
@@ -184,6 +203,11 @@ class LinkObject(ElementType):
     def from_string(self, value):
         return value
 
+    def from_request(self, value):
+        if not isinstance(value, basestring):
+            self._raise(value)
+        return value
+
 
 class Timestamp(ElementType):
     """'timestamp' element type"""
@@ -198,6 +222,9 @@ class Timestamp(ElementType):
         except ValueError:
             self._raise(value)
 
+    def from_request(self, value):
+        return self.from_string(value)
+
 
 class Ipv4(ElementType):
     """'ipv4' element type"""
@@ -208,6 +235,9 @@ class Ipv4(ElementType):
     def from_string(self, value):
         return ipv4_from_user(value, on_error=self._raise)
 
+    def from_request(self, value):
+        return self.from_string(value)
+
 
 class Cidr(ElementType):
     """'cidr' element type"""
@@ -217,4 +247,23 @@ class Cidr(ElementType):
 
     def from_string(self, value):
         return cidr_from_user(value, on_error=self._raise)
+
+    def from_request(self, value):
+        return self.from_string(value)
+
+
+class List(ElementType):
+    def __init__(self, subtype):
+        # TODO(imelnikov): list:has search matcher
+        super(List, self).__init__(name=subtype.name,
+                                   typename='list<%s>' % subtype.typename,
+                                   search_matchers={})
+        self.sortby_names = ()
+        self.subtype = subtype
+
+    def from_request(self, value):
+        if not isinstance(value, list):
+            self._raise(value)
+        return [self.subtype.from_request(v)
+                for v in value]
 

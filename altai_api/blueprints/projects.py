@@ -19,16 +19,13 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, g, Blueprint, abort, request
+from flask import url_for, g, Blueprint, abort
 
 import openstackclient_base.exceptions as osc_exc
 from altai_api import exceptions as exc
 
+from altai_api.utils import *
 from altai_api.main import app
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
-
 from altai_api.utils.decorators import root_endpoint
 
 from altai_api.schema import Schema
@@ -132,8 +129,17 @@ _SCHEMA = Schema((
     st.String('id'),
     st.String('name'),
     st.String('description'),
-    st.LinkObject('network')
-))
+    st.LinkObject('network'),
+    st.Int('cpus-limit'),
+    st.Int('ram-limit'),
+    st.Int('storage-limit'),
+    st.Int('vms-limit')),
+
+    create_required=('name', 'network'),
+    allowed=(  # both on creation and update
+        'description', 'cpus-limit', 'ram-limit',
+        'storage-limit', 'vms-limit')
+)
 
 
 @projects.route('/', methods=('GET',))
@@ -193,7 +199,7 @@ def _set_quota(tenant_id, data):
 
 @projects.route('/', methods=('POST',))
 def create_project():
-    data = request.json
+    data = parse_request_data(_SCHEMA.allowed, _SCHEMA.create_required)
 
     # first, check network
     networks = g.client_set.compute.networks
@@ -240,13 +246,11 @@ def delete_project(project_id):
 
 @projects.route('/<project_id>', methods=('PUT',))
 def update_project(project_id):
-    data = request.json
+    data = parse_request_data(_SCHEMA.allowed)
     tenant = get_tenant(project_id)
 
-    if 'name' in data or 'description' in data:
-        tenant = tenant.update(
-            name=data.get('name', tenant.name),
-            description=data.get('description', tenant.description))
+    if 'description' in data:
+        tenant = tenant.update(description=data['description'])
 
     _set_quota(project_id, data)
 

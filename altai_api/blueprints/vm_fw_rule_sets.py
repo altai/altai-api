@@ -19,11 +19,9 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, g, Blueprint, abort, request
+from flask import url_for, g, Blueprint, abort
 
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
+from altai_api.utils import *
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -63,8 +61,10 @@ def _find_sg_on_server(server, set_id):
 
 _SCHEMA = Schema((
     st.String('id'),
-    st.String('name')
-))
+    st.String('name')),
+
+    required=('id',)
+)
 
 
 @vm_fw_rule_sets.route('/', methods=('GET',))
@@ -88,7 +88,7 @@ def get_vm_fw_rule_set(vm_id, set_id):
 @vm_fw_rule_sets.route('/', methods=('POST',))
 def add_vm_fw_rule_set(vm_id):
     server = fetch_vm(vm_id)
-    set_id = request.json['id']
+    set_id = parse_request_data(required=_SCHEMA.required)['id']
     try:
         sg = g.client_set.compute.security_groups.get(set_id)
     except osc_exc.NotFound:

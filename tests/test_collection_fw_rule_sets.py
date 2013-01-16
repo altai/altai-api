@@ -205,3 +205,24 @@ class CreateFwRuleSetTestCase(MockedTestCase):
         data = self.interact(params, 400)
         self.assertEquals('project', data.get('element-name'))
 
+    def test_create_no_description(self):
+        params = {
+            'project': u'TENANT',
+            'name': u'Test SG'
+        }
+        tenant = doubles.make(self.mox, doubles.Tenant,
+                              name='t1', id=u'TENANT')
+
+        tcs = mock_client_set(self.mox)
+        self.fake_client_set.identity_admin.tenants\
+                .get(tenant.id).AndReturn(tenant)
+        fw_rule_sets.client_set_for_tenant(tenant.id).AndReturn(tcs)
+        tcs.compute.security_groups.create(
+            name=u'Test SG', description='').AndReturn('SG')
+        fw_rule_sets._sg_from_nova('SG', tenant).AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
+

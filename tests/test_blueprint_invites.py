@@ -117,11 +117,6 @@ class InvitesTestCase(MockedTestCase):
         self.assertEquals(data, 'REPLY')
 
     def test_accept_no_password(self):
-        user_mgr = self.fake_client_set.identity_admin.users
-
-        invites.InvitesDAO.get(self.code).AndReturn(self.token)
-        user_mgr.get(self.user.id).AndReturn(self.user)
-
         self.mox.ReplayAll()
         rv = self.client.put('/v1/invites/%s' % self.code,
                              data=json.dumps({}),

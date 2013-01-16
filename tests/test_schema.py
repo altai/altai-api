@@ -36,6 +36,11 @@ class ElementTypeTestCase(unittest.TestCase):
         self.assertEquals(t.name, 'test')
         self.assertEquals(t.typename, 'test type')
 
+    def test_from_requests_rise(self):
+        t = st.ElementType('test', 'test type')
+        self.assertRaises(exc.IllegalValue, t.from_string, None)
+        self.assertRaises(exc.IllegalValue, t.from_request, None)
+
     def test_not_implemented_matcher_is_not_implemented(self):
         self.assertRaises(NotImplementedError,
                           st.not_implemented_matcher, 1, 1)
@@ -58,11 +63,47 @@ class LinkObjectTestCase(unittest.TestCase):
         self.assertTrue(lo_eq({'id': '42'}, '42'))
         self.assertFalse(lo_eq({'id': '42'}, '43'))
 
+    def test_from_request_ok(self):
+        self.assertEquals('42', self.lo.from_request('42'))
+
+    def test_from_request_fail(self):
+        self.assertRaises(exc.IllegalValue,
+                          self.lo.from_request, {'id': '42'})
+
 #    TODO(imelnikov): implement 'in' matcher
 #    def test_in_matcher(self):
 #        lo_in = self.lo.get_search_matcher('in')
 #        self.assertTrue(lo_in({'id': '42'}, ['41', '42', 'id']))
 #        self.assertFalse(lo_in({'id': '42'}, ['41', 'id']))
+
+
+class LinkObjectListTestCase(unittest.TestCase):
+    def setUp(self):
+        super(LinkObjectListTestCase, self).setUp()
+        self.ll = st.List(st.LinkObject('test'))
+
+    def test_ll_typename(self):
+        self.assertEquals(self.ll.typename, 'list<link object>')
+
+    def test_parse_raises(self):
+        self.assertRaises(exc.IllegalValue,
+                          self.ll.from_string, '[42]')
+
+    def test_no_eq_matcher(self):
+        self.assertRaises(exc.InvalidRequest,
+                          self.ll.get_search_matcher, 'eq')
+
+    def test_from_request_ok(self):
+        value = ['42', '43']
+        self.assertEquals(value, self.ll.from_request(value))
+
+    def test_from_request_bad_value(self):
+        self.assertRaises(exc.IllegalValue,
+                          self.ll.from_request, ['42', 43])
+
+    def test_from_request_fail(self):
+        self.assertRaises(exc.IllegalValue,
+                          self.ll.from_request, '42')
 
 
 class BooleanTestCase(unittest.TestCase):
@@ -77,7 +118,7 @@ class BooleanTestCase(unittest.TestCase):
     def test_boolean_parses(self):
         self.assertEquals(True, self.b.from_string('True'))
 
-    def test_boolean_accetps_lower(self):
+    def test_boolean_accepts_lower(self):
         self.assertEquals(False, self.b.from_string('false'))
 
     def test_boolean_no_upper(self):
@@ -90,6 +131,13 @@ class BooleanTestCase(unittest.TestCase):
         b_eq = self.b.get_search_matcher('eq')
         self.assertTrue(b_eq(True, True))
         self.assertFalse(b_eq(True, False))
+
+    def test_from_request_ok(self):
+        self.assertEquals(True, self.b.from_request(True))
+        self.assertEquals(False, self.b.from_request(False))
+
+    def test_from_request_fail(self):
+        self.assertRaises(exc.IllegalValue, self.b.from_request, 42)
 
 
 class TimestampTestCase(unittest.TestCase):
@@ -128,6 +176,15 @@ class TimestampTestCase(unittest.TestCase):
     def test_timestamp_ge_none(self):
         self.assertEquals(self.ge(None, self.d), False)
 
+    def test_timestamp_from_request(self):
+        self.assertEquals(
+            self.ts.from_request('2012-09-13T19:46:00Z'), self.d)
+
+    def test_timestamp_list_from_request(self):
+        lts = st.List(st.Timestamp('test'))
+        self.assertEquals(
+            lts.from_request(['2012-09-13T19:46:00Z']), [self.d])
+
 
 class Ipv4TestCase(unittest.TestCase):
 
@@ -159,6 +216,9 @@ class Ipv4TestCase(unittest.TestCase):
     def test_ipv4_all_octets_no_dot(self):
         self.assertRaises(exc.IllegalValue, self.i.from_string, '192.168.1')
 
+    def test_from_request(self):
+        self.assertRaises(exc.IllegalValue, self.i.from_request, 'xxx')
+
 
 class CidrTestCase(unittest.TestCase):
 
@@ -180,6 +240,9 @@ class CidrTestCase(unittest.TestCase):
     def test_cidr_no_leading_zeroes(self):
         self.assertRaises(exc.IllegalValue,
                           self.c.from_string, '192.168.1.0/023')
+
+    def test_from_request(self):
+        self.assertRaises(exc.IllegalValue, self.c.from_request, 'xxx')
 
 
 class StringTestCase(unittest.TestCase):
@@ -215,11 +278,17 @@ class StringTestCase(unittest.TestCase):
         self.assertTrue(s_cc('abcd', 'cd'))
         self.assertFalse(s_cc('abcd', 'bd'))
 
+    def test_from_request_ok(self):
+        self.assertEquals('test', self.s.from_request('test'))
 
-class IntTestase(unittest.TestCase):
+    def test_from_request_fail(self):
+        self.assertRaises(exc.IllegalValue, self.s.from_request, 42)
+
+
+class IntTestCase(unittest.TestCase):
 
     def setUp(self):
-        super(IntTestase, self).setUp()
+        super(IntTestCase, self).setUp()
         self.u = st.Int('test')
 
     def test_typename(self):
@@ -245,6 +314,12 @@ class IntTestase(unittest.TestCase):
 
     def test_not_parses_invalid(self):
         self.assertRaises(exc.IllegalValue, self.u.from_string, 'a string')
+
+    def test_from_request_ok(self):
+        self.assertEquals(self.u.from_request(42), 42)
+
+    def test_from_request_fail(self):
+        self.assertRaises(exc.IllegalValue, self.u.from_request, '42')
 
 
 class SchemaTestCase(unittest.TestCase):
@@ -286,4 +361,8 @@ class SchemaTestCase(unittest.TestCase):
         m = self.schema.argument_matcher('project', 'eq')
         v = self.schema.parse_argument('project', 'eq', 'PID')
         self.assertTrue(m({ 'id': 'PID' }, v))
+
+    def test_doesnt_replace_methods(self):
+        self.assertRaises(ValueError, Schema,
+                          (st.Int('test'),), argument_matcher=('test',))
 

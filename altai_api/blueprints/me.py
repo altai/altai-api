@@ -19,13 +19,16 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import Blueprint, g, request, abort
+from flask import Blueprint, g, abort
 
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
+from altai_api.schema import Schema
+from altai_api.schema import types as st
+
 from altai_api.authentication import current_user_id
-from altai_api.utils import make_json_response
+from altai_api.utils import make_json_response, parse_request_data
 from altai_api.utils.decorators import no_auth_endpoint
 from altai_api.utils.mail import send_reset_password
 from altai_api.blueprints.users import get_user, fetch_user, update_user_data
@@ -60,10 +63,18 @@ def _find_user(data):
         return None
 
 
+_RESET_SCHEMA = Schema((
+    st.String('id'),
+    st.String('name'),
+    st.String('email'),
+    st.String('link-template')
+))
+
+
 @me.route('/reset-password', methods=('POST',))
 @no_auth_endpoint
 def reset_password():
-    data = request.json
+    data = parse_request_data(allowed=_RESET_SCHEMA)
     user = _find_user(data)
     if user is None:
         return make_json_response(None, status_code=204)
@@ -74,21 +85,19 @@ def reset_password():
     return make_json_response(None, status_code=204)
 
 
+_APPLY_SCHEMA = Schema((
+    st.String('password'),
+))
+
+
 @me.route('/reset-password/<code>', methods=('POST',))
 @no_auth_endpoint
 def apply_password_reset(code):
-    data = request.json
+    data = parse_request_data(required=_APPLY_SCHEMA)
     token = ResetTokensDAO.get(code)
     if not token or token.complete:
         abort(404)
     user = fetch_user(token.user_id)
-
-    if 'password' not in data:
-        raise exc.MissingElement(name='password')
-    for key in data:
-        if key != 'password':
-            raise exc.UnknownElement(name=key)
-
     update_user_data(user, data)
     ResetTokensDAO.complete_for_user(token.user_id)
     return make_json_response(None, status_code=204)

@@ -249,14 +249,15 @@ class CreateProjectTestCase(MockedTestCase):
 
     name, description, net_id = 'ptest', 'DECRIPTION', 'NETID'
 
-    def interact(self, expected_status_code=200):
-        post_params = {
-            'name': self.name,
-            'description': self.description,
-            'network': self.net_id
-        }
+    def interact(self, data=None, expected_status_code=200):
+        if data is None:
+            data = {
+                'name': self.name,
+                'description': self.description,
+                'network': self.net_id
+            }
         rv = self.client.post('/v1/projects/',
-                              data=json.dumps(post_params),
+                              data=json.dumps(data),
                               content_type='application/json')
         # verify
         return self.check_and_parse_response(
@@ -288,21 +289,41 @@ class CreateProjectTestCase(MockedTestCase):
         data = self.interact()
         self.assertEquals(data, 'REPLY')
 
+    def test_project_creation_checks_name_required(self):
+        self.mox.ReplayAll()
+        data = self.interact(data={'network': self.net_id},
+                             expected_status_code=400)
+        self.assertEquals(data.get('element-name'), 'name')
+
+    def test_project_creation_checks_name_is_string(self):
+        self.mox.ReplayAll()
+        data = {
+            'name': 42,
+            'network': self.net_id
+        }
+        data = self.interact(data=data, expected_status_code=400)
+        self.assertEquals(data.get('element-name'), 'name')
+
+    def test_project_creation_checks_network_required(self):
+        self.mox.ReplayAll()
+        data = self.interact(data={'name': self.name},
+                             expected_status_code=400)
+        self.assertEquals(data.get('element-name'), 'network')
+
     def test_project_creation_checks_network_exists(self):
-        net_id = 'NETID'
-        self.fake_client_set.compute. \
-            networks.get(net_id).AndRaise(osc_exc.NotFound('network'))
+        self.fake_client_set.compute.networks.get(self.net_id)\
+                .AndRaise(osc_exc.NotFound('network'))
 
         self.mox.ReplayAll()
         data = self.interact(expected_status_code=400)
         self.assertEquals(data.get('element-name'), 'network')
 
     def test_project_creation_checks_network_unused(self):
-        net_id = 'NETID'
-        self.fake_client_set.compute. \
-            networks.get(net_id).AndReturn(
-                doubles.make(self.mox, doubles.Network,
-                             label='LABEL', id=net_id, project_id='42'))
+        network = doubles.make(self.mox, doubles.Network,
+                               label='LABEL', id=self.net_id,
+                               project_id='42')
+        self.fake_client_set.compute.networks.get(self.net_id)\
+                .AndReturn(network)
 
         self.mox.ReplayAll()
         data = self.interact(expected_status_code=400)
@@ -408,21 +429,19 @@ class UpdatePojectTestCase(MockedTestCase):
                               description='old description')
 
         updated = doubles.make(self.mox, doubles.Tenant,
-                               id=self.tenant_id, name='new name',
+                               id=self.tenant_id, name='old name',
                                description='new description')
 
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndReturn(tenant)
-        tenant.update(name=updated.name,
-                      description=updated.description).AndReturn(updated)
+        tenant.update(description=updated.description).AndReturn(updated)
         projects._network_for_project(self.tenant_id).AndReturn('NET')
         projects._quotaset_for_project(self.tenant_id).AndReturn('QUOTA')
         projects._project_from_nova(updated, 'NET', 'QUOTA')\
                 .AndReturn('UPDATED')
 
         self.mox.ReplayAll()
-        data = self.interact({'name': updated.name,
-                              'description': updated.description})
+        data = self.interact({'description': updated.description})
         self.assertEquals(data, 'UPDATED')
 
     def test_update_project_limits(self):

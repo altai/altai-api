@@ -21,7 +21,7 @@
 
 from flask import url_for, g, Blueprint, abort, request
 
-from altai_api.utils import make_json_response
+from altai_api.utils import make_json_response, parse_request_data
 from altai_api.utils import collection
 
 from altai_api.utils.decorators import data_handler, root_endpoint
@@ -107,13 +107,23 @@ def list_all_images():
 _SCHEMA = Schema((
     st.String('id'),
     st.String('name'),
-    st.String('format'),
+    st.String('status'),
+    st.String('disk-format'),
+    st.String('container-format'),
+    st.String('md5sum'),
+    st.Int('size'),
     st.Timestamp('created'),
     st.Boolean('global'),
     st.LinkObject('project', add_search_matchers={
         'for': st.not_implemented_matcher
-    })
-))
+    }),
+    st.LinkObject('kernel'),
+    st.LinkObject('ramdisk')),
+
+    create_required=('name', 'container-format', 'disk-format'),
+    create_allowed=('project', 'global', 'kernel', 'ramdisk'),
+    updatable=('name')
+)
 
 
 def _images_for_tenant(tenant_id):
@@ -164,7 +174,7 @@ def get_image(image_id):
 
 @images.route('/<image_id>', methods=('PUT',))
 def update_image(image_id):
-    data = request.json
+    data = parse_request_data(_SCHEMA.updatable)
     fields_to_update = {}
     image = _fetch_image(image_id)
 
@@ -184,7 +194,7 @@ def _assert_param_absent(name, data):
 
 @images.route('/', methods=('POST',))
 def create_image():
-    data = request.json
+    data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
     is_public = data.get('global', 'project' not in data)
     if is_public:
@@ -193,7 +203,7 @@ def create_image():
     else:
         if 'project' not in data:
             raise exc.MissingElement('project')
-        # TODO(imelnikov): check project existance
+        # TODO(imelnikov): check project existence
         image_mgr = client_set_for_tenant(data['project']).image.images
 
     props = {}

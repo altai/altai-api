@@ -21,20 +21,19 @@
 
 import uuid
 
-from flask import Blueprint, abort, url_for, request, g
+from flask import Blueprint, abort, url_for, g
 
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
 from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
+from altai_api.utils import *
 
 from altai_api.utils.decorators import root_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
+
 
 instance_types = Blueprint('instance_types', __name__)
 
@@ -53,8 +52,6 @@ def _instance_type_from_nova(flavor):
 
 
 def _instance_type_for_nova(data):
-    if u'id' in data:
-        raise exc.UnknownElement(u'id')
     return  {
         u'name': data['name'],
         u'ram': to_mb(data['ram']),
@@ -70,8 +67,10 @@ _SCHEMA = Schema((
     st.Int('cpus'),
     st.Int('ram'),
     st.Int('root-size'),
-    st.Int('ephemeral-size')
-))
+    st.Int('ephemeral-size')),
+
+    required=('name', 'cpus', 'ram', 'root-size', 'ephemeral-size')
+)
 
 
 @instance_types.route('/', methods=('GET',))
@@ -101,7 +100,8 @@ def get_instance_type(instance_type_id):
 
 @instance_types.route('/', methods=('POST',))
 def create_instance_type():
-    args = _instance_type_for_nova(request.json)
+    data = parse_request_data(required=_SCHEMA.required)
+    args = _instance_type_for_nova(data)
     args['flavorid'] = uuid.uuid4().int
     try:
         flavor = g.client_set.compute.flavors.create(**args)

@@ -19,12 +19,11 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, g, Blueprint, abort, request
+from flask import url_for, g, Blueprint, abort
 from openstackclient_base import exceptions as osc_exc
+from altai_api import exceptions as exc
 
-from altai_api.utils import make_json_response
-from altai_api.utils import make_collection_response
-from altai_api.utils import parse_collection_request
+from altai_api.utils import *
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -78,12 +77,14 @@ def _get_security_group(sg_id):
 
 _SCHEMA = Schema((
     st.String('id'),
-    st.String('name'),
     st.String('protocol'),
     st.Cidr('source'),
     st.Int('port-range-first', min_val=-1, max_val=65535),
-    st.Int('port-range-last', min_val=-1, max_val=65535)
-))
+    st.Int('port-range-last', min_val=-1, max_val=65535)),
+
+    required=('protocol', 'source'),
+    allowed=('port-range-first', 'port-range-last')
+)
 
 
 @fw_rules.route('/', methods=('GET',))
@@ -121,12 +122,15 @@ def get_fw_rule(fw_rule_set_id, rule_id):
 
 @fw_rules.route('/', methods=('POST',))
 def create_fw_rule(fw_rule_set_id):
-    data = request.json
+    data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
+    protocol = data['protocol']
+    if protocol not in ('TCP', 'UDP', 'ICMP'):
+        raise exc.IllegalValue('protocol', 'string', protocol)
     from_port = data.get('port-range-first', -1)
     to_port = data.get('port-range-last', from_port)
     rule = g.client_set.compute.security_group_rules.create(
         parent_group_id=fw_rule_set_id,
-        ip_protocol=data['protocol'].lower(),
+        ip_protocol=protocol.lower(),
         from_port=from_port,
         to_port=to_port,
         cidr=data['source'])

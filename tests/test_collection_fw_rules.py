@@ -220,6 +220,27 @@ class CreateRuleTestCase(MockedTestCase):
         data = self.interact({ u'protocol': u'TCP', u'source': u'10.0.0.0/8' })
         self.assertEquals(data, 'REPLY')
 
+    def test_create_fw_rule_bad_port(self):
+        self.mox.ReplayAll()
+        params = {
+            'protocol': 'TCP',
+            'source': '10.0.0.0/8',
+            'port-range-first': 100500
+        }
+        data = self.interact(params, expected_status_code=400)
+        self.assertEquals('port-range-first', data.get('element-name'))
+        self.assertEquals(100500, data.get('element-value'))
+
+    def test_create_fw_rule_bad_protocol(self):
+        self.mox.ReplayAll()
+        params = {
+            'protocol': 'tcp',
+            'source': '10.0.0.0/8',
+        }
+        data = self.interact(params, expected_status_code=400)
+        self.assertEquals('protocol', data.get('element-name'))
+        self.assertEquals('tcp', data.get('element-value'))
+
     def test_ceate_rule_one_port(self):
         self.fake_client_set.compute.security_group_rules.create(
             parent_group_id=self.sgid,

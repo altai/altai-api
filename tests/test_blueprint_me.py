@@ -162,33 +162,23 @@ class ResetPasswordTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=404)
 
     def test_apply_password_reset_empty(self):
-        uid, code = 'UID', 'THE_CODE'
-        token = Token(user_id=uid, code=code, complete=False)
         params = { }
 
-        me.ResetTokensDAO.get('THE_CODE').AndReturn(token)
-        me.fetch_user(uid).AndReturn('USER')
-
         self.mox.ReplayAll()
-        rv = self.client.post('/v1/me/reset-password/%s' % code,
+        rv = self.client.post('/v1/me/reset-password/code',
                               data=json.dumps(params),
                               content_type='application/json')
         data = self.check_and_parse_response(rv, status_code=400)
         self.assertEquals('password', data.get('element-name'))
 
     def test_apply_password_reset_exrtra(self):
-        uid, code = 'UID', 'THE_CODE'
-        token = Token(user_id=uid, code=code, complete=False)
         params = {
             'password': 'p@ssw0rd',
             'fullname': 'Cannot Be Set'
         }
 
-        me.ResetTokensDAO.get('THE_CODE').AndReturn(token)
-        me.fetch_user(uid).AndReturn('USER')
-
         self.mox.ReplayAll()
-        rv = self.client.post('/v1/me/reset-password/%s' % code,
+        rv = self.client.post('/v1/me/reset-password/code',
                               data=json.dumps(params),
                               content_type='application/json')
         data = self.check_and_parse_response(rv, status_code=400)
