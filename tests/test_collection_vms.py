@@ -99,13 +99,10 @@ class VmFromNovaTestCase(MockedTestCase):
                 u'href': '/v1/instance-types/1',
                 u'name': u'test instance type'
             },
-            u'tags': [],
             u'actions': {
                 u'reboot': '/v1/vms/VMID/reboot',
                 u'reset': '/v1/vms/VMID/reset',
                 u'remove': '/v1/vms/VMID/remove',
-                u'add-tags': '/v1/vms/VMID/add-tags',
-                u'remove-tags': '/v1/vms/VMID/remove-tags',
                 u'vnc': '/v1/vms/VMID/vnc',
                 u'console-output': '/v1/vms/VMID/console-output'
             }

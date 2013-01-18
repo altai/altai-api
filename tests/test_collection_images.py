@@ -69,11 +69,6 @@ class ImageFromNovaWorks(MockedTestCase):
             u'md5sum': '831a05f7bdeadbabe5l1k3133715e7ea',
             u'size': 123456,
             u'status': u'active',
-            u'tags': [],
-            u'actions': {
-                u'add-tags': '/v1/images/IMAGE/add-tags',
-                u'remove-tags': '/v1/images/IMAGE/remove-tags',
-            }
         }
 
         self.mox.ReplayAll()
@@ -100,11 +95,6 @@ class ImageFromNovaWorks(MockedTestCase):
             u'md5sum': '831a05f7bdeadbabe5l1k3133715e7ea',
             u'size': 123456,
             u'status': u'active',
-            u'tags': [],
-            u'actions': {
-                u'add-tags': '/v1/images/IMAGE/add-tags',
-                u'remove-tags': '/v1/images/IMAGE/remove-tags',
-            }
         }
 
         self.mox.ReplayAll()
@@ -132,10 +122,7 @@ class ImageFromNovaWorks(MockedTestCase):
             u'md5sum': '831a05f7bdeadbabe5l1k3133715e7ea',
             u'size': 123456,
             u'status': u'queued',
-            u'tags': [],
             u'actions': {
-                u'add-tags': '/v1/images/IMAGE/add-tags',
-                u'remove-tags': '/v1/images/IMAGE/remove-tags',
                 u'upload': '/v1/images/IMAGE/data',
             }
         }
@@ -177,11 +164,6 @@ class ImageFromNovaWorks(MockedTestCase):
             u'md5sum': '831a05f7bdeadbabe5l1k3133715e7ea',
             u'size': 123456,
             u'status': u'active',
-            u'tags': [],
-            u'actions': {
-                u'add-tags': '/v1/images/IMAGE/add-tags',
-                u'remove-tags': '/v1/images/IMAGE/remove-tags',
-            },
             u'kernel': {
                 u'id': u'KERNEL',
                 u'name': u'TestKernel',

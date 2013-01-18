@@ -69,13 +69,7 @@ def _image_from_nova(image, tenant=None):
         u'container-format': image.container_format,
         u'created': timestamp_from_openstack(image.created_at),
         u'md5sum': image.checksum,
-        u'size': image.size,
-        u'tags': [],
-        u'actions': {
-            u'add-tags': url_for('images.add_image_tags', image_id=image.id),
-            u'remove-tags': url_for('images.remove_image_tags',
-                                    image_id=image.id)
-        }
+        u'size': image.size
     })
     if image.owner == default_tenant_id():
         result[u'global'] = True
@@ -90,8 +84,9 @@ def _image_from_nova(image, tenant=None):
         result['ramdisk'] = link_for_image(image.properties['ramdisk_id'])
 
     if image.status == 'queued':
-        result['actions']['upload'] = url_for('images.upload_image_data',
-                                              image_id=image.id)
+        actions = result.setdefault('actions', {})
+        actions['upload'] = url_for('images.upload_image_data',
+                                    image_id=image.id)
     return result
 
 
@@ -255,14 +250,4 @@ def upload_image_data(image_id):
     image.update(data=request.stream,
                  size=request.content_length)
     return make_json_response(None, status_code=204)
-
-
-@images.route('/<image_id>/add-tags', methods=('POST',))
-def add_image_tags(image_id):
-    raise NotImplemented('Image tags are not implemented yet')
-
-
-@images.route('/<image_id>/remove-tags', methods=('POST',))
-def remove_image_tags(image_id):
-    raise NotImplemented('Image tags are not implemented yet')
 

@@ -80,15 +80,10 @@ def _vm_from_nova(server):
             u'reboot': url_for('vms.reboot_vm', vm_id=server.id),
             u'reset': url_for('vms.reset_vm', vm_id=server.id),
             u'remove': url_for('vms.remove_vm', vm_id=server.id),
-            u'add-tags': url_for('vms.add_vm_tags', vm_id=server.id),
-            u'remove-tags': url_for('vms.remove_vm_tags', vm_id=server.id),
             u'vnc': url_for('vms.vm_vnc_console', vm_id=server.id),
             u'console-output': url_for('vms.vm_console_output',
                                        vm_id=server.id),
-        },
-        u'tags': [
-            # TODO(imelnikov): implement it
-        ]
+        }
     }
     return result
 
@@ -164,7 +159,6 @@ def create_vm():
     security_groups = _security_group_ids_to_names(data.get('fw-rule-sets'),
                                                    tcs.compute.security_groups)
 
-    # TODO(imelnikov): implement metatada (meta=arg) and tags
     try:
         server = tcs.compute.servers.create(
             name=data['name'],
@@ -270,14 +264,4 @@ def vm_vnc_console(vm_id):
         'url': vnc['url'],
         'console-type': vnc['type']
     })
-
-
-@vms.route('/<vm_id>/add-tags')
-def add_vm_tags(vm_id):
-    raise NotImplemented('VM tags are not implemented yet')
-
-
-@vms.route('/<vm_id>/remove-tags')
-def remove_vm_tags(vm_id):
-    raise NotImplemented('VM tags are not implemented yet')
 
