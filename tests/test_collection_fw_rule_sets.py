@@ -56,7 +56,6 @@ class ConvertersTestCase(MockedTestCase):
             res = fw_rule_sets._sg_from_nova(sg, tenant)
         self.assertEquals(expected, res)
 
-
     def test_sg_from_nova_wrong_tenant_raises(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
                               id=u'PID', name=u'Tenant')
@@ -69,7 +68,6 @@ class ConvertersTestCase(MockedTestCase):
         with self.app.test_request_context():
             self.assertRaises(ValueError,
                               fw_rule_sets._sg_from_nova, sg, tenant)
-
 
 
 class RuleSetsTestCase(MockedTestCase):
@@ -170,7 +168,6 @@ class CreateFwRuleSetTestCase(MockedTestCase):
                               content_type='application/json',
                               data=json.dumps(params))
         return self.check_and_parse_response(rv, expected_status_code)
-
 
     def test_create_works(self):
         params = {

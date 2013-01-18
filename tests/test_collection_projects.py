@@ -389,7 +389,6 @@ class UpdatePojectTestCase(MockedTestCase):
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')
         self.mox.StubOutWithMock(projects, '_project_from_nova')
 
-
     def interact(self, put_params, expected_status_code=200):
         rv = self.client.put('/v1/projects/%s' % self.tenant_id,
                              data=json.dumps(put_params),

@@ -33,10 +33,6 @@ def scrpit_path(name):
     return os.path.join(_SCRIPTS_DIR, name)
 
 
-class _Fake(object):
-    pass
-
-
 class TestCase(unittest.TestCase):
     FAKE_AUTH = True
 
@@ -45,6 +41,8 @@ class TestCase(unittest.TestCase):
         return True
 
     def _fake_client_set_factory(self):
+        class _Fake(object):
+            master = self
         return _Fake()
 
     def install_fake_auth(self, auth_=None):

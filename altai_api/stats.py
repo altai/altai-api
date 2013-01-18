@@ -21,9 +21,6 @@
 
 from flask import g
 
-import openstackclient_base.exceptions as osc_exc
-from altai_api import exceptions as exc
-
 from altai_api.utils.decorators import root_endpoint
 
 from altai_api.main import app

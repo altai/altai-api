@@ -41,24 +41,24 @@ from openstackclient_base import exceptions as osc_exc
 fw_rule_sets = Blueprint('fw_rule_sets', __name__)
 
 
-def link_for_security_group(sg):
+def link_for_security_group(secgroup):
     """Make link object for given security group"""
-    sgid = unicode(sg.id)
+    sgid = unicode(secgroup.id)
     return {
         u'id': sgid,
         u'href': url_for('fw_rule_sets.get_fw_rule_set', fw_rule_set_id=sgid),
-        u'name': sg.name
+        u'name': secgroup.name
     }
 
 
-def _sg_from_nova(sg, tenant):
-    if sg.tenant_id != tenant.id:
+def _sg_from_nova(secgroup, tenant):
+    if secgroup.tenant_id != tenant.id:
         # this is a bit of well tested paranoia
         raise ValueError('Firewall rule set %s is from tenant %s, not %s'
-                         % (sg.name, sg.tenant_id, tenant.id))
-    result = link_for_security_group(sg)
+                         % (secgroup.name, secgroup.tenant_id, tenant.id))
+    result = link_for_security_group(secgroup)
     result.update((
-        (u'description', sg.description),
+        (u'description', secgroup.description),
         (u'project', link_for_tenant(tenant))
     ))
     return result
@@ -125,6 +125,4 @@ def delete_fw_rule_set(fw_rule_set_id):
         abort(404)
 
     return make_json_response(None, status_code=204)
-
-# TODO(imelnikov): find a way to rename and change description, and implement it
 

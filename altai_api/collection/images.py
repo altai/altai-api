@@ -206,14 +206,14 @@ def upload_image_data(image_id):
         raise exc.InvalidRequest('Unsupported content type: %s'
                                  % request.content_type)
     if request.content_length is None:
-        abort(411) # Length required
+        abort(411)  # Length required
     expect = request.headers.get('Expect', '')[:4]
     if expect not in ('', '100-', '200-', '204-'):
-        abort(417) # Expectations failed
+        abort(417)  # Expectations failed
 
     image = _fetch_image(image_id)
     if image.status != 'queued':
-        abort(405) # Method not allowed
+        abort(405)  # Method not allowed
 
     image.update(data=request.stream,
                  size=request.content_length)
@@ -223,6 +223,7 @@ def upload_image_data(image_id):
 @images.route('/<image_id>/add-tags', methods=('POST',))
 def add_image_tags(image_id):
     raise NotImplemented('Image tags are not implemented yet')
+
 
 @images.route('/<image_id>/remove-tags', methods=('POST',))
 def remove_image_tags(image_id):

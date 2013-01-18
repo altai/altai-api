@@ -75,7 +75,6 @@ class VmRuleSetsTestCase(MockedTestCase):
         rv = self.client.get('/v1/vms/%s/fw-rule-sets/' % self.server.id)
         self.check_and_parse_response(rv, status_code=404)
 
-
     def test_get_works(self):
         compute = self.fake_client_set.compute
         compute.servers.get(self.server.id).AndReturn(self.server)

@@ -100,7 +100,7 @@ def _revoke_admin(user_id):
         g.client_set.identity_admin.roles.remove_user_role(
             user_id, admin_role_id(), default_tenant_id())
     except osc_exc.NotFound:
-        pass # user was not admin
+        pass  # user was not admin
 
 
 _SCHEMA = Schema((

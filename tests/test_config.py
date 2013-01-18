@@ -34,5 +34,8 @@ class ConfigTestCase(TestCase):
         self.assertEquals(app.config['TEST_STRING'], 'Test')
 
     def test_environment_is_considered(self):
-        subprocess.check_call(scrpit_path('env_considered_test'))
+        try:
+            subprocess.check_call(scrpit_path('env_considered_test'))
+        except Exception, ex:
+            self.fail('Unexpected exception: %s' % ex)
 

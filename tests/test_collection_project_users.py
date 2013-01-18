@@ -34,9 +34,8 @@ class ListProjectUsersTestCase(MockedTestCase):
         super(ListProjectUsersTestCase, self).setUp()
         self.mox.StubOutWithMock(project_users, 'link_for_user')
 
-
     def test_list_works(self):
-        project_id =  u'PID'
+        project_id = u'PID'
         tenant = doubles.make(self.mox, doubles.Tenant, id=project_id)
         client = self.fake_client_set
 
@@ -48,7 +47,7 @@ class ListProjectUsersTestCase(MockedTestCase):
         expected = {
             u'collection': {
                 u'name': u'users',
-                u'parent-href' : u'/v1/projects/%s' % project_id,
+                u'parent-href': u'/v1/projects/%s' % project_id,
                 u'size': 2
             },
             u'users': [ u'D1', u'D2' ]
@@ -60,7 +59,7 @@ class ListProjectUsersTestCase(MockedTestCase):
         self.assertEquals(data, expected)
 
     def test_list_no_project(self):
-        project_id =  u'PID'
+        project_id = u'PID'
         self.fake_client_set.identity_admin.tenants.get(project_id)\
                 .AndRaise(osc_exc.NotFound('failure'))
 
@@ -72,7 +71,7 @@ class ListProjectUsersTestCase(MockedTestCase):
 class GetProjectUserTestCase(MockedTestCase):
 
     def test_get_works(self):
-        project_id =  u'PID'
+        project_id = u'PID'
         tenant = doubles.make(self.mox, doubles.Tenant, id=project_id)
         users = [doubles.make(self.mox, doubles.User,
                               id=uid, name=(uid + ' name'))
@@ -94,7 +93,7 @@ class GetProjectUserTestCase(MockedTestCase):
         self.assertEquals(data, expected)
 
     def test_get_no_project(self):
-        project_id =  u'PID'
+        project_id = u'PID'
         self.fake_client_set.identity_admin.tenants.get(project_id)\
                 .AndRaise(osc_exc.NotFound('failure'))
 
@@ -102,9 +101,8 @@ class GetProjectUserTestCase(MockedTestCase):
         rv = self.client.get(u'/v1/projects/%s/users/U2' % project_id)
         self.check_and_parse_response(rv, status_code=404)
 
-
     def test_get_no_user(self):
-        project_id =  u'PID'
+        project_id = u'PID'
         tenant = doubles.make(self.mox, doubles.Tenant, id=project_id)
         users = [doubles.make(self.mox, doubles.User,
                               id=uid, name=(uid + ' name'))
@@ -125,7 +123,8 @@ class AddAndRemoveProjectUserTestCase(MockedTestCase):
         super(AddAndRemoveProjectUserTestCase, self).setUp()
         self.project_id = u'PID'
         self.user_id = u'UID'
-        self.tenant = doubles.make(self.mox, doubles.Tenant, id=self.project_id)
+        self.tenant = doubles.make(self.mox, doubles.Tenant,
+                                   id=self.project_id)
         self.user = doubles.make(self.mox, doubles.User,
                                  id=self.user_id, name='username')
 
@@ -144,7 +143,6 @@ class AddAndRemoveProjectUserTestCase(MockedTestCase):
             u'name': u'username',
             u'href': u'/v1/users/UID'
         }
-
 
         self.mox.ReplayAll()
         params = {'id': self.user_id}
@@ -168,7 +166,6 @@ class AddAndRemoveProjectUserTestCase(MockedTestCase):
                               data=json.dumps(params))
         data = self.check_and_parse_response(rv, status_code=500)
         self.assertTrue('role not found' in data.get('message').lower())
-
 
     def test_remove_works(self):
         ia = self.fake_client_set.identity_admin

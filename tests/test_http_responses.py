@@ -33,7 +33,7 @@ class HttpResponsesTestCase(TestCase):
         self.check_and_parse_response(rv, status_code=404)
 
     def test_404_with_args(self):
-        rv = self.client.get('/i-hope-this-resource-will-never-exist?bad-arg=1')
+        rv = self.client.get('/i-hope-this-resource-will-never-exist?arg=1')
         self.check_and_parse_response(rv, status_code=404)
 
     def test_unknown_arg_checked(self):

@@ -27,6 +27,7 @@ from tests.mocked import MockedTestCase
 from openstackclient_base import exceptions as osc_exc
 from altai_api.collection import fw_rules
 
+
 class RuleConvertNovaTestCase(MockedTestCase):
     from_nova = {
         u'id': 1,
@@ -73,7 +74,6 @@ class FwRulesTestCase(MockedTestCase):
         sg = doubles.make(self.mox, doubles.SecurityGroup,
                           id=u'42', name='Test SG',
                           rules=['RULE1', 'RULE2'])
-
 
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
         fw_rules._fw_rule_dict_from_nova('RULE1').AndReturn('REPLY1')
@@ -137,7 +137,7 @@ class FwRulesTestCase(MockedTestCase):
 
     def test_get_rule_not_found(self):
         ruleid = u'2'
-        rules = [ # no rule with id '2':
+        rules = [  # no rule with id '2':
             { u'id': 1, u'FAKE': u'fst' },
             { u'id': 3, u'FAKE': u'snd' },
             { u'id': 4, u'FAKE': u'lst' } ]
@@ -172,12 +172,13 @@ class FwRulesTestCase(MockedTestCase):
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
-        rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s' % (sgid, ruleid))
+        rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s'
+                                % (sgid, ruleid))
         self.check_and_parse_response(rv, 404)
 
     def test_delete_rule_not_found(self):
         ruleid = u'2'
-        rules = [ # no rule with id '2':
+        rules = [  # no rule with id '2':
             { u'id': 1, u'FAKE': u'fst' },
             { u'id': 3, u'FAKE': u'snd' },
             { u'id': 4, u'FAKE': u'lst' } ]
@@ -236,7 +237,6 @@ class CreateRuleTestCase(MockedTestCase):
             u'source': u'10.0.0.0/8'
         })
         self.assertEquals(data, 'REPLY')
-
 
     def test_ceate_rule_two_port(self):
         self.fake_client_set.compute.security_group_rules.create(

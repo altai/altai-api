@@ -41,7 +41,7 @@ def keystone_auth(auth):
                    tenant_name=app.config['DEFAULT_TENANT'],
                    auth_uri=app.config['KEYSTONE_URI'])
     try:
-        cs.http_client.authenticate() # raises exception on failure
+        cs.http_client.authenticate()  # raises exception on failure
     except IOError, error:
         raise RuntimeError(
             'Failed to connect to authentication service (%s)' % error)
@@ -63,6 +63,7 @@ def client_set_for_tenant(tenant_id=None, tenant_name=None):
                      tenant_id=tenant_id,
                      auth_uri=app.config['KEYSTONE_URI'])
 
+
 def default_tenant_id():
     """Returns ID of tenant named app.config['DEFAULT_TENANT']
 
@@ -70,6 +71,7 @@ def default_tenant_id():
 
     """
     return g.client_set.http_client.access['token']['tenant']['id']
+
 
 def admin_role_id():
     """Get ID of 'admin' role -- role of administrator of default tenant.

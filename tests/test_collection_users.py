@@ -175,7 +175,7 @@ class UsersCollectionTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         post_params = {"name": name, "email": email,
-                       "password": passw, "admin": True }
+                       "password": passw, "admin": True}
         rv = self.client.post('/v1/users/',
                               data=json.dumps(post_params),
                               content_type='application/json')

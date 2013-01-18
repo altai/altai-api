@@ -83,17 +83,6 @@ class MySShKeysListTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'REPLY')
 
-    def test_get_works(self):
-        self.fake_client_set.compute.keypairs.find(name='kp')\
-                .AndReturn('K1')
-        my_ssh_keys._keypair_from_nova('K1').AndReturn('REPLY')
-
-        self.mox.ReplayAll()
-
-        rv = self.client.get('/v1/me/ssh-keys/kp')
-        data = self.check_and_parse_response(rv)
-        self.assertEquals(data, 'REPLY')
-
     def test_get_not_found(self):
         self.fake_client_set.compute.keypairs.find(name='kp')\
                 .AndRaise(osc_exc.NotFound('failure'))

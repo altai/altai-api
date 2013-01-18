@@ -46,7 +46,7 @@ class InstanceTypesToNovaTestCase(MockedTestCase):
                               disk=10,
                               ephemeral=80)
         expected = {
-            u'id' : u'42',
+            u'id': u'42',
             u'href': u'/v1/instance-types/42',
             u'name': u'my test',
             u'cpus': 4,
@@ -69,7 +69,7 @@ class InstanceTypesToNovaTestCase(MockedTestCase):
         expected = {
             u'name': u'my test',
             u'vcpus': 4,
-            u'ram':  8192,
+            u'ram': 8192,
             u'disk': 10,
             u'ephemeral': 80
         }
@@ -177,7 +177,7 @@ class InstanceTypesCreateTestCase(MockedTestCase):
         for_nova = {
             u'name': u'my test',
             u'vcpus': 4,
-            u'ram':  8192,
+            u'ram': 8192,
             u'disk': 10,
             u'ephemeral': 80
         }
@@ -193,14 +193,13 @@ class InstanceTypesCreateTestCase(MockedTestCase):
         data = self.interact(args)
         self.assertEquals(data, 'REPLY')
 
-
     def test_instance_type_exists(self):
         args = {u'name': u'fake'}
         flavorid = uuid.UUID('1beeece5-e4e6-4f50-898d-15c3ab393abf')
         for_nova = {
             u'name': u'my test',
             u'vcpus': 4,
-            u'ram':  8192,
+            u'ram': 8192,
             u'disk': 10,
             u'ephemeral': 80
         }
@@ -222,7 +221,6 @@ class InstanceTypeDeleteTestCase(MockedTestCase):
         self.mox.ReplayAll()
         rv = self.client.delete('/v1/instance-types/42')
         self.check_and_parse_response(rv, status_code=204)
-
 
     def test_delete_instance_type_not_found(self):
         self.fake_client_set.compute.flavors.delete(u'42')\

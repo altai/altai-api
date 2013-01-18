@@ -23,6 +23,7 @@
 
 from tests import TestCase
 
+
 class EntryPointTestCase(TestCase):
     def test_get_entry_point(self):
         rv = self.client.get('/')
@@ -37,13 +38,11 @@ class EntryPointTestCase(TestCase):
             ]
         })
 
-
     def test_post_retuns_405(self):
         rv = self.client.post('/',
                               content_type='application/json',
                               data='{}')
         self.check_and_parse_response(rv, status_code=405)
-
 
     def test_get_v1_entry_point(self):
         rv = self.client.get('/v1/')

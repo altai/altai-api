@@ -80,12 +80,12 @@ class MakeResponseTestCase(TestCase):
         self.assertTrue('"2012-09-13T15:03:42Z"' in resp.data)
 
     def test_rises_nicely(self):
-        class A(object):
+        class TestClass(object):
             def __repr__(self):
                 return 'TEST CLASS'
         with self.app.test_request_context():
             try:
-                make_json_response({'a': A()})
+                make_json_response({'a': TestClass()})
             except TypeError, error:
                 pass
             else:

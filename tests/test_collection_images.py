@@ -213,26 +213,28 @@ class ListImagesTestCase(MockedTestCase):
         self.mox.StubOutWithMock(images, 'client_set_for_tenant')
         self.mox.StubOutWithMock(images, '_image_from_nova')
         self.tenants = [
-            doubles.make(self.mox, doubles.Tenant, id=u'SYS', name=u'systenant'),
-            doubles.make(self.mox, doubles.Tenant, id=u'PID', name=u'ptest'),
+            doubles.make(self.mox, doubles.Tenant, id='SYS', name='systenant'),
+            doubles.make(self.mox, doubles.Tenant, id='PID', name='ptest'),
         ]
         self.images = [
-            doubles.make(self.mox, doubles.Image, id=u'IMAGE1', owner=u'SYS'),
-            doubles.make(self.mox, doubles.Image, id=u'IMAGE2', owner=u'PID'),
-            doubles.make(self.mox, doubles.Image, id=u'IMAGE3', owner=u'PID'),
+            doubles.make(self.mox, doubles.Image, id='IMAGE1', owner='SYS'),
+            doubles.make(self.mox, doubles.Image, id='IMAGE2', owner='PID'),
+            doubles.make(self.mox, doubles.Image, id='IMAGE3', owner='PID'),
         ]
 
     def test_list_works(self):
         client = self.fake_client_set
-        tcs1 = mock_client_set(self.mox)
-        tcs2 = mock_client_set(self.mox)
 
         client.identity_admin.tenants.list().AndReturn(self.tenants)
         client.image.images.list(filters={'is_public': None})\
                 .AndReturn(self.images)
-        images._image_from_nova(self.images[0], self.tenants[0]).AndReturn('I1')
-        images._image_from_nova(self.images[1], self.tenants[1]).AndReturn('I2')
-        images._image_from_nova(self.images[2], self.tenants[1]).AndReturn('I3')
+
+        images._image_from_nova(self.images[0],
+                                self.tenants[0]).AndReturn('I1')
+        images._image_from_nova(self.images[1],
+                                self.tenants[1]).AndReturn('I2')
+        images._image_from_nova(self.images[2],
+                                self.tenants[1]).AndReturn('I3')
 
         expected = {
             u'collection': {

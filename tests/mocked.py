@@ -115,6 +115,7 @@ def mock_client_set(mox, aliases=False):
     }
 
     cs = mox.CreateMockAnything()
+    mock = mox.CreateMock
 
     cs.http_client = mock_with_attributes(
         mox, HttpClient,
@@ -134,53 +135,54 @@ def mock_client_set(mox, aliases=False):
 
     cs.identity_admin = mock_with_attributes(
         mox, IdentityAdminClient,
-        endpoints = mox.CreateMock(endpoints.EndpointManager),
-        roles = mox.CreateMock(roles.RoleManager),
-        services = mox.CreateMock(services.ServiceManager),
-        tenants = mox.CreateMock(tenants.TenantManager),
-        tokens = mox.CreateMock(tokens.TokenManager),
-        users = mox.CreateMock(users.UserManager))
+        endpoints=mock(endpoints.EndpointManager),
+        roles=mock(roles.RoleManager),
+        services=mock(services.ServiceManager),
+        tenants=mock(tenants.TenantManager),
+        tokens=mock(tokens.TokenManager),
+        users=mock(users.UserManager))
 
     cs.identity_public = mock_with_attributes(
         mox, IdentityPublicClient,
-        tenants = mox.CreateMock(tenants.TenantManager))
+        tenants=mock(tenants.TenantManager))
 
     cs.compute = mock_with_attributes(
         mox, ComputeClient,
-        flavors = mox.CreateMock(flavors.FlavorManager),
-        images = mox.CreateMock(images.ImageManager),
-        limits = mox.CreateMock(limits.LimitsManager),
-        servers = mox.CreateMock(servers.ServerManager),
+        flavors=mock(flavors.FlavorManager),
+        images=mock(images.ImageManager),
+        limits=mock(limits.LimitsManager),
+        servers=mock(servers.ServerManager),
 
-        dns_domains = mox.CreateMock(floating_ip_dns.FloatingIPDNSDomainManager),
-        dns_entries = mox.CreateMock(floating_ip_dns.FloatingIPDNSEntryManager),
-        cloudpipe = mox.CreateMock(cloudpipe.CloudpipeManager),
-        certs = mox.CreateMock(certs.CertificateManager),
-        floating_ips = mox.CreateMock(floating_ips.FloatingIPManager),
-        floating_ip_pools = mox.CreateMock(floating_ip_pools.FloatingIPPoolManager),
-        keypairs = mox.CreateMock(keypairs.KeypairManager),
-        quota_classes = mox.CreateMock(quota_classes.QuotaClassSetManager),
-        quotas = mox.CreateMock(quotas.QuotaSetManager),
-        security_groups = mox.CreateMock(security_groups.SecurityGroupManager),
-        security_group_rules = mox.CreateMock(security_group_rules.SecurityGroupRuleManager),
-        usage = mox.CreateMock(usage.UsageManager),
-        virtual_interfaces = mox.CreateMock(virtual_interfaces.VirtualInterfaceManager),
-        aggregates = mox.CreateMock(aggregates.AggregateManager),
-        hosts = mox.CreateMock(hosts.HostManager),
+        dns_domains=mock(floating_ip_dns.FloatingIPDNSDomainManager),
+        dns_entries=mock(floating_ip_dns.FloatingIPDNSEntryManager),
+        cloudpipe=mock(cloudpipe.CloudpipeManager),
+        certs=mock(certs.CertificateManager),
+        floating_ips=mock(floating_ips.FloatingIPManager),
+        floating_ip_pools=mock(floating_ip_pools.FloatingIPPoolManager),
+        keypairs=mock(keypairs.KeypairManager),
+        quota_classes=mock(quota_classes.QuotaClassSetManager),
+        quotas=mock(quotas.QuotaSetManager),
+        security_groups=mock(security_groups.SecurityGroupManager),
+        security_group_rules=mock(
+            security_group_rules.SecurityGroupRuleManager),
+        usage=mock(usage.UsageManager),
+        virtual_interfaces=mock(virtual_interfaces.VirtualInterfaceManager),
+        aggregates=mock(aggregates.AggregateManager),
+        hosts=mock(hosts.HostManager),
 
-        networks = mox.CreateMock(networks.NetworkManager),
-        fping = mox.CreateMock(fping.FpingManager))
+        networks=mock(networks.NetworkManager),
+        fping=mock(fping.FpingManager))
 
     cs.volume = mock_with_attributes(
         mox, VolumeClient,
-        volumes = mox.CreateMock(volumes.VolumeManager),
-        volume_snapshots = mox.CreateMock(volume_snapshots.SnapshotManager),
-        volume_types = mox.CreateMock(volume_types.VolumeTypeManager))
+        volumes=mock(volumes.VolumeManager),
+        volume_snapshots=mock(volume_snapshots.SnapshotManager),
+        volume_types=mock(volume_types.VolumeTypeManager))
 
     cs.image = mock_with_attributes(
         mox, ImageClient,
-        images = mox.CreateMock(images.ImageManager),
-        image_members = mox.CreateMock(image_members.ImageMemberManager))
+        images=mock(images.ImageManager),
+        image_members=mock(image_members.ImageMemberManager))
 
     if aliases:
         # we discourage their use, so we don't add them by default
@@ -194,3 +196,4 @@ def mock_client_set(mox, aliases=False):
 class MockedTestCase(TestCase, MoxTestBase):
     def _fake_client_set_factory(self):
         return mock_client_set(self.mox)
+

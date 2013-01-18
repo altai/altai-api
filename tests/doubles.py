@@ -117,7 +117,7 @@ INFO = {
                 {
                     u'version': 4,
                     u'addr': u'10.5.4.3'
-                } ] },
+                }]},
         u'config_drive': u'',
         u'created': u'2012-12-03T08:59:42Z',
         u'flavor': {
@@ -127,7 +127,7 @@ INFO = {
                     u'href': u'http://localhost:8774/'
                             '6cd68209bf4846c9ad82538b602af120/flavors/1',
                     u'rel': u'bookmark'
-                } ] },
+                }]},
         u'hostId': u'3a360c741b76e0e337c80f88c1bdec28e25821b4810b29f76dad2af2',
         u'id': u'586b3c69-ba81-493e-b8cc-1f5abde3d486',
         u'image': {
@@ -138,7 +138,7 @@ INFO = {
                             '6cd68209bf4846c9ad82538b602af120/images/'
                             '9c943146-dfa1-4585-93ac-086739ac271c',
                     u'rel': u'bookmark'
-                } ] },
+                }]},
         u'key_name': u'',
         u'links': [
             {

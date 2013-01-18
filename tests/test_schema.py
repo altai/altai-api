@@ -246,7 +246,6 @@ class SchemaTestCase(unittest.TestCase):
         self.assertEquals(len(self.schema.info), 3)
         self.assertEquals(self.schema.info[1].name, 'project')
 
-
     def test_sortby_names(self):
         self.assertEquals(self.schema.sortby_names,
                           set(['name', 'intval',

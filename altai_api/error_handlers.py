@@ -25,7 +25,8 @@ For most error responses we put machine-readable error information into
 the response entities.
 """
 
-import sys, traceback
+import sys
+import traceback
 
 from flask import request, url_for
 from openstackclient_base import exceptions as osc_exc
@@ -35,6 +36,7 @@ from altai_api import exceptions as exc
 from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.authentication import is_authenticated
+
 
 def _exception_to_message(error):
     lines = traceback.format_exception_only(type(error), error)
@@ -111,7 +113,7 @@ def exception_handler(error):
     response = { 'message': message }
     if is_authenticated() and exc_value is error and tb is not None:
         # system exception info is still about our error; let's report it
-        response['traceback'] =  [
+        response['traceback'] = [
                 {
                     'filename': filename,
                     'line': line,
