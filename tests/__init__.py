@@ -19,19 +19,11 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-import os
 import sys
 import unittest
 import altai_api.main
 import altai_api.authentication as auth
 from flask import g, json
-
-
-_SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), 'scripts')
-
-
-def scrpit_path(name):
-    return os.path.join(_SCRIPTS_DIR, name)
 
 
 class TestCase(unittest.TestCase):

@@ -30,14 +30,7 @@ monkey_patch()
 __all__ = [ 'app' ]
 
 app = flask.Flask(__name__, static_folder=None)
-
-# default config file
 app.config.from_object('altai_api.default_settings')
-
-# optional config file
-CONFIG_ENV = 'ALTAI_API_SETTINGS'
-if CONFIG_ENV in os.environ:
-    app.config.from_envvar(CONFIG_ENV)
 
 
 from altai_api.db import DB
@@ -91,7 +84,12 @@ _mount_blueprints((
 ))
 
 
+CONFIG_ENV = 'ALTAI_API_SETTINGS'
+
+
 def main():
+    if CONFIG_ENV in os.environ:
+        app.config.from_envvar(CONFIG_ENV)
     app.run(use_reloader=app.config['USE_RELOADER'],
             host=app.config['HOST'],
             port=app.config['PORT'])
