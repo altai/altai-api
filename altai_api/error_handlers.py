@@ -29,7 +29,6 @@ import sys
 import traceback
 
 from flask import request, url_for
-
 from altai_api import exceptions as exc
 
 from altai_api.main import app
@@ -40,13 +39,6 @@ from altai_api.authentication import is_authenticated
 def _exception_to_message(error):
     lines = traceback.format_exception_only(type(error), error)
     return '\n'.join(lines).strip()
-
-
-@app.errorhandler(403)
-def authentication_failed_handler(error):
-    # TODO(imelnikov): log error
-    return make_json_response({ 'message': 'Unauthorized.' },
-                              status_code=403)
 
 
 @app.errorhandler(401)
@@ -122,21 +114,29 @@ def exception_handler(error):
     return make_json_response(response, status_code=500)
 
 
-@app.errorhandler(404)
-def not_found_handler(error):
-    response = {
-        'path': request.path,
-        'message': 'Resource not found.'
-    }
-    return make_json_response(response, status_code=error.code)
+def multy_error_handler(messages):
+    def make_error_handler(func, message):
+        return lambda error: func(error, message)
+
+    def decorator(func):
+        for code, message in messages.iteritems():
+            app.errorhandler(code)(make_error_handler(func, message))
+        return func
+    return decorator
 
 
-@app.errorhandler(405)
-def method_not_allowed_handler(error):
+@multy_error_handler({
+    403: 'Unauthorized.',
+    404: 'Resource not found.',
+    405: 'Method not allowed for resource.',
+    411: 'Content-Length required for this request.',
+    417: 'Unsupported client expectations.'
+})
+def common_error_handler(error, message):
     response = {
         'path': request.path,
         'method': request.method,
-        'message': 'Method not allowed for resource.'
+        'message': message
     }
     return make_json_response(response, status_code=error.code)
 
@@ -151,26 +151,4 @@ def redirect_handler(error):
     return make_json_response(response,
                               status_code=error.code,
                               location=error.new_url)
-
-
-@app.errorhandler(411)
-def length_required_handler(error):
-    response = {
-        'path': request.path,
-        'method': request.method,
-        'message': 'Content-Length required for this request.'
-    }
-    return make_json_response(response,
-                              status_code=error.code)
-
-
-@app.errorhandler(417)
-def expectation_failed_handler(error):
-    response = {
-        'path': request.path,
-        'method': request.method,
-        'message': 'Unsupported client expectations.'
-    }
-    return make_json_response(response,
-                              status_code=error.code)
 

@@ -34,11 +34,14 @@ class HttpResponsesTestCase(TestCase):
 
     def test_404_with_args(self):
         rv = self.client.get('/i-hope-this-resource-will-never-exist?arg=1')
-        self.check_and_parse_response(rv, status_code=404)
+        data = self.check_and_parse_response(rv, status_code=404)
+        self.assertTrue('not found' in data.get('message'))
 
     def test_unknown_arg_checked(self):
         rv = self.client.get('/?i-hope-this-arg=will-never-be-passed')
-        self.check_and_parse_response(rv, status_code=400)
+        data = self.check_and_parse_response(rv, status_code=400)
+        print data
+        self.assertTrue('argument' in data.get('message'))
 
     def test_mime_checked(self):
         rv = self.client.post('/v1/instance-types',
@@ -99,11 +102,13 @@ class HttpResponsesTestCase(TestCase):
 
     def test_except_works_delete(self):
         rv = self.client.delete('/', headers={'Expect': '204-no-data'})
-        self.check_and_parse_response(rv, status_code=405)
+        data = self.check_and_parse_response(rv, status_code=405)
+        self.assertTrue('Method not allowed' in data.get('message'))
 
     def test_except_checks_204(self):
         rv = self.client.get('/', headers={'Expect': '204-no-data'})
-        self.check_and_parse_response(rv, status_code=417)
+        data = self.check_and_parse_response(rv, status_code=417)
+        self.assertTrue('expectation' in data.get('message').lower())
 
     def test_except_checks_202(self):
         rv = self.client.get('/', headers={'Expect': '202-accepted'})
