@@ -28,6 +28,9 @@ from altai_api.utils import mail
 
 
 class MailTestCase(MockedTestCase):
+    def setUp(self):
+        super(MailTestCase, self).setUp()
+        self.mox.StubOutWithMock(mail, 'MAIL')
 
     def test_send_invitation_works(self):
         class IsCorrectMail(mox.Comparator):
@@ -38,7 +41,6 @@ class MailTestCase(MockedTestCase):
                                 in message.body)
                 return True
 
-        self.mox.StubOutWithMock(mail, 'MAIL')
         mail.MAIL.send(IsCorrectMail())
 
         self.mox.ReplayAll()
@@ -56,13 +58,25 @@ class MailTestCase(MockedTestCase):
                 self.assertTrue('follow the link' not in message.body)
                 return True
 
-        self.mox.StubOutWithMock(mail, 'MAIL')
         mail.MAIL.send(IsCorrectMail())
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
             mail.send_invitation('uuserovich@example.com',
                                  'THE_CODE')
+
+    def test_send_invitation_ioerror(self):
+        mail.MAIL.send(mox.IsA(mail.mail.Message)).AndRaise(IOError('HI'))
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            try:
+                mail.send_invitation('uuserovich@example.com',
+                                     'THE_CODE')
+            except IOError, e:
+                self.assertEquals('Failed to send e-mail', e.message)
+            else:
+                self.fail('Exception not raised')
 
     def test_send_invitation_bad_link(self):
         self.mox.ReplayAll()
@@ -94,7 +108,6 @@ class MailTestCase(MockedTestCase):
                 self.assertTrue('THE_USERNAME' in message.body)
                 return True
 
-        self.mox.StubOutWithMock(mail, 'MAIL')
         mail.MAIL.send(IsCorrectMail())
 
         self.mox.ReplayAll()

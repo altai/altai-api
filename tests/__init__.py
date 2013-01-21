@@ -24,6 +24,7 @@ import unittest
 import altai_api.main
 import altai_api.authentication as auth
 from flask import g, json
+from flask.exceptions import HTTPException
 
 
 class TestCase(unittest.TestCase):
@@ -58,6 +59,17 @@ class TestCase(unittest.TestCase):
         if self.FAKE_AUTH:
             auth.require_auth = self.__require_auth
         self.app.config = self.__config
+
+    def assertAborts(self, status_code, callable_obj, *args, **kwargs):
+        """Check that callable raises HTTP exception with given code"""
+        try:
+            callable_obj(*args, **kwargs)
+        except HTTPException, ex:
+            self.assertEquals(ex.code, status_code,
+                              "Bad HTTP status code: expected %s, got %s"
+                              % (status_code, ex.code))
+        else:
+            self.fail("HTTPException was not raised")
 
     def check_and_parse_response(self, resp, status_code=200):
         try:

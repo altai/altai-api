@@ -20,8 +20,6 @@
 # <http://www.gnu.org/licenses/>.
 
 
-from flask.exceptions import HTTPException
-
 from tests.db import ContextWrappedDBTestCase
 from altai_api.db.tokens import TokensDAO
 
@@ -73,8 +71,7 @@ class TokensDAOTestCase(ContextWrappedDBTestCase):
         self.assertEquals(self.code, inv.code)
 
     def test_wrong_type_get(self):
-        self.assertRaises(HTTPException,
-                          TokensDAO('wrong type').get, self.code)
+        self.assertAborts(404, TokensDAO('wrong type').get, self.code)
 
     def test_get_token(self):
         inv = TokensDAO('test').get(self.code)
@@ -84,8 +81,7 @@ class TokensDAOTestCase(ContextWrappedDBTestCase):
         self.assertEquals(False, inv.complete)
 
     def test_get_not_found(self):
-        self.assertRaises(HTTPException,
-                          TokensDAO('test').get, 'wrong code')
+        self.assertAborts(404, TokensDAO('test').get, 'wrong code')
 
     def test_complete(self):
         dao = TokensDAO('test')

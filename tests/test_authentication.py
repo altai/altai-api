@@ -20,7 +20,6 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import Flask
-from flask import exceptions as flask_exc
 from base64 import b64encode
 
 from openstackclient_base.exceptions import Unauthorized
@@ -38,42 +37,52 @@ def _basic_auth(username, password):
     )
 
 
-class AuthenticationTestCase(MockedTestCase):
+class KeystoneAuthTestCase(MockedTestCase):
     FAKE_AUTH = False
 
-    def test_keystone_auth(self):
-        self.mox.StubOutClassWithMocks(auth, 'ClientSet')
-        client = auth.ClientSet(username='u$3R',
-                              password='p@ssw0rd',
-                              auth_uri='test_auth_uri',
-                              tenant_name='test_default_tenant')
-        client.http_client = self.mox.CreateMockAnything()
-        client.http_client.authenticate()
-        self.mox.ReplayAll()
+    def setUp(self):
+        super(KeystoneAuthTestCase, self).setUp()
 
+        self.mox.StubOutClassWithMocks(auth, 'ClientSet')
+        self.client = auth.ClientSet(username='u$3R',
+                                     password='p@ssw0rd',
+                                     auth_uri='test_auth_uri',
+                                     tenant_name='test_default_tenant')
+        self.client.http_client = self.mox.CreateMockAnything()
         self.app.config['DEFAULT_TENANT'] = 'test_default_tenant'
         self.app.config['KEYSTONE_URI'] = 'test_auth_uri'
+
+    def test_keystone_auth(self):
+        self.client.http_client.authenticate()
+        self.mox.ReplayAll()
+
         with self.app.test_request_context():
             auth.keystone_auth('u$3R', 'p@ssw0rd')
             self.assertTrue(auth.is_authenticated())
 
     def test_keystone_auth_failure(self):
-        self.mox.StubOutClassWithMocks(auth, 'ClientSet')
-        client = auth.ClientSet(username='u$3R',
-                              password='p@ssw0rd',
-                              auth_uri='test_auth_uri',
-                              tenant_name='test_default_tenant')
-        client.http_client = self.mox.CreateMockAnything()
-        client.http_client.authenticate().AndRaise(Unauthorized('fail'))
+        self.client.http_client.authenticate().AndRaise(Unauthorized('fail'))
 
         self.mox.ReplayAll()
 
-        self.app.config['DEFAULT_TENANT'] = 'test_default_tenant'
-        self.app.config['KEYSTONE_URI'] = 'test_auth_uri'
         with self.app.test_request_context():
             result = auth.keystone_auth('u$3R', 'p@ssw0rd')
             self.assertEquals(False, result)
             self.assertFalse(auth.is_authenticated())
+
+    def test_keystone_auth_ioerror(self):
+        self.client.http_client.authenticate().AndRaise(IOError('IO ERROR'))
+
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            self.assertRaises(RuntimeError,
+                              auth.keystone_auth, 'u$3R', 'p@ssw0rd')
+            self.assertFalse(auth.is_authenticated())
+
+
+class AuthenticationTestCase(MockedTestCase):
+    FAKE_AUTH = False
 
     def test_no_headers_401(self):
         self.mox.ReplayAll()
@@ -110,6 +119,21 @@ class AuthenticationTestCase(MockedTestCase):
         self.assertTrue('WWW-Authenticate' not in rv.headers)
 
 
+class CurrentUserIdTestCase(MockedTestCase):
+
+    def test_current_user_id(self):
+        self.fake_client_set.http_client.access['user'] = { 'id' : 'THE_UID' }
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertEquals('THE_UID', auth.current_user_id())
+
+    def test_current_user_id_aborts(self):
+        del self.fake_client_set.http_client.access['user']
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertAborts(403, auth.current_user_id)
+
+
 class NoAuthEndpointTestCase(MoxTestBase):
 
     def setUp(self):
@@ -140,6 +164,57 @@ class NoAuthEndpointTestCase(MoxTestBase):
         with self.test_app.test_request_context():
             self.assertRaises(RuntimeError, auth.require_auth)
 
+    def test_no_auth_request_no_rule(self):
+        self.test_app.before_request(auth.require_auth)
+
+        self.mox.ReplayAll()
+        rv = self.test_app.test_client().get('/non/existing/resource')
+        # no rule found, so we have to authorize as usual
+        self.assertEquals(rv.status_code, 401)
+
+    def test_no_auth_request_no_current_user(self):
+        self.test_app.before_request(auth.require_auth)
+
+        @self.test_app.route('/cu')
+        @no_auth_endpoint
+        def current_user_():
+            return auth.current_user_id()
+
+        @self.test_app.errorhandler(500)
+        def error_handler_(error):
+            return str(error), 500
+
+        auth.keystone_auth('admin', 'admin_pw').AndReturn(True)
+        self.mox.ReplayAll()
+        rv = self.test_app.test_client().get('/cu')
+        self.assertEquals(rv.status_code, 500)
+        self.assertTrue('No current user' in rv.data)
+
+
+class ClientSetForTenantTestCase(MockedTestCase):
+
+    def setUp(self):
+        super(ClientSetForTenantTestCase, self).setUp()
+        self.mox.StubOutClassWithMocks(auth, 'ClientSet')
+
+    def test_client_set_for_tenant_works(self):
+        access = self.fake_client_set.http_client.access
+        auth.ClientSet(token=access['token']['id'],
+                       tenant_name=None,
+                       tenant_id='PID',
+                       auth_uri=self.app.config['KEYSTONE_URI'])\
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            auth.client_set_for_tenant('PID')
+
+    def test_needs_something(self):
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertRaises(ValueError, auth.client_set_for_tenant)
+
 
 class AuthInfoTestCase(MockedTestCase):
 
@@ -166,12 +241,7 @@ class AuthInfoTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            try:
-                auth.admin_role_id()
-            except flask_exc.HTTPException, e:
-                self.assertEquals(e.code, 403)
-            else:
-                self.fail('Exception was not raised')
+            self.assertAborts(403, auth.admin_role_id)
 
     def test_assert_admin_403(self):
         # make roles empty
@@ -180,10 +250,5 @@ class AuthInfoTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            try:
-                auth.assert_admin()
-            except flask_exc.HTTPException, e:
-                self.assertEquals(e.code, 403)
-            else:
-                self.fail('Exception was not raised')
+            self.assertAborts(403, auth.assert_admin)
 

@@ -225,7 +225,7 @@ def create_image():
 @images.route('/<image_id>', methods=('DELETE',))
 def remove_image(image_id):
     image = _fetch_image(image_id)
-    #TODO(imelnikov): permissions check
+    # TODO(imelnikov): permissions check
     image.delete()
     return make_json_response(None, status_code=204)
 

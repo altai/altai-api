@@ -106,18 +106,15 @@ class ConvertersTestCase(MockedTestCase):
         self.assertEquals(expected, result)
 
 
-class ProjectsTestCase(MockedTestCase):
+class ProjectsHelpersTestCase(MockedTestCase):
 
     def net(self, **kwargs):
         return doubles.make(self.mox, doubles.Network, **kwargs)
 
     def setUp(self):
-        super(ProjectsTestCase, self).setUp()
+        super(ProjectsHelpersTestCase, self).setUp()
         self.nm_mock = self.fake_client_set.compute.networks
         self.tm_mock = self.fake_client_set.identity_admin.tenants
-
-        self.mox.StubOutWithMock(projects, '_quotaset_for_project')
-        self.mox.StubOutWithMock(projects, '_project_from_nova')
 
     def test_network_for_project(self):
         nets = (self.net(label=u'net1', id=u'netid1', project_id=u'pid1'),
@@ -131,8 +128,41 @@ class ProjectsTestCase(MockedTestCase):
             net = projects._network_for_project(u'pid2')
         self.assertEquals(net, nets[1])
 
-    def test_get_project(self):
+    def test_no_network_for_project(self):
+        self.nm_mock.list().AndReturn([])
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            net = projects._network_for_project(u'pid2')
+        self.assertEquals(net, None)
+
+    def test_quotaset_for_project(self):
+        project_id = 'PID'
+        self.fake_client_set.compute.quotas.get(project_id) \
+                .AndReturn('QUOTA')
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            quota = projects._quotaset_for_project(project_id)
+        self.assertEquals('QUOTA', quota)
+
+
+class ProjectsTestCase(MockedTestCase):
+
+    def net(self, **kwargs):
+        return doubles.make(self.mox, doubles.Network, **kwargs)
+
+    def setUp(self):
+        super(ProjectsTestCase, self).setUp()
+        self.nm_mock = self.fake_client_set.compute.networks
+        self.tm_mock = self.fake_client_set.identity_admin.tenants
+
+        self.mox.StubOutWithMock(projects, '_quotaset_for_project')
+        self.mox.StubOutWithMock(projects, '_project_from_nova')
         self.mox.StubOutWithMock(projects, '_network_for_project')
+
+    def test_get_project(self):
 
         tenant = doubles.make(self.mox, doubles.Tenant,
                               name=u'name', id=u'pid')
@@ -247,7 +277,7 @@ class ProjectStatsTestCase(MockedTestCase):
 
 class CreateProjectTestCase(MockedTestCase):
 
-    name, description, net_id = 'ptest', 'DECRIPTION', 'NETID'
+    name, description, net_id = 'ptest', 'DESCRIPTION', 'NETID'
 
     def interact(self, data=None, expected_status_code=200):
         if data is None:
@@ -363,7 +393,7 @@ class DeleteProjectTestCase(MockedTestCase):
     def _net(self, **kwargs):
         return doubles.make(self.mox, doubles.Network, **kwargs)
 
-    def test_project_deletion_checks_existance(self):
+    def test_project_deletion_checks_existence(self):
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndRaise(osc_exc.NotFound('failure'))
 

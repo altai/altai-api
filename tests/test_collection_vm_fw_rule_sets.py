@@ -111,9 +111,17 @@ class VmRuleSetsTestCase(MockedTestCase):
             'security_groups').AndReturn([self.sg2, self.sg])
 
         self.mox.ReplayAll()
-
         rv = self.client.get('/v1/vms/%s/fw-rule-sets/%s'
                              % (self.server.id, u'1555'))
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_get_bad_sg(self):
+        compute = self.fake_client_set.compute
+        compute.servers.get(self.server.id).AndReturn(self.server)
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/vms/%s/fw-rule-sets/%s'
+                             % (self.server.id, 'not an int'))
         self.check_and_parse_response(rv, status_code=404)
 
 

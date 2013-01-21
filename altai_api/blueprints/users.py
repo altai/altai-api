@@ -199,12 +199,12 @@ def create_user():
                                    password=data.get('password'),
                                    email=data['email'],
                                    enabled=not invite)
-        if 'projects' in data:
-            _add_user_to_projects(new_user, data['projects'])
         if 'fullname' in data:
             user_mgr.update(new_user, fullname=data['fullname'])
         if data.get('admin'):
             _grant_admin(new_user.id)
+        if 'projects' in data:
+            _add_user_to_projects(new_user, data['projects'])
     except osc_exc.BadRequest, e:
         raise exc.InvalidRequest(str(e))
 

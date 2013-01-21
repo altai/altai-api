@@ -117,6 +117,10 @@ def assert_admin():
 
 def current_user_id():
     """Return ID of current user"""
+    if _is_no_auth_request():
+        # NOTE(imelnikov): calling this function inside no_auth_endpoint
+        # is an application programmer's error
+        raise RuntimeError('No current user for this request')
     try:
         return g.client_set.http_client.access['user']['id']
     except KeyError:

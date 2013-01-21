@@ -239,6 +239,69 @@ class UsersCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'new-user-dict')
 
+    def test_create_user_with_bad_projects(self):
+        client = self.fake_client_set
+
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        client.identity_admin.users.create(
+            name=name, password=passw, email=email,
+            enabled=True).AndReturn('new-user')
+        users.member_role_id().AndReturn('member-role')
+        client.identity_admin.roles.add_user_role(
+            user='new-user', role='member-role', tenant='PID1') \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "projects": ['PID1', 'PID2'],
+            "admin": False,
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        data = self.check_and_parse_response(rv, 400)
+        self.assertEquals('projects', data.get('element-name'))
+        self.assertEquals('PID1', data.get('element-value'))
+
+    def test_create_without_password_fails(self):
+        name, email = 'user-a', 'user-a@example.com'
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "projects": ['PID1', 'PID2'],
+            "admin": False,
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+        data = self.check_and_parse_response(rv, 400)
+        self.assertEquals('password', data.get('element-name'))
+
+    def test_create_no_link_template(self):
+        name, email, passw = 'user-a', 'user-a@example.com', 'bananas'
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "projects": ['PID1', 'PID2'],
+            "admin": False,
+            "link-template": "http://{{code}}"
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+        data = self.check_and_parse_response(rv, 400)
+        self.assertEquals('link-template', data.get('element-name'))
+
     def test_invite_user(self):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         link_template = 'http://altai.example.com/invite?code={{code}}'

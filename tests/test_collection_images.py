@@ -273,6 +273,19 @@ class ListImagesTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
+    def test_list_for_project_forbidden(self):
+        tcs = mock_client_set(self.mox)
+        tenant = self.tenants[1]
+
+        self.fake_client_set.identity_admin.tenants.get(tenant.id)\
+                .AndReturn(tenant)
+        images.client_set_for_tenant(tenant.id).AndReturn(tcs)
+        tcs.image.images.list().AndRaise(osc_exc.Forbidden('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/?project:for=%s' % tenant.id)
+        self.check_and_parse_response(rv, status_code=403)
+
     def test_get_image_works(self):
         client = self.fake_client_set
         image = self.images[-1]
@@ -458,6 +471,16 @@ class CreateImageTestCase(MockedTestCase):
                              data='{}',
                              content_type='application/json')
         self.check_and_parse_response(rv, status_code=400)
+
+    def test_upload_checks_content_length(self):
+        # NOTE(imelnikov): one cannot make normal request context without
+        # content length, but if we really want, we can, using mox
+        with self.app.test_request_context():
+            self.mox.StubOutWithMock(images, 'request')
+            images.request.content_type = 'application/octet-stream'
+            images.request.content_length = None
+            self.mox.ReplayAll()
+            self.assertAborts(411, images.upload_image_data, '42')
 
     def test_upload_checks_expectations(self):
         data = 'DATA DATA DATA DATA'
