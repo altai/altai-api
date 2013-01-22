@@ -55,7 +55,7 @@ class EntryPointTestCase(TestCase):
                 'instance-types-href': '/v1/instance-types/',
                 'stats-href': '/v1/stats',
                 'images-href': '/v1/images/',
-                # 'config-href': '/v1/config',
+                'config-href': '/v1/config/',
                 'audit-log-href': '/v1/audit-log/'
             }
         })

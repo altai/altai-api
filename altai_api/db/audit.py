@@ -19,22 +19,11 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-import sqlalchemy.types
 
-from flask import json
 from datetime import datetime
 
 from altai_api.db import DB
-
-
-class Json(sqlalchemy.types.TypeDecorator):
-    impl = DB.Text
-
-    def process_bind_param(self, value, dialect):
-        return json.dumps(value)
-
-    def process_result_value(self, value, dialect):
-        return json.loads(value)
+from altai_api.db.helpers import Json
 
 
 class AuditRecord(DB.Model):

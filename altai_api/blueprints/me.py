@@ -76,6 +76,8 @@ _RESET_SCHEMA = Schema((
 @me.route('/reset-password', methods=('POST',))
 @no_auth_endpoint
 def reset_password():
+    if not g.config('password-reset', 'enabled'):
+        abort(404)
     data = parse_request_data(allowed=_RESET_SCHEMA)
     user = _find_user(data)
     if user is None:
@@ -95,6 +97,8 @@ _APPLY_SCHEMA = Schema((
 @me.route('/reset-password/<code>', methods=('POST',))
 @no_auth_endpoint
 def apply_password_reset(code):
+    if not g.config('password-reset', 'enabled'):
+        abort(404)
     data = parse_request_data(required=_APPLY_SCHEMA)
     token = ResetTokensDAO.get(code)
     if not token or token.complete:

@@ -49,9 +49,12 @@ from altai_api.utils import communication
 
 from altai_api.jobs import vms as vms_jobs
 
+from altai_api.db.config import ConfigDAO
+
 
 @app.before_request
 def check_request():
+    flask.g.config = ConfigDAO.get
     audit.setup_audit()
     auth.require_auth()
     communication.check_request_headers()
@@ -81,6 +84,7 @@ _mount_blueprints((
      ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
      ('images', '/v1/images'),
      ('invites', '/v1/invites'),
+     ('config', '/v1/config'),
      ('audit_log', '/v1/audit-log'),
      ('me', '/v1/me'),
      ('users_ssh_keys', '/v1/users/<user_id>/ssh-keys'),

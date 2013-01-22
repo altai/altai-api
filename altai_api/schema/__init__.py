@@ -66,6 +66,9 @@ class Schema(object):
             sub_schema = Schema(tuple((t for t in info if t.name in val)))
             setattr(self, key, sub_schema)
 
+    def from_request(self, name, value):
+        return self.__dict[name].from_request(value)
+
     def argument_matcher(self, name, match_type):
         return self.__dict[name].get_search_matcher(match_type)
 

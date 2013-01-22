@@ -35,7 +35,8 @@ setup(name='altai-api',
 
       entry_points={
           'console_scrpits': [
-              'altai-apid = altai_api.main:main'
+              'altai-apid = altai_api.main:main',
+              'altai-apid-config = altai_api.command:main'
           ]
       },
 

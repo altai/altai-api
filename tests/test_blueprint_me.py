@@ -28,6 +28,7 @@ from altai_api.db.tokens import Token
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
+from altai_api.db.config import ConfigDAO
 from altai_api.blueprints import users, me
 
 
@@ -97,6 +98,7 @@ class ResetPasswordTestCase(MockedTestCase):
         self.mox.StubOutWithMock(me, 'ResetTokensDAO')
         self.mox.StubOutWithMock(me, 'send_reset_password')
         self.mox.StubOutWithMock(me, 'update_user_data')
+        self.mox.StubOutWithMock(ConfigDAO, 'get')
 
     def test_reset_password(self):
         uid, name, email, code = 'UID', 'NAME', 'EM@IL', 'THE_CODE'
@@ -108,6 +110,7 @@ class ResetPasswordTestCase(MockedTestCase):
                             name=name, id=uid, email=email, fullname='')
         token = Token(user_id=uid, email=email, code=code)
 
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(True)
         me._find_user(params).AndReturn(user)
         me.ResetTokensDAO.create(uid, email).AndReturn(token)
         me.send_reset_password(email, code, name,
@@ -120,11 +123,24 @@ class ResetPasswordTestCase(MockedTestCase):
                               content_type='application/json')
         self.check_and_parse_response(rv, status_code=204)
 
+    def test_reset_password_disabled(self):
+        params = {
+            'name': 'USERNAME',
+            'link-template': 'LINK_TEMPLATE'
+        }
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(False)
+        self.mox.ReplayAll()
+        rv = self.client.post('/v1/me/reset-password',
+                              data=json.dumps(params),
+                              content_type='application/json')
+        self.check_and_parse_response(rv, status_code=404)
+
     def test_reset_password_no_user(self):
         params = {
             'name': 'USERNAME',
             'link-template': 'LINK_TEMPLATE'
         }
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(True)
         me._find_user(params).AndReturn(None)
 
         self.mox.ReplayAll()
@@ -138,6 +154,7 @@ class ResetPasswordTestCase(MockedTestCase):
         token = Token(user_id=uid, code=code, complete=False)
         params = { 'password': 'p@ssw0rd' }
 
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(True)
         me.ResetTokensDAO.get('THE_CODE').AndReturn(token)
         me.fetch_user(uid, admin_mode=True).AndReturn('USER')
         me.update_user_data('USER', params)
@@ -149,11 +166,22 @@ class ResetPasswordTestCase(MockedTestCase):
                               content_type='application/json')
         self.check_and_parse_response(rv, status_code=204)
 
+    def test_apply_password_reset_disabled(self):
+        params = { 'password': 'p@ssw0rd' }
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(False)
+
+        self.mox.ReplayAll()
+        rv = self.client.post('/v1/me/reset-password/THE_CODE',
+                              data=json.dumps(params),
+                              content_type='application/json')
+        self.check_and_parse_response(rv, status_code=404)
+
     def test_apply_password_reset_complete(self):
         uid, code = 'UID', 'THE_CODE'
         token = Token(user_id=uid, code=code, complete=True)
         params = { 'password': 'p@ssw0rd' }
 
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(True)
         me.ResetTokensDAO.get('THE_CODE').AndReturn(token)
         self.mox.ReplayAll()
         rv = self.client.post('/v1/me/reset-password/%s' % code,
@@ -164,6 +192,7 @@ class ResetPasswordTestCase(MockedTestCase):
     def test_apply_password_reset_empty(self):
         params = { }
 
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(True)
         self.mox.ReplayAll()
         rv = self.client.post('/v1/me/reset-password/code',
                               data=json.dumps(params),
@@ -177,6 +206,7 @@ class ResetPasswordTestCase(MockedTestCase):
             'fullname': 'Cannot Be Set'
         }
 
+        ConfigDAO.get('password-reset', 'enabled').AndReturn(True)
         self.mox.ReplayAll()
         rv = self.client.post('/v1/me/reset-password/code',
                               data=json.dumps(params),
