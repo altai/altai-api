@@ -131,9 +131,36 @@ class UserFromNovaTestCase(MockedTestCase):
         }
 
         self.mox.ReplayAll()
-
         with self.app.test_request_context():
             data = users.user_from_nova(user)
+        self.assertEquals(data, expected)
+
+    def test_user_from_nova_send_invite_code(self):
+        """What we got when resending invite without disabling user"""
+        user = doubles.make(self.mox, doubles.User,
+                            id=u'42', name=u'iv', email=u'iv@example.com',
+                            fullname=u'Example User', enabled=True)
+        date = datetime(2012, 9, 15, 15, 03, 00)
+        invite = Token(user_id=user.id, created_at=date,
+                       complete=False, code='THE_CODE')
+
+        user.list_roles().AndReturn([])
+        expected = {
+            u'id': u'42',
+            u'name': u'iv',
+            u'href': u'/v1/users/42',
+            u'email': u'iv@example.com',
+            u'fullname': 'Example User',
+            u'admin': False,
+            u'projects': [],
+            u'completed-registration': True,  # because user can work
+            u'invited-at': date,
+            u'invitation-code': 'THE_CODE'
+        }
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            data = users.user_from_nova(user, invite, send_code=True)
         self.assertEquals(data, expected)
 
 
@@ -302,6 +329,24 @@ class UsersCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv, 400)
         self.assertEquals('link-template', data.get('element-name'))
 
+    def test_create_no_send_invite_mail(self):
+        name, email, passw = 'user-a', 'user-a@example.com', 'bananas'
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "projects": ['PID1', 'PID2'],
+            "admin": False,
+            "send-invite-mail": False
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+        data = self.check_and_parse_response(rv, 400)
+        self.assertEquals('send-invite-mail', data.get('element-name'))
+
     def test_invite_user(self):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         link_template = 'http://altai.example.com/invite?code={{code}}'
@@ -317,7 +362,8 @@ class UsersCollectionTestCase(MockedTestCase):
         users.InvitesDAO.create(user.id, email).AndReturn(invite)
         users.send_invitation(email, 'THE_CODE',
                               link_template, greeting=None)
-        users.user_from_nova(user).AndReturn('new-user-dict')
+        users.user_from_nova(user, invite, send_code=False)\
+                .AndReturn('new-user-dict')
 
         self.mox.ReplayAll()
 
@@ -328,6 +374,37 @@ class UsersCollectionTestCase(MockedTestCase):
             "admin": False,
             "invite": True,
             "link-template": link_template
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'new-user-dict')
+
+    def test_invite_user_no_mail(self):
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        user = doubles.make(self.mox, doubles.User,
+                            id='UID', name=name, email=email)
+        invite = Token(user_id=user.id, code='THE_CODE', complete=False)
+        self.mox.StubOutWithMock(users, 'send_invitation')
+        self.mox.StubOutWithMock(users, 'InvitesDAO')
+
+        self.fake_client_set.identity_admin.users.create(
+            name=name, password=passw, email=email,
+            enabled=False).AndReturn(user)
+        users.InvitesDAO.create(user.id, email).AndReturn(invite)
+        users.user_from_nova(user, invite, send_code=True)\
+                .AndReturn('new-user-dict')
+
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "send-invite-mail": False,
+            "invite": True,
         }
         rv = self.client.post('/v1/users/',
                               data=json.dumps(post_params),
@@ -498,4 +575,81 @@ class UsersCollectionTestCase(MockedTestCase):
         rv = self.client.delete('/v1/users/user-a')
         # verify
         self.assertEquals(rv.status_code, 404)
+
+
+class SendInviteTestCase(MockedTestCase):
+
+    def setUp(self):
+        super(SendInviteTestCase, self).setUp()
+        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'send_invitation')
+        self.mox.StubOutWithMock(users, 'InvitesDAO')
+        self.mox.StubOutWithMock(users, 'update_user_data')
+        self.mox.StubOutWithMock(users.auth, 'assert_admin')
+
+        self.uid = 'UID'
+        self.user = doubles.make(self.mox, doubles.User,
+                                 id=self.uid,
+                                 email='user@example.com',
+                                 fullname='Test User')
+        self.invite = Token(user_id=self.uid, code='THE_CODE', complete=False)
+
+    def interact(self, data, expected_status_code=200):
+        rv = self.client.post('/v1/users/%s/send-invite' % self.uid,
+                              data=json.dumps(data),
+                              content_type='application/json')
+        return self.check_and_parse_response(
+            rv, status_code=expected_status_code)
+
+    def test_resend_works(self):
+        self.fake_client_set.identity_admin.users.get(self.uid)\
+                .AndReturn(self.user)
+        users.InvitesDAO.create(self.uid, self.user.email)\
+                .AndReturn(self.invite)
+        users.send_invitation(self.user.email, self.invite.code,
+                              None, greeting=self.user.fullname)
+        users.user_from_nova(self.user, self.invite, send_code=False)\
+                .AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact({})
+        self.assertEquals(data, 'REPLY')
+
+    def test_resend_user_not_found(self):
+        self.fake_client_set.identity_admin.users.get(self.uid)\
+                .AndRaise(osc_exc.NotFound('failure'))
+        self.mox.ReplayAll()
+        self.interact({}, expected_status_code=404)
+
+    def test_resend_disable_user(self):
+        self.fake_client_set.identity_admin.users.get(self.uid)\
+                .AndReturn(self.user)
+        users.InvitesDAO.create(self.uid, self.user.email)\
+                .AndReturn(self.invite)
+        users.auth.assert_admin()
+        users.update_user_data(self.user, {
+            'enabled': False,
+            'password': None
+        })
+        users.send_invitation(self.user.email, self.invite.code,
+                              None, greeting=self.user.fullname)
+        users.user_from_nova(self.user, self.invite, send_code=False)\
+                .AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact({'disable-user': True})
+        self.assertEquals(data, 'REPLY')
+
+    def test_resend_no_mail(self):
+        self.fake_client_set.identity_admin.users.get(self.uid)\
+                .AndReturn(self.user)
+        users.InvitesDAO.create(self.uid, self.user.email)\
+                .AndReturn(self.invite)
+        users.auth.assert_admin()
+        users.user_from_nova(self.user, self.invite, send_code=True)\
+                .AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact({'send-invite-mail': False})
+        self.assertEquals(data, 'REPLY')
 

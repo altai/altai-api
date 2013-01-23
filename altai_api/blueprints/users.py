@@ -74,7 +74,7 @@ def member_role_id():
         raise RuntimeError('Server misconfiguration: role not found')
 
 
-def user_from_nova(user, invite=None):
+def user_from_nova(user, invite=None, send_code=False):
     systenant = app.config['DEFAULT_TENANT']
     roles = user.list_roles()
 
@@ -99,9 +99,10 @@ def user_from_nova(user, invite=None):
     if not user.enabled and invite is None:
         invite = InvitesDAO.get_for_user(user.id)
 
-    if invite is not None:
+    if invite is not None and not invite.complete:
         result['invited-at'] = invite.created_at
-        result['completed-registration'] = invite.complete
+        if send_code:
+            result['invitation-code'] = invite.code
     return result
 
 
@@ -150,11 +151,13 @@ _SCHEMA = Schema((
     st.List(st.LinkObject('projects')),
     st.Boolean('invite'),
     st.String('password'),
+    st.Boolean('send-invite-mail'),
     st.String('link-template')),
 
     create_required=('email',),
     create_allowed=('name', 'fullname', 'admin', 'projects',
-                    'invite', 'link-template', 'password'),
+                    'invite', 'link-template', 'send-invite-mail',
+                    'password'),
     updatable=('name', 'email', 'fullname', 'admin', 'password'),
     sortby=('id', 'name', 'fullname', 'email',
             'admin', 'completed-registration', 'invited-at')
@@ -188,6 +191,8 @@ def create_user():
     if not invite:
         if 'password' not in data:
             raise exc.MissingElement('password')
+        if 'send-invite-mail' in data:
+            raise exc.UnknownElement('send-invite-mail')
         if 'link-template' in data:
             raise exc.UnknownElement('link-template')
 
@@ -210,10 +215,15 @@ def create_user():
 
     if invite:
         inv = InvitesDAO.create(new_user.id, new_user.email)
-        send_invitation(new_user.email, inv.code,
-                        data.get('link-template'),
-                        greeting=data.get('fullname'))
-    return make_json_response(user_from_nova(new_user))
+        send_mail = data.get('send-invite-mail', True)
+        if send_mail:
+            send_invitation(new_user.email, inv.code,
+                            data.get('link-template'),
+                            greeting=data.get('fullname'))
+        result = user_from_nova(new_user, inv, send_code=not send_mail)
+    else:
+        result = user_from_nova(new_user)
+    return make_json_response(result)
 
 
 def update_user_data(user, data):
@@ -255,4 +265,32 @@ def delete_user(user_id):
     except osc_exc.NotFound:
         abort(404)
     return make_json_response(None, status_code=204)
+
+
+_SEND_INVITE_SCHEMA = Schema((
+    st.String('link-template'),
+    st.Boolean('send-invite-mail'),
+    st.Boolean('disable-user')
+))
+
+
+@users.route('/<user_id>/send-invite', methods=('POST',))
+def send_invite_for_user(user_id):
+    data = parse_request_data(_SEND_INVITE_SCHEMA)
+    user = fetch_user(user_id)
+
+    send_mail = data.get('send-invite-mail', True)
+    disable_user = data.get('disable-user', False)
+    if not send_mail or disable_user:
+        auth.assert_admin()
+
+    inv = InvitesDAO.create(user.id, user.email)
+    if disable_user:
+        update_user_data(user, {'enabled': False, 'password': None})
+    if send_mail:
+        send_invitation(user.email, inv.code,
+                        data.get('link-template'),
+                        greeting=getattr(user, 'fullname', ''))
+    return make_json_response(user_from_nova(user, inv,
+                                             send_code=not send_mail))
 
