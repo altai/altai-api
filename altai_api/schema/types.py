@@ -68,8 +68,7 @@ def _matchers_plus(dst, matchers):
 
 _BASIC_MATCHERS = _matchers_plus({}, (
     ('eq', lambda value, pattern: value == pattern),
-    # TODO(imelnikov): parser for 'in' matcher
-    # ('in', lambda a, lst: a in lst)
+    ('in', lambda value, lst: value in lst)
 ))
 
 _ORDERED_MATCHERS = _matchers_plus(_BASIC_MATCHERS, (
@@ -192,7 +191,10 @@ class LinkObject(ElementType):
 
     def __init__(self, name, add_search_matchers=None):
         matchers = _matchers_plus(
-            {'eq': matcher(lambda value, pattern: value['id'] == pattern)},
+            {
+                'eq': matcher(lambda value, pattern: value['id'] == pattern),
+                'in': matcher(lambda value, lst: value['id'] in lst)
+            },
             add_search_matchers
         )
 

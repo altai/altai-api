@@ -114,3 +114,32 @@ def cidr_from_user(value, on_error=None):
     except (AssertionError, ValueError):
         _raise(value, on_error)
 
+
+def split_with_escape(value, split, esc='\\'):
+    if len(esc) != 1:
+        raise ValueError('Bad value for escape string: %r' % esc)
+    if len(split) != 1:
+        raise ValueError('Bad value for split: %r' % split)
+
+    cur = []
+    escape = False
+
+    for char in value:
+        if escape:
+            if char in (split, esc):
+                cur.append(char)
+                escape = False
+            else:
+                raise ValueError('Invalid matcher string')
+        else:
+            if char == esc:
+                escape = True
+            elif char == split:
+                yield ''.join(cur)
+                cur = []
+            else:
+                cur.append(char)
+    if escape:
+        raise ValueError('Invalid matcher string')
+    yield ''.join(cur)
+

@@ -38,6 +38,7 @@ from altai_api.utils.sorting import parse_sortby, apply_sortby
 from altai_api.utils.parsers import int_from_string, int_from_user
 from altai_api.utils.parsers import cidr_from_user, ipv4_from_user
 from altai_api.utils.parsers import timestamp_from_openstack
+from altai_api.utils.parsers import split_with_escape
 
 
 class MakeResponseTestCase(TestCase):
@@ -548,4 +549,43 @@ class TimestampFromOpenstackTestCase(unittest.TestCase):
     def test_invalid_type_rejected(self):
         self.assertRaises(TypeError,
                           timestamp_from_openstack, 42)
+
+
+class SplitWithEscapeTestCase(unittest.TestCase):
+
+    def test_split_single(self):
+        result = list(split_with_escape('abc', '|'))
+        self.assertEquals(['abc'], result)
+
+    def test_split_simple(self):
+        result = list(split_with_escape('abc|def|qwe', '|'))
+        self.assertEquals(['abc', 'def', 'qwe'], result)
+
+    def test_split_with_esc(self):
+        result = list(split_with_escape(r'abc|def\|qwe', '|'))
+        self.assertEquals(['abc', 'def|qwe'], result)
+
+    def test_split_with_esc_esc(self):
+        result = list(split_with_escape(r'abc|def\\|qwe', '|'))
+        self.assertEquals(['abc', 'def\\', 'qwe'], result)
+
+    def test_split_empty(self):
+        result = list(split_with_escape(r'abc||def|', '|'))
+        self.assertEquals(['abc', '', 'def', ''], result)
+
+    def test_split_single_char(self):
+        gen = split_with_escape('abc', '||')
+        self.assertRaises(ValueError, list, gen)
+
+    def test_split_esc_single_char(self):
+        gen = split_with_escape('abc', '|', 'escape')
+        self.assertRaises(ValueError, list, gen)
+
+    def test_split_no_last_esc(self):
+        gen = split_with_escape('abc\\', '|')
+        self.assertRaises(ValueError, list, gen)
+
+    def test_split_unknown_esc(self):
+        gen = split_with_escape(r'abc\a', '|')
+        self.assertRaises(ValueError, list, gen)
 

@@ -66,6 +66,12 @@ class ParseFiltersTestCase(unittest.TestCase):
         self.assertRaises(exc.InvalidRequest,
                           parse_filters, [('name:gg', 'a')], self.schema)
 
+    def test_parses_in(self):
+        params = { 'size:in': '42|44' }
+        expected = { 'size': { 'in': [42, 44] } }
+        real = parse_filters(params.iteritems(), self.schema)
+        self.assertEquals(expected, real)
+
 
 class ApplyFiltersTestCase(unittest.TestCase):
 
@@ -116,5 +122,21 @@ class ApplyFiltersTestCase(unittest.TestCase):
             { 'name': 'test', 'size': 30 },
         ]
         result = apply_filters(param, self.filters, self.schema)
+        self.assertEquals(expected, result)
+
+    def test_apply_in(self):
+        param = [
+            { 'name': 'test' },
+            { 'name': 'foo' },
+            { 'name': 'bar' }
+        ]
+        expected = [
+            { 'name': 'test' },
+            { 'name': 'bar' }
+        ]
+        filters = {
+            'name': { 'in': ['test', 'bar'] }
+        }
+        result = apply_filters(param, filters, self.schema)
         self.assertEquals(expected, result)
 

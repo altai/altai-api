@@ -50,6 +50,8 @@ _SCHEMA = Schema((
 #   messages);
 # * element types are classes -- common operations...
 
+from altai_api.utils.parsers import split_with_escape
+
 
 class Schema(object):
 
@@ -70,7 +72,12 @@ class Schema(object):
         return self.__dict[name].get_search_matcher(match_type)
 
     def parse_argument(self, name, match_type, value):
-        # enshure match_type is supported:
+        # ensure match_type is supported:
         self.argument_matcher(name, match_type)
-        return self.__dict[name].from_string(value)
+        from_string = self.__dict[name].from_string
+        if match_type == 'in':
+            return [from_string(elem)
+                    for elem in split_with_escape(value, '|', '\\')]
+        else:
+            return from_string(value)
 

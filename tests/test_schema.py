@@ -70,11 +70,10 @@ class LinkObjectTestCase(unittest.TestCase):
         self.assertRaises(exc.IllegalValue,
                           self.lo.from_request, {'id': '42'})
 
-#    TODO(imelnikov): implement 'in' matcher
-#    def test_in_matcher(self):
-#        lo_in = self.lo.get_search_matcher('in')
-#        self.assertTrue(lo_in({'id': '42'}, ['41', '42', 'id']))
-#        self.assertFalse(lo_in({'id': '42'}, ['41', 'id']))
+    def test_in_matcher(self):
+        lo_in = self.lo.get_search_matcher('in')
+        self.assertTrue(lo_in({'id': '42'}, ['41', '42', 'id']))
+        self.assertFalse(lo_in({'id': '42'}, ['41', 'id']))
 
 
 class LinkObjectListTestCase(unittest.TestCase):
