@@ -537,7 +537,7 @@ class UsersCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'REPLY')
 
-    def test_update_revoke_admin_idemptent(self):
+    def test_update_revoke_admin_idempotent(self):
         client = self.fake_client_set
         uid = u'user-a'
 

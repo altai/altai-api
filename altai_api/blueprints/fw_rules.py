@@ -45,7 +45,7 @@ def _fw_rule_dict_from_nova(rule):
                          fw_rule_set_id=rule['parent_group_id'],
                          rule_id=rule_id),
         u'protocol': rule['ip_protocol'].upper(),
-        u'port-range-firt': rule['from_port'],
+        u'port-range-first': rule['from_port'],
         u'port-range-last': rule['to_port'],
         u'source': rule['ip_range'].get('cidr')
     }
@@ -60,7 +60,7 @@ def _fw_rule_object_from_nova(rule):
                          fw_rule_set_id=rule.parent_group_id,
                          rule_id=rule_id),
         u'protocol': rule.ip_protocol.upper(),
-        u'port-range-firt': rule.from_port,
+        u'port-range-first': rule.from_port,
         u'port-range-last': rule.to_port,
         u'source': rule.ip_range.get('cidr')
     }

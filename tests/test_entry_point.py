@@ -37,7 +37,7 @@ class EntryPointTestCase(TestCase):
             ]
         })
 
-    def test_post_retuns_405(self):
+    def test_post_returns_405(self):
         rv = self.client.post('/',
                               content_type='application/json',
                               data='{}')

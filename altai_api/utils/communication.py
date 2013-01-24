@@ -19,7 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Miscellanious utility functions
+"""Miscellaneous utility functions
 """
 
 from flask import json, request, abort, g, after_this_request, current_app

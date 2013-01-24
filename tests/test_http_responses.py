@@ -62,7 +62,7 @@ class HttpResponsesTestCase(TestCase):
         data = self.check_and_parse_response(rv, status_code=400)
         self.assertTrue('syntax error' in data.get('message'))
 
-    def test_object_reuqired(self):
+    def test_object_required(self):
         rv = self.client.post('/v1/projects/',
                               content_type='application/json',
                               data='[]')

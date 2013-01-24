@@ -97,7 +97,7 @@ class InstanceTypesListTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(expected, data)
 
-    def test_two_flavours(self):
+    def test_two_flavors(self):
         reply = [
             { u'name': u'fake1' },
             { u'name': u'fake2' }

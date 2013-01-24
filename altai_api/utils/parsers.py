@@ -27,7 +27,7 @@ from datetime import datetime
 
 
 _OS_TIMESTAMP_FORMATS = (
-    # NOTE(imelnikov): git grep strftime enlightenes
+    # NOTE(imelnikov): git grep strftime enlightens
     "%Y-%m-%dT%H:%M:%S",
     "%Y-%m-%dT%H:%M:%SZ",
     "%Y-%m-%dT%H:%M:%S.000Z"

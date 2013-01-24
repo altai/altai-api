@@ -152,7 +152,7 @@ class AddAndRemoveProjectUserTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
-    def test_add_name_rejceted(self):
+    def test_add_name_rejected(self):
         self.mox.ReplayAll()
         params = {'name': 'iv'}
         rv = self.client.post('/v1/projects/%s/users/' % self.project_id,
@@ -160,7 +160,7 @@ class AddAndRemoveProjectUserTestCase(MockedTestCase):
                               data=json.dumps(params))
         self.check_and_parse_response(rv, status_code=400)
 
-    def test_add_name_rejceted_even_with_id(self):
+    def test_add_name_rejected_even_with_id(self):
         self.mox.ReplayAll()
         params = {'id': self.user_id, 'name': 'iv'}
         rv = self.client.post('/v1/projects/%s/users/' % self.project_id,

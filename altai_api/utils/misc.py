@@ -19,7 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Miscellanious utility functions"""
+"""Miscellaneous utility functions"""
 
 _MB = 1024 * 1024
 _GB = 1024 * 1024 * 1024

@@ -44,7 +44,7 @@ class RuleConvertNovaTestCase(MockedTestCase):
         u'id': u'1',
         u'href': u'/v1/fw-rule-sets/42/rules/1',
         u'protocol': u'TCP',
-        u'port-range-firt': 80,
+        u'port-range-first': 80,
         u'port-range-last': 88,
         u'source': u'10.0.0.0/8'
     }
@@ -206,7 +206,7 @@ class CreateRuleTestCase(MockedTestCase):
                               data=json.dumps(params))
         return self.check_and_parse_response(rv, expected_status_code)
 
-    def test_ceate_rule_no_ports(self):
+    def test_create_rule_no_ports(self):
         self.fake_client_set.compute.security_group_rules.create(
             parent_group_id=self.sgid,
             ip_protocol=u'tcp',
@@ -241,7 +241,7 @@ class CreateRuleTestCase(MockedTestCase):
         self.assertEquals('protocol', data.get('element-name'))
         self.assertEquals('tcp', data.get('element-value'))
 
-    def test_ceate_rule_one_port(self):
+    def test_create_rule_one_port(self):
         self.fake_client_set.compute.security_group_rules.create(
             parent_group_id=self.sgid,
             ip_protocol=u'tcp',
@@ -259,7 +259,7 @@ class CreateRuleTestCase(MockedTestCase):
         })
         self.assertEquals(data, 'REPLY')
 
-    def test_ceate_rule_two_port(self):
+    def test_create_rule_two_port(self):
         self.fake_client_set.compute.security_group_rules.create(
             parent_group_id=self.sgid,
             ip_protocol=u'tcp',
