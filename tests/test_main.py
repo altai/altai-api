@@ -23,11 +23,12 @@
 import os
 from mox import MoxTestBase
 from altai_api import main
+from altai_api.utils.periodic_job import PeriodicJob
 
 
 class MainTestCase(MoxTestBase):
     config = {
-        'USE_RELOADER': True,
+        'USE_RELOADER': False,
         'HOST': '127.0.0.1',
         'PORT': 42
     }
@@ -44,16 +45,23 @@ class MainTestCase(MoxTestBase):
     def test_main_works(self):
         main.CONFIG_ENV = 'I_HOPE_THIS_WILL_NEVER_EVER_EXIST'
         self.mox.StubOutWithMock(main, 'app')
+        self.mox.StubOutWithMock(main.vms_jobs, 'jobs_factory')
         main.app.config = self.config
+        jobs = [self.mox.CreateMock(PeriodicJob),
+                 self.mox.CreateMock(PeriodicJob)]
 
-        main.app.run(use_reloader=True,
+        main.vms_jobs.jobs_factory(main.app).AndReturn(jobs)
+        main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
+        jobs[0].cancel().AndRaise(RuntimeError('ignore me'))
+        jobs[1].cancel()
         self.mox.ReplayAll()
         main.main()
 
     def test_env_is_looked_at(self):
         main.CONFIG_ENV = os.environ.keys()[0]
         self.mox.StubOutWithMock(main, 'app')
+        self.mox.StubOutWithMock(main.vms_jobs, 'jobs_factory')
         main.app.config = self.mox.CreateMockAnything()
 
         def side_effect(arg_):
@@ -61,7 +69,8 @@ class MainTestCase(MoxTestBase):
 
         main.app.config.from_envvar(main.CONFIG_ENV)\
                 .WithSideEffects(side_effect)
-        main.app.run(use_reloader=True,
+        main.vms_jobs.jobs_factory(main.app).AndReturn([])
+        main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
         self.mox.ReplayAll()
         main.main()

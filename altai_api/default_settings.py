@@ -36,7 +36,7 @@ TEST_STRING = 'Test'
 # enable this to make responses readable
 PRETTY_PRINT_JSON = False
 
-# keystone administrator credentials, for internal administrative tasks
+# keystone administrator credentials, for internal administrative jobs
 KEYSTONE_ADMIN = 'admin'
 KEYSTONE_ADMIN_PASSWORD = 'admin'
 KEYSTONE_URI = 'localhost:5000/v2.0'
@@ -64,4 +64,10 @@ DEFAULT_MAIL_FOOTER = """--
 With best regards,
 Altai MailBot
 """
+
+
+# periodic job intervals, in seconds, may be floating point number
+RIP_EXPIRED_VMS_TASK_INTERVAL = 10.0
+VMS_REMINDER_TASK_INTERVAL = 60.0
+VM_DATA_GC_TASK_INTERVAL = 40 * 60.0
 

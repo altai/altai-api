@@ -23,18 +23,21 @@ import json
 from datetime import datetime
 
 from tests import doubles
+from altai_api.db.vm_data import VmData
 from tests.mocked import MockedTestCase, mock_client_set
 
-from openstackclient_base import exceptions as osc_exc
-from altai_api.blueprints import vms
-
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
+from openstackclient_base import exceptions as osc_exc
+
+from altai_api.blueprints import vms
 
 
 class VmFromNovaTestCase(MockedTestCase):
     maxDiff = None
 
     def test_vm_from_nova_works(self):
+        self.mox.StubOutWithMock(vms, 'VmDataDAO')
+
         # DATA
         vm = doubles.make(self.mox, doubles.Server,
                           id=u'VMID',
@@ -70,7 +73,10 @@ class VmFromNovaTestCase(MockedTestCase):
         user = doubles.make(self.mox, doubles.User,
                             name=u'test user', id=u'UID')
         image = doubles.make(self.mox, doubles.Image,
-                            name=u'test image', id=u'IMAGE')
+                             name=u'test image', id=u'IMAGE')
+        vmdata = VmData(vm_id=u'VMID',
+                        expires_at=datetime(2012, 12, 11, 10, 9, 8),
+                        remind_at=datetime(2012, 12, 10, 8, 6, 4))
 
         expected = {
             u'id': u'VMID',
@@ -89,6 +95,8 @@ class VmFromNovaTestCase(MockedTestCase):
                 u'href': '/v1/images/IMAGE'
             },
             u'created': datetime(2012, 12, 12, 6, 20, 27),
+            u'expires-at': datetime(2012, 12, 11, 10, 9, 8),
+            u'remind-at': datetime(2012, 12, 10, 8, 6, 4),
             u'created-by': {
                 u'id': u'UID',
                 u'name': u'test user',
@@ -114,6 +122,7 @@ class VmFromNovaTestCase(MockedTestCase):
         client.compute.flavors.get(u'1').AndReturn(flavor)
         client.identity_admin.users.get(u'UID').AndReturn(user)
         client.image.images.get(u'IMAGE').AndReturn(image)
+        vms.VmDataDAO.get(u'VMID').AndReturn(vmdata)
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
@@ -172,6 +181,7 @@ class CreateTestCase(MockedTestCase):
         super(CreateTestCase, self).setUp()
         self.mox.StubOutWithMock(vms, '_vm_from_nova')
         self.mox.StubOutWithMock(vms, 'client_set_for_tenant')
+        self.mox.StubOutWithMock(vms, 'VmDataDAO')
         self.tcs = mock_client_set(self.mox)
 
     def interact(self, data, expected_status_code=200):
@@ -180,6 +190,56 @@ class CreateTestCase(MockedTestCase):
                               content_type='application/json')
         return self.check_and_parse_response(
             rv, status_code=expected_status_code)
+
+    def test_create(self):
+        params = {
+            u'project': u'PID',
+            u'name': u'name',
+            u'image': u'image',
+            u'instance-type': u'flavor',
+        }
+        vms.client_set_for_tenant(u'PID').AndReturn(self.tcs)
+        self.tcs.compute.servers.create(
+            name=u'name',
+            image=u'image',
+            flavor=u'flavor',
+            security_groups=None,
+            key_name=None,
+            admin_pass=None
+        ).AndReturn('VM1')
+        vms._vm_from_nova('VM1').AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
+
+    def test_create_expires(self):
+        server = doubles.make(self.mox, doubles.Server,
+                              id=u'VMID', name=u'name')
+        params = {
+            u'project': u'PID',
+            u'name': u'name',
+            u'image': u'image',
+            u'instance-type': u'flavor',
+            u'expires-at': u'2013-01-17T15:36:00Z'
+        }
+        vms.client_set_for_tenant(u'PID').AndReturn(self.tcs)
+        self.tcs.compute.servers.create(
+            name=u'name',
+            image=u'image',
+            flavor=u'flavor',
+            security_groups=None,
+            key_name=None,
+            admin_pass=None
+        ).AndReturn(server)
+        vms.VmDataDAO.create(u'VMID',
+                             expires_at=datetime(2013, 1, 17, 15, 36, 0),
+                             remind_at=None)
+        vms._vm_from_nova(server).AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
 
     def test_create_password(self):
         params = {
@@ -301,6 +361,7 @@ class UpdateTestCase(MockedTestCase):
     def setUp(self):
         super(UpdateTestCase, self).setUp()
         self.mox.StubOutWithMock(vms, '_vm_from_nova')
+        self.mox.StubOutWithMock(vms, 'VmDataDAO')
 
     def interact(self, data, expected_status_code=200):
         rv = self.client.put('/v1/vms/%s' % self.vm_id,
@@ -350,6 +411,38 @@ class UpdateTestCase(MockedTestCase):
         data = self.interact(params, expected_status_code=400)
         self.assertEquals('test-parameter', data.get('element-name'))
 
+    def test_update_expires(self):
+        params = {
+            'expires-at': u'2013-02-17T15:36:00Z'
+        }
+        client = self.fake_client_set
+        server = doubles.make(self.mox, doubles.Server, id='VMID')
+
+        client.compute.servers.get(self.vm_id).AndReturn(server)
+        vms.VmDataDAO.update('VMID',
+                             expires_at=datetime(2013, 2, 17, 15, 36, 0))
+        vms._vm_from_nova(server).AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
+
+    def test_update_remind(self):
+        params = {
+            'remind-at': u'2013-02-17T15:36:00Z'
+        }
+        client = self.fake_client_set
+        server = doubles.make(self.mox, doubles.Server, id='VMID')
+
+        client.compute.servers.get(self.vm_id).AndReturn(server)
+        vms.VmDataDAO.update('VMID',
+                             remind_at=datetime(2013, 2, 17, 15, 36, 0))
+        vms._vm_from_nova(server).AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
+
 
 class ActionsTestCase(MockedTestCase):
 
@@ -358,6 +451,7 @@ class ActionsTestCase(MockedTestCase):
         self.server = doubles.make(self.mox, doubles.Server,
                                    id=u'VICTIM', name=u'VICTIM VM')
         self.mox.StubOutWithMock(vms, '_vm_from_nova')
+        self.mox.StubOutWithMock(vms, 'VmDataDAO')
 
     def interact(self, url, data, expected_status_code=200):
         rv = self.client.post(url,
@@ -408,6 +502,7 @@ class ActionsTestCase(MockedTestCase):
         s = self.server
         self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
         s.delete()
+        vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id).AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
 
@@ -419,6 +514,7 @@ class ActionsTestCase(MockedTestCase):
         s = self.server
         self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
         s.delete()
+        vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id)\
                 .AndRaise(osc_exc.NotFound('gone'))
 
@@ -446,6 +542,7 @@ class ActionsTestCase(MockedTestCase):
         s = self.server
         self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
         s.delete()
+        vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id)\
                 .AndRaise(osc_exc.NotFound('gone'))
 
@@ -457,6 +554,7 @@ class ActionsTestCase(MockedTestCase):
         s = self.server
         self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
         s.delete()
+        vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
 
         self.mox.ReplayAll()

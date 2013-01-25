@@ -38,6 +38,8 @@ from altai_api.blueprints.users import link_for_user, fetch_user
 from altai_api.blueprints.projects import link_for_tenant
 from altai_api.blueprints.images import link_for_image
 
+from altai_api.db.vm_data import VmDataDAO
+
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 
 
@@ -57,6 +59,7 @@ def _vm_from_nova(server):
     tenant = client.identity_admin.tenants.get(server.tenant_id)
     flavor = client.compute.flavors.get(server.flavor['id'])
     user = fetch_user(server.user_id)
+    vmdata = VmDataDAO.get(server.id)
 
     result = {
         u'id': server.id,
@@ -85,6 +88,11 @@ def _vm_from_nova(server):
                                        vm_id=server.id),
         }
     }
+    if vmdata:
+        if vmdata.expires_at is not None:
+            result[u'expires-at'] = vmdata.expires_at
+        if vmdata.remind_at is not None:
+            result[u'remind-at'] = vmdata.remind_at
     return result
 
 
@@ -100,6 +108,8 @@ _SCHEMA = Schema((
     st.String('name'),
     st.String('state'),
     st.Timestamp('created'),
+    st.Timestamp('expires-at'),
+    st.Timestamp('remind-at'),
     st.Ipv4('ipv4'),
     st.LinkObject('created-by'),
     st.LinkObject('project'),
@@ -110,10 +120,11 @@ _SCHEMA = Schema((
     st.String('ssh-key-pair')),
 
     create_required=('name', 'project', 'image', 'instance-type'),
-    create_allowed=('fw-rule-sets', 'admin-pass', 'ssh-key-pair'),
+    create_allowed=('fw-rule-sets', 'admin-pass', 'ssh-key-pair',
+                    'expires-at', 'remind-at'),
     sortby=('id', 'name', 'state', 'created', 'ipv4',
             'created-by', 'project', 'instance-type', 'image'),
-    updatable=('name',)
+    updatable=('name', 'expires-at', 'remind-at')
 )
 
 
@@ -167,6 +178,10 @@ def create_vm():
             security_groups=security_groups,
             key_name=data.get('ssh-key-pair'),
             admin_pass=data.get('admin-pass'))
+        if 'expires-at' in data or 'remind-at' in data:
+            VmDataDAO.create(server.id,
+                             expires_at=data.get('expires-at'),
+                             remind_at=data.get('remind-at'))
     except osc_exc.OverLimit, e:
         return make_json_response(status_code=403, data={
             'path': request.path,
@@ -184,13 +199,24 @@ def update_vm(vm_id):
             g.client_set.compute.servers.update(vm_id, name=data['name'])
         except osc_exc.NotFound:
             abort(404)
-    return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
+    vm = fetch_vm(vm_id)
+
+    for_vm_data = {}
+    if 'expires-at' in data:
+        for_vm_data['expires_at'] = data['expires-at']
+    if 'remind-at' in data:
+        for_vm_data['remind_at'] = data['remind-at']
+    if for_vm_data:
+        VmDataDAO.update(vm.id, **for_vm_data)
+
+    return make_json_response(_vm_from_nova(vm))
 
 
 def _do_remove_vm(vm_id):
     """The real VM removal implementation"""
     server = fetch_vm(vm_id)
     server.delete()
+    VmDataDAO.delete(vm_id)
     try:
         return fetch_vm(vm_id)
     except HTTPException:

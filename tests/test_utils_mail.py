@@ -21,6 +21,7 @@
 
 import mox
 
+from datetime import datetime
 from tests.mocked import MockedTestCase
 from altai_api import exceptions as exc
 
@@ -116,4 +117,33 @@ class MailTestCase(MockedTestCase):
                 'uuserovich@example.com', 'THE_CODE', 'THE_USERNAME',
                 link_template='https://localhost/?code={{code}}',
                 greeting='User Userowich')
+
+    def test_send_vm_reminder_works(self):
+        class IsCorrectMail(mox.Comparator):
+            def equals(inner_self, message):
+                self.assertEquals('Reminder about VM VM_NAME', message.subject)
+                self.assertTrue('2013-01-18 17:16:15 UTC' in message.body)
+                return True
+
+        mail.MAIL.send(IsCorrectMail())
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            mail.send_vm_reminder('uuserovich@example.com',
+                                  'VM_NAME', 'VM_ID',
+                                  datetime(2013, 1, 18, 17, 16, 15, 14))
+
+    def test_send_vm_reminder_works_without_expires(self):
+        class IsCorrectMail(mox.Comparator):
+            def equals(inner_self, message):
+                self.assertEquals('Reminder about VM VM_NAME', message.subject)
+                self.assertTrue('DELETED' not in message.body)
+                return True
+
+        mail.MAIL.send(IsCorrectMail())
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            mail.send_vm_reminder('uuserovich@example.com',
+                                  'VM_NAME', 'VM_ID')
 

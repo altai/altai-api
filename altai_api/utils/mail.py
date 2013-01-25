@@ -73,3 +73,16 @@ def send_reset_password(email, code, login,
                       'Password reset for %(installation_name)s',
                       'password_reset_mail', args)
 
+
+def send_vm_reminder(email, name, vm_id, expires_at=None, greeting=None):
+    args = {
+        'greeting': greeting,
+        'name': name,
+        'id': vm_id
+    }
+    if expires_at is not None:
+        args['expires'] = expires_at.strftime('%F %T UTC')
+    return _send_mail(email, None,
+                      'Reminder about VM %s' % name,
+                      'vm_reminder_mail', args)
+

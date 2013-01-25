@@ -49,7 +49,7 @@ class AuditRecord(DB.Model):
 
     user_id = DB.Column(DB.String(64))
     project_id = DB.Column(DB.String(64))
-    remote_address = DB.Column(DB.String(255), nullable=False)
+    remote_address = DB.Column(DB.String(255))
 
     timestamp = DB.Column(DB.DateTime, nullable=False,
                           default=datetime.utcnow)

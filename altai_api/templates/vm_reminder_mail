@@ -1,0 +1,11 @@
+{% if greeting %}
+Dear {{greeting}}:
+{% endif %}
+We would like to remind you about a VM running at {{installation_name}}.
+
+name: {{name}}
+id: {{id}}
+{%if expires %}
+It is scheduled to be *DELETED* at {{expires}}.
+{% endif %}
+{{footer}}

@@ -47,6 +47,8 @@ from altai_api import authentication
 from altai_api.utils import audit
 from altai_api.utils import communication
 
+from altai_api.jobs import vms as vms_jobs
+
 
 @app.before_request
 def check_request():
@@ -90,7 +92,19 @@ CONFIG_ENV = 'ALTAI_API_SETTINGS'
 def main():
     if CONFIG_ENV in os.environ:
         app.config.from_envvar(CONFIG_ENV)
-    app.run(use_reloader=app.config['USE_RELOADER'],
-            host=app.config['HOST'],
-            port=app.config['PORT'])
+
+    periodic_jobs = []
+    if not app.config['USE_RELOADER'] \
+       or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        periodic_jobs.extend(vms_jobs.jobs_factory(app))
+    try:
+        app.run(use_reloader=app.config['USE_RELOADER'],
+                host=app.config['HOST'],
+                port=app.config['PORT'])
+    finally:
+        for job in periodic_jobs:
+            try:
+                job.cancel()
+            except Exception:
+                pass
 
