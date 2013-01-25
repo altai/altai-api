@@ -40,7 +40,6 @@ class HttpResponsesTestCase(TestCase):
     def test_unknown_arg_checked(self):
         rv = self.client.get('/?i-hope-this-arg=will-never-be-passed')
         data = self.check_and_parse_response(rv, status_code=400)
-        print data
         self.assertTrue('argument' in data.get('message'))
 
     def test_mime_checked(self):
