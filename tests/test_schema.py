@@ -252,7 +252,7 @@ class StringTestCase(unittest.TestCase):
             'contains': lambda a, b: b in a
         })
 
-    def test_strng_typename(self):
+    def test_string_typename(self):
         self.assertEquals(self.s.typename, 'string')
 
     def test_from_string_string(self):

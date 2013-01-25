@@ -33,7 +33,7 @@ from altai_api import exceptions as exc
 
 # Content type for JSON
 _JSON = 'application/json'
-_IMPELEMENTATION = 'Altai API service v%s' % altai_api.__version__
+_IMPLEMENTATION = 'Altai API service v%s' % altai_api.__version__
 
 _TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -71,7 +71,7 @@ def make_json_response(data, status_code=200, location=None):
     if location is not None:
         response.headers['Location'] = location
     if is_authenticated():
-        response.headers['X-GD-Altai-Implementation'] = _IMPELEMENTATION
+        response.headers['X-GD-Altai-Implementation'] = _IMPLEMENTATION
     return response
 
 

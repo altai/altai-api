@@ -171,7 +171,7 @@ class ResetPasswordTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv, status_code=400)
         self.assertEquals('password', data.get('element-name'))
 
-    def test_apply_password_reset_exrtra(self):
+    def test_apply_password_reset_extra(self):
         params = {
             'password': 'p@ssw0rd',
             'fullname': 'Cannot Be Set'

@@ -430,11 +430,11 @@ class DeleteProjectTestCase(MockedTestCase):
         self.interact(expected_status_code=204)
 
 
-class UpdatePojectTestCase(MockedTestCase):
+class UpdateProjectTestCase(MockedTestCase):
     tenant_id = u'PID'
 
     def setUp(self):
-        super(UpdatePojectTestCase, self).setUp()
+        super(UpdateProjectTestCase, self).setUp()
 
         self.mox.StubOutWithMock(projects, '_network_for_project')
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')

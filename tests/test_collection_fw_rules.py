@@ -128,7 +128,7 @@ class FwRulesTestCase(MockedTestCase):
         rv = self.client.get('/v1/fw-rule-sets/%s/rules/%s' % (sgid, ruleid))
         self.check_and_parse_response(rv, 404)
 
-    def test_get_invlid_rule(self):
+    def test_get_invalid_rule(self):
         sgid, ruleid = u'42', u'invalid'
 
         self.mox.ReplayAll()
