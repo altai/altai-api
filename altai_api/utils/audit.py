@@ -40,6 +40,15 @@ def setup_audit():
         after_this_request(save_audit_data)
 
 
+def set_audit_resource_id(obj):
+    if isinstance(obj, basestring):
+        g.audit_data['resource_id'] = obj
+    elif hasattr(obj, 'id'):
+        g.audit_data['resource_id'] = str(obj.id)
+    else:
+        g.audit_data['resource_id'] = str(obj)
+
+
 _INTERESTING_STATUSES = set([200, 201, 202, 204, 403])
 
 

@@ -213,6 +213,7 @@ def create_project():
                                value=data.get('network'))
     tenant = g.client_set.identity_admin.tenants.create(
         data['name'], data.get('description', ''))
+    set_audit_resource_id(tenant)
 
     try:
         networks.associate(net.id, tenant.id)
@@ -228,6 +229,7 @@ def create_project():
 
 @projects.route('/<project_id>', methods=('DELETE',))
 def delete_project(project_id):
+    set_audit_resource_id(project_id)
     tenant = get_tenant(project_id)
 
     # kill all vms
@@ -247,6 +249,7 @@ def delete_project(project_id):
 @projects.route('/<project_id>', methods=('PUT',))
 def update_project(project_id):
     data = parse_request_data(_SCHEMA.allowed)
+    set_audit_resource_id(project_id)
     tenant = get_tenant(project_id)
 
     if 'description' in data:

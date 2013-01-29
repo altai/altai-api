@@ -20,8 +20,10 @@
 # <http://www.gnu.org/licenses/>.
 
 import mox
+from tests import ContextWrappedTestCase
 from tests.mocked import MockedTestCase
 
+from flask import g
 from altai_api.utils import audit
 
 
@@ -71,4 +73,25 @@ class AuditTestCase(MockedTestCase):
         self.mox.ReplayAll()
         rv = self.client.post('/')
         self.check_and_parse_response(rv, status_code=400)
+
+
+class SetAuditResourceIdTestCase(ContextWrappedTestCase):
+
+    def setUp(self):
+        super(SetAuditResourceIdTestCase, self).setUp()
+        g.audit_data = {}
+
+    def test_set_resource_from_string(self):
+        arg = 'test'
+        audit.set_audit_resource_id(arg)
+        self.assertEquals(g.audit_data, {'resource_id': arg})
+
+    def test_set_from_resource(self):
+        self.id = 42
+        audit.set_audit_resource_id(self)
+        self.assertEquals(g.audit_data, {'resource_id': '42'})
+
+    def test_from_other(self):
+        audit.set_audit_resource_id(42)
+        self.assertEquals(g.audit_data, {'resource_id': '42'})
 

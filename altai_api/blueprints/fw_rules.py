@@ -134,11 +134,13 @@ def create_fw_rule(fw_rule_set_id):
         from_port=from_port,
         to_port=to_port,
         cidr=data['source'])
+    set_audit_resource_id(rule)
     return make_json_response(_fw_rule_object_from_nova(rule))
 
 
 @fw_rules.route('/<rule_id>', methods=('DELETE',))
 def delete_fw_rule(fw_rule_set_id, rule_id):
+    set_audit_resource_id(rule_id)
     # we check that group exists and has given rule by looking for it there
     _find_rule(fw_rule_set_id, rule_id)
     g.client_set.compute.security_group_rules.delete(rule_id)

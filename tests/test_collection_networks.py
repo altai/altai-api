@@ -178,7 +178,7 @@ class NetworksCollectionTestCase(MockedTestCase):
         # test
         rv = self.client.delete('/v1/networks/net-a')
         # verify
-        self.assertEquals(rv.status_code, 204)
+        self.check_and_parse_response(rv, status_code=204)
 
     def test_delete_network_not_found(self):
         # prepare
@@ -188,7 +188,7 @@ class NetworksCollectionTestCase(MockedTestCase):
         # test
         rv = self.client.delete('/v1/networks/net-a')
         # verify
-        self.assertEquals(rv.status_code, 404)
+        self.check_and_parse_response(rv, status_code=404)
 
 
 class NetworksCollectionArgsTestCase(MockedTestCase):

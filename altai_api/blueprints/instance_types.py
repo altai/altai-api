@@ -107,11 +107,13 @@ def create_instance_type():
         flavor = g.client_set.compute.flavors.create(**args)
     except osc_exc.HttpException, e:
         raise exc.InvalidRequest(str(e))
+    set_audit_resource_id(flavor)
     return make_json_response(_instance_type_from_nova(flavor))
 
 
 @instance_types.route('/<instance_type_id>', methods=('DELETE',))
 def delete_instance_type(instance_type_id):
+    set_audit_resource_id(instance_type_id)
     try:
         g.client_set.compute.flavors.delete(instance_type_id)
     except osc_exc.NotFound:

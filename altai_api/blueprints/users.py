@@ -204,6 +204,7 @@ def create_user():
                                    password=data.get('password'),
                                    email=data['email'],
                                    enabled=not invite)
+        set_audit_resource_id(new_user)
         if 'fullname' in data:
             user_mgr.update(new_user, fullname=data['fullname'])
         if data.get('admin'):
@@ -244,6 +245,7 @@ def update_user_data(user, data):
 def update_user(user_id):
     user = fetch_user(user_id)
     param = parse_request_data(_SCHEMA.updatable)
+    set_audit_resource_id(user_id)
 
     update_user_data(user, param)
 
@@ -260,6 +262,7 @@ def update_user(user_id):
 
 @users.route('/<user_id>', methods=('DELETE',))
 def delete_user(user_id):
+    set_audit_resource_id(user_id)
     try:
         g.client_set.identity_admin.users.delete(user_id)
     except osc_exc.NotFound:

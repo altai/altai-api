@@ -62,8 +62,8 @@ def get_project_user(project_id, user_id):
 
 @project_users.route('/', methods=('POST',))
 def add_project_user(project_id):
-    data = parse_request_data(required=_SCHEMA.required)
-    user_id = data['id']
+    user_id = parse_request_data(required=_SCHEMA.required)['id']
+    set_audit_resource_id(user_id)
     tenant = get_tenant(project_id)
     user = fetch_user(user_id)  # aborts with 404 if user not exists
 

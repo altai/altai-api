@@ -41,7 +41,6 @@ def _keypair_from_nova(keypair):
 
 
 _SCHEMA = Schema((
-    st.String('id'),
     st.String('name'),
     st.String('public-key'),
     st.String('fingerprint')),
@@ -79,6 +78,7 @@ def create_my_ssh_key():
     result = _keypair_from_nova(kp)
     if hasattr(kp, 'private_key'):
         result['private-key'] = kp.private_key
+    set_audit_resource_id(kp.name)
     return make_json_response(result)
 
 

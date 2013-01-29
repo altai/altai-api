@@ -47,6 +47,7 @@ class AuditRecord(DB.Model):
     response_status = DB.Column(DB.Integer, nullable=False)
     message = DB.Column(DB.String(16))
 
+    resource_id = DB.Column(DB.String(1024))
     user_id = DB.Column(DB.String(64))
     project_id = DB.Column(DB.String(64))
     remote_address = DB.Column(DB.String(255))

@@ -25,7 +25,8 @@ __all__ = [
     'make_json_response',
     'parse_request_data',
     'make_collection_response',
-    'parse_collection_request'
+    'parse_collection_request',
+    'set_audit_resource_id'
 ]
 
 
@@ -33,4 +34,5 @@ from altai_api.utils.communication import (make_json_response,
                                            parse_request_data)
 from altai_api.utils.collection import (make_collection_response,
                                         parse_collection_request)
+from altai_api.utils.audit import set_audit_resource_id
 

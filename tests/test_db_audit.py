@@ -36,6 +36,7 @@ class AuditDAOTestCase(ContextWrappedDBTestCase):
             'project_id': 'PID',
             'remote_address': '127.0.0.1',
             'resource': '/test',
+            'resource_id': 'test',
             'response_status': 200,
             'user_id': 'UID'
         }
@@ -45,6 +46,7 @@ class AuditDAOTestCase(ContextWrappedDBTestCase):
     def test_get(self):
         record = AuditDAO.get(self.record_id)
         self.assertEquals(record.message, 'OK')
+        self.assertEquals(record.resource_id, 'test')
         self.assertEquals(record.user_id, 'UID')
         self.assertEquals(record.response_status, 200)
         delta = datetime.utcnow() - record.timestamp

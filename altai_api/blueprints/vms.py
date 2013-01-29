@@ -188,6 +188,7 @@ def create_vm():
             'method': request.method,
             'message': 'Limits exceeded (%s)' % str(e)
         })
+    set_audit_resource_id(server)
     return make_json_response(_vm_from_nova(server))
 
 
@@ -209,6 +210,7 @@ def update_vm(vm_id):
     if for_vm_data:
         VmDataDAO.update(vm.id, **for_vm_data)
 
+    set_audit_resource_id(vm)
     return make_json_response(_vm_from_nova(vm))
 
 
@@ -227,6 +229,7 @@ def _do_remove_vm(vm_id):
 def remove_vm(vm_id):
     parse_request_data()
     server = _do_remove_vm(vm_id)
+    set_audit_resource_id(vm_id)
     if server is not None:
         return make_json_response(_vm_from_nova(server))
     else:
@@ -235,6 +238,7 @@ def remove_vm(vm_id):
 
 @vms.route('/<vm_id>', methods=('DELETE',))
 def delete_vm(vm_id):
+    set_audit_resource_id(vm_id)
     server = _do_remove_vm(vm_id)
     if server is not None:
         # TODO(imelnikov): wait for server to be gone if Expect: 202-Accepted
@@ -251,6 +255,7 @@ def _do_reboot_vm(vm_id, method):
     common code lives here.
 
     """
+    set_audit_resource_id(vm_id)
     parse_request_data()
     server = fetch_vm(vm_id)
     server.reboot(method)
@@ -271,6 +276,7 @@ def reset_vm(vm_id):
 
 @vms.route('/<vm_id>/console-output', methods=('POST',))
 def vm_console_output(vm_id):
+    set_audit_resource_id(vm_id)
     server = fetch_vm(vm_id)
     length = int_from_string(request.args.get('length'), allow_none=True)
     g.unused_args.discard('length')
@@ -283,6 +289,7 @@ def vm_console_output(vm_id):
 
 @vms.route('/<vm_id>/vnc', methods=('POST',))
 def vm_vnc_console(vm_id):
+    set_audit_resource_id(vm_id)
     server = fetch_vm(vm_id)
     vnc = server.get_vnc_console(console_type='novnc')['console']
     return make_json_response({

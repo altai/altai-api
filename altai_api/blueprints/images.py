@@ -21,7 +21,7 @@
 
 from flask import url_for, g, Blueprint, abort, request
 
-from altai_api.utils import make_json_response, parse_request_data
+from altai_api.utils import *
 from altai_api.utils import collection
 
 from altai_api.utils.decorators import data_handler, root_endpoint
@@ -149,7 +149,7 @@ def _images_for_all_tenants():
 @images.route('/', methods=('GET',))
 @root_endpoint('images')
 def list_images():
-    collection.parse_collection_request(_SCHEMA)
+    parse_collection_request(_SCHEMA)
 
     tenant_id = collection.get_matcher_argument('project', 'for',
                                                 delete_if_found=True)
@@ -158,7 +158,7 @@ def list_images():
     else:
         result = _images_for_all_tenants()
 
-    return collection.make_collection_response(u'images', result)
+    return make_collection_response(u'images', result)
 
 
 @images.route('/<image_id>', methods=('GET',))
@@ -170,6 +170,7 @@ def get_image(image_id):
 @images.route('/<image_id>', methods=('PUT',))
 def update_image(image_id):
     data = parse_request_data(_SCHEMA.updatable)
+    set_audit_resource_id(image_id)
     fields_to_update = {}
     image = _fetch_image(image_id)
 
@@ -218,12 +219,13 @@ def create_image():
         container_format=data['container-format'],
         is_public=is_public,
         properties=props)
-
+    set_audit_resource_id(image)
     return make_json_response(_image_from_nova(image))
 
 
 @images.route('/<image_id>', methods=('DELETE',))
 def remove_image(image_id):
+    set_audit_resource_id(image_id)
     image = _fetch_image(image_id)
     # TODO(imelnikov): permissions check
     image.delete()

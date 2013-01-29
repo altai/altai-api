@@ -89,6 +89,7 @@ def get_vm_fw_rule_set(vm_id, set_id):
 def add_vm_fw_rule_set(vm_id):
     server = fetch_vm(vm_id)
     set_id = parse_request_data(required=_SCHEMA.required)['id']
+    set_audit_resource_id(set_id)
     try:
         sg = g.client_set.compute.security_groups.get(set_id)
     except osc_exc.NotFound:

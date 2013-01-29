@@ -103,11 +103,13 @@ def create_network():
     else:
         raise ValueError('Network created with strange result: %r' % new_net)
 
+    set_audit_resource_id(new_net)
     return make_json_response(_net_to_dict(new_net))
 
 
 @networks.route('/<net_id>', methods=('DELETE',))
 def delete_network(net_id):
+    set_audit_resource_id(net_id)
     client = flask.g.client_set
     try:
         client.compute.networks.delete(net_id)

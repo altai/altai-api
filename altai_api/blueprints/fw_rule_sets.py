@@ -113,6 +113,7 @@ def create_fw_rule_set():
     tcs = client_set_for_tenant(tenant.id)
     sg = tcs.compute.security_groups.create(
         name=data['name'], description=data.get('description', ''))
+    set_audit_resource_id(sg)
     return make_json_response(_sg_from_nova(sg, tenant))
 
 
@@ -125,5 +126,6 @@ def delete_fw_rule_set(fw_rule_set_id):
     except osc_exc.NotFound:
         abort(404)
 
+    set_audit_resource_id(sg)
     return make_json_response(None, status_code=204)
 
