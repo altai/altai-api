@@ -115,6 +115,22 @@ def cidr_from_user(value, on_error=None):
         _raise(value, on_error)
 
 
+_BOOLEAN_STRINGS = {
+    'True': True,
+    'true': True,
+    'False': False,
+    'false': False
+}
+
+
+def boolean_from_string(value, on_error=None):
+    """Parse boolean value"""
+    try:
+        return _BOOLEAN_STRINGS[value]
+    except KeyError:
+        _raise(value, on_error)
+
+
 def split_with_escape(value, split, esc='\\'):
     if len(esc) != 1:
         raise ValueError('Bad value for escape string: %r' % esc)

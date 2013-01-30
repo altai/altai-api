@@ -19,8 +19,10 @@ from datetime import datetime
 from altai_api import exceptions as exc
 from altai_api.utils.parsers import (int_from_string,
                                      int_from_user,
+                                     boolean_from_string,
                                      cidr_from_user,
-                                     ipv4_from_user)
+                                     ipv4_from_user,
+                                     split_with_escape)
 
 
 def matcher(func, none_matches=False):
@@ -50,6 +52,12 @@ def not_implemented_matcher(value_, pattern_):
     raise NotImplementedError('Match is not implemented')
 
 
+def exists_matcher(value, pattern):
+    return (value is not None) == pattern
+
+exists_matcher.altai_api_is_matcher = True
+
+
 def _matchers_plus(dst, matchers):
     """Add matchers to dict
 
@@ -68,7 +76,8 @@ def _matchers_plus(dst, matchers):
 
 _BASIC_MATCHERS = _matchers_plus({}, (
     ('eq', lambda value, pattern: value == pattern),
-    ('in', lambda value, lst: value in lst)
+    ('in', lambda value, lst: value in lst),
+    ('exists', exists_matcher)
 ))
 
 _ORDERED_MATCHERS = _matchers_plus(_BASIC_MATCHERS, (
@@ -133,6 +142,18 @@ class ElementType(object):
                                      'for element %r of type %r' %
                                      (filter_type, self.name, self.typename))
 
+    def parse_search_argument(self, filter_type, value):
+        """Parse search argument of type filter_type"""
+        # ensure this filter type is supported:
+        self.get_search_matcher(filter_type)
+        if filter_type == 'in':
+            return [self.from_string(elem)
+                    for elem in split_with_escape(value, '|', '\\')]
+        elif filter_type == 'exists':
+            return boolean_from_string(value, self._raise)
+        else:
+            return self.from_string(value)
+
 
 class String(ElementType):
     """'string' element type"""
@@ -158,23 +179,13 @@ class String(ElementType):
 class Boolean(ElementType):
     """'boolean' element type"""
 
-    _STRINGS = {
-        'True': True,
-        'true': True,
-        'False': False,
-        'false': False
-    }
-
     def __init__(self, name, **kwargs):
         super(Boolean, self).__init__(name=name, typename='boolean',
                                       basic_search_matchers=_BASIC_MATCHERS,
                                       **kwargs)
 
     def from_string(self, value):
-        try:
-            return self._STRINGS[value]
-        except KeyError:
-            self._raise(value)
+        return boolean_from_string(value, self._raise)
 
     def _from_request_impl(self, value):
         if not isinstance(value, bool):
@@ -207,7 +218,8 @@ class LinkObject(ElementType):
     def __init__(self, name, **kwargs):
         matchers = {
             'eq': matcher(lambda value, pattern: value['id'] == pattern),
-            'in': matcher(lambda value, lst: value['id'] in lst)
+            'in': matcher(lambda value, lst: value['id'] in lst),
+            'exists': exists_matcher
         }
         super(LinkObject, self).__init__(
             name=name, typename='link object',
@@ -275,10 +287,18 @@ class Cidr(ElementType):
 
 class List(ElementType):
     def __init__(self, subtype, **kwargs):
-        # TODO(imelnikov): list:has search matcher
+        try:
+            eq = subtype.get_search_matcher('eq')
+            matchers = {
+                'has': matcher(lambda value, pattern: any((eq(v, pattern)
+                                                           for v in value)))
+            }
+        except exc.InvalidRequest:  # no 'eq' matcher
+            matchers = {}
+
         super(List, self).__init__(name=subtype.name,
                                    typename='list<%s>' % subtype.typename,
-                                   basic_search_matchers={},
+                                   basic_search_matchers=matchers,
                                    sortby_names=(),
                                    **kwargs)
         self.subtype = subtype
@@ -287,4 +307,9 @@ class List(ElementType):
         if not isinstance(value, list):
             self._raise(value)
         return [self.subtype.from_request(v) for v in value]
+
+    def parse_search_argument(self, filter_type, value):
+        if filter_type == 'has':
+            return self.subtype.from_string(value)
+        return super(List, self).parse_search_argument(filter_type, value)
 

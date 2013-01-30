@@ -72,6 +72,17 @@ class ParseFiltersTestCase(unittest.TestCase):
         real = parse_filters(params.iteritems(), self.schema)
         self.assertEquals(expected, real)
 
+    def test_parses_exists(self):
+        params = { 'size:exists': 'true' }
+        expected = { 'size': {'exists': True} }
+        real = parse_filters(params.iteritems(), self.schema)
+        self.assertEquals(expected, real)
+
+    def test_bad_exists_raises(self):
+        params = { 'size:exists': '1' }
+        self.assertRaises(exc.InvalidRequest,
+                          parse_filters, params.iteritems(), self.schema)
+
 
 class ApplyFiltersTestCase(unittest.TestCase):
 
@@ -111,6 +122,43 @@ class ApplyFiltersTestCase(unittest.TestCase):
             { 'name': 'test', 'size': 30 },
         ]
         result = apply_filters(param, self.filters, self.schema)
+        self.assertEquals(expected, result)
+
+    def test_exists(self):
+        param = [
+            { 'name': None, 'size': 30 },
+            { 'size': 30 },
+            { 'name': 'test', 'size': 30 },
+        ]
+        filters = { 'name': {'exists': True} }
+        expected = [
+            { 'name': 'test', 'size': 30 },
+        ]
+        result = apply_filters(param, filters, self.schema)
+        self.assertEquals(expected, result)
+
+    def test_not_exists_none(self):
+        param = [
+            { 'name': None, 'size': 30 },
+            { 'name': 'test', 'size': 30 },
+        ]
+        filters = { 'name': {'exists': False} }
+        expected = [
+            { 'name': None, 'size': 30 },
+        ]
+        result = apply_filters(param, filters, self.schema)
+        self.assertEquals(expected, result)
+
+    def test_not_exists_at_all(self):
+        param = [
+            { 'size': 30 },
+            { 'name': 'test', 'size': 30 },
+        ]
+        filters = { 'name': {'exists': False} }
+        expected = [
+            { 'size': 30 },
+        ]
+        result = apply_filters(param, filters, self.schema)
         self.assertEquals(expected, result)
 
     def test_missing_is_ok(self):

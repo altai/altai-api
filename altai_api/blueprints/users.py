@@ -159,15 +159,15 @@ _SCHEMA = Schema((
                     'invite', 'link-template', 'send-invite-mail',
                     'password'),
     updatable=('name', 'email', 'fullname', 'admin', 'password'),
-    sortby=('id', 'name', 'fullname', 'email',
-            'admin', 'completed-registration', 'invited-at')
+    list_args=('id', 'name', 'fullname', 'email', 'projects',
+               'admin', 'completed-registration', 'invited-at')
 )
 
 
 @users.route('/', methods=('GET',))
 @root_endpoint('users')
 def list_users():
-    parse_collection_request(_SCHEMA.sortby)
+    parse_collection_request(_SCHEMA.list_args)
     user_mgr = g.client_set.identity_admin.users
     return make_collection_response(u'users', [user_from_nova(user)
                                                for user in user_mgr.list()])

@@ -92,6 +92,10 @@ class LinkObjectListTestCase(unittest.TestCase):
         self.assertRaises(exc.InvalidRequest,
                           self.ll.get_search_matcher, 'eq')
 
+    def test_list_does_not_parse_eq(self):
+        self.assertRaises(exc.InvalidRequest,
+                          self.ll.parse_search_argument, 'eq', '[42]')
+
     def test_from_request_ok(self):
         value = ['42', '43']
         self.assertEquals(value, self.ll.from_request(value))
@@ -103,6 +107,20 @@ class LinkObjectListTestCase(unittest.TestCase):
     def test_from_request_fail(self):
         self.assertRaises(exc.IllegalValue,
                           self.ll.from_request, '42')
+
+    def test_parses_has_argument(self):
+        value = '42'
+        result = self.ll.parse_search_argument('has', value)
+        self.assertEquals(value, result)
+
+    def test_has_matches(self):
+        has = self.ll.get_search_matcher('has')
+        self.assertEquals(True, has([{'id': '42'}, {'id': '43'}], '43'))
+        self.assertEquals(False, has([{'id': '42'}, {'id': '43'}], '44'))
+
+    def test_list_of_lists_has_no_has(self):
+        self.assertRaises(exc.InvalidRequest,
+                          st.List(self.ll).get_search_matcher, 'has')
 
 
 class BooleanTestCase(unittest.TestCase):
@@ -137,6 +155,15 @@ class BooleanTestCase(unittest.TestCase):
 
     def test_from_request_fail(self):
         self.assertRaises(exc.IllegalValue, self.b.from_request, 42)
+
+    def test_list_of_boolean_raises_on_bad_has_argument(self):
+        self.assertRaises(exc.IllegalValue,
+                          st.List(self.b).parse_search_argument,
+                          'has', '42')
+
+    def test_list_of_boolean_parses_has_argument(self):
+        result = st.List(self.b).parse_search_argument('has', 'True')
+        self.assertEquals(True, result)
 
 
 class TimestampTestCase(unittest.TestCase):
