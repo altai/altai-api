@@ -24,6 +24,7 @@ from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
 from altai_api.utils import *
+from altai_api.utils.parsers import int_from_string
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -100,13 +101,9 @@ def list_fw_rules(fw_rule_set_id):
 
 def _find_rule(sg_id, rule_id):
     """Find rule record in given security group"""
-    try:
-        # rule ids are (sic!) ints
-        # TODO(imelnikov): replace with parse_int
-        rid = int(rule_id)
-        assert str(rid) == rule_id
-    except (ValueError, AssertionError):
-        abort(404)
+    # rule ids are (sic!) ints
+    rid = int_from_string(rule_id,
+                          on_error=lambda value_: abort(404))
 
     for rule in _get_security_group(sg_id).rules:
         if rule['id'] == rid:

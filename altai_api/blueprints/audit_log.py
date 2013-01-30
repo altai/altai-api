@@ -99,7 +99,6 @@ _SCHEMA = Schema((
 @root_endpoint('audit-log')
 def list_all_records():
     parse_collection_request(_SCHEMA)
-    # TODO(imelnikov): user and tenant names
     result = [record_from_database(record)
               for record in AuditDAO.list_all()]
     return make_collection_response(u'audit-log', result)

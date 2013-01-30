@@ -67,7 +67,7 @@ class PeriodicJob(object):
         started = datetime.utcnow()
         try:
             self.function(*self.args, **self.kwargs)
-            # TODO(imelnikov): catch and log exceptions, if any
+            # TODO(imelnikov): catch and log exceptions
         finally:
             # schedule next iteration
             self._start_timer(
@@ -85,10 +85,13 @@ class PeriodicJob(object):
 def _wrap_with_context(app, function):
     def wrapper(*args, **kwargs):
         with app.test_request_context():
-            # TODO(imelnikov): do something sane on auth failure
             if keystone_auth(app.config['KEYSTONE_ADMIN'],
                              app.config['KEYSTONE_ADMIN_PASSWORD']):
                 return function(*args, **kwargs)
+            else:
+                app.logger.error(
+                    'Service misconfiguration: '
+                    'failed to authenticate as API admin user')
     return wrapper
 
 

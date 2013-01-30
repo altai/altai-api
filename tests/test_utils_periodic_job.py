@@ -22,6 +22,7 @@
 import time
 import unittest
 import flask
+import mox
 from datetime import datetime, timedelta
 from tests.mocked import MockedTestCase
 
@@ -68,6 +69,20 @@ class PeriodicJobTestCase(unittest.TestCase):
         job.cancel()
         self.check_times(when, started, [0, 0.8, 1.3])
 
+    def test_job_may_raise(self):
+        when = []
+        started = datetime.utcnow()
+
+        def append_now(lst):
+            lst.append(datetime.utcnow())
+            if len(when) == 1:
+                raise RuntimeError('ignore me')
+
+        job = periodic_job.PeriodicJob(0.5, append_now, when)
+        time.sleep(0.7)
+        job.cancel()
+        self.check_times(when, started, [0, 0.5])
+
 
 class PeriodicAdministrativeJobTestCase(MockedTestCase):
 
@@ -90,4 +105,26 @@ class PeriodicAdministrativeJobTestCase(MockedTestCase):
         time.sleep(0.1)
         job.cancel()
         self.assertEquals(evidence, ['test', self.fake_client_set])
+
+    def test_auth_failure(self):
+        self.mox.StubOutWithMock(periodic_job, 'keystone_auth')
+        self.mox.StubOutWithMock(self.app.logger, 'error')
+        self.app.config['KEYSTONE_ADMIN'] = 'test_keystone_admin'
+        self.app.config['KEYSTONE_ADMIN_PASSWORD'] = 'test_keystone_password'
+
+        periodic_job.keystone_auth('test_keystone_admin',
+                                    'test_keystone_password')\
+                .WithSideEffects(self.install_fake_auth)\
+                .AndReturn(False)
+        self.app.logger.error(mox.IsA(basestring))
+
+        self.mox.ReplayAll()
+
+        evidence = []
+        job = periodic_job.PeriodicAdministrativeJob(
+            self.app, 0.5,
+            evidence.append, 'test')
+        time.sleep(0.1)
+        job.cancel()
+        self.assertEquals(evidence, [])  # append was not run
 

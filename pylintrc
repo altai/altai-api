@@ -109,8 +109,7 @@ indent-string='    '
 [SIMILARITIES]
 
 # Minimum lines number of a similarity.
-# TODO(imelnikov): reduce this value
-min-similarity-lines=10
+min-similarity-lines=5
 
 # Ignore comments when computing similarities.
 ignore-comments=yes

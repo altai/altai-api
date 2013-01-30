@@ -129,9 +129,6 @@ def _images_for_tenant(tenant_id):
 
     try:
         image_list = client_set_for_tenant(tenant_id).image.images.list()
-        # TODO(imelnikov): keystone sometimes returns 500 instead of 403
-        # and in this cases so does glance; we should either fix it or
-        # check permissions manually
     except osc_exc.Forbidden:
         abort(403)
     return [_image_from_nova(image, tenant) for image in image_list]
@@ -227,7 +224,6 @@ def create_image():
 def remove_image(image_id):
     set_audit_resource_id(image_id)
     image = _fetch_image(image_id)
-    # TODO(imelnikov): permissions check
     image.delete()
     return make_json_response(None, status_code=204)
 
