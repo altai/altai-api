@@ -36,7 +36,7 @@ class ElementTypeTestCase(unittest.TestCase):
         self.assertEquals(t.name, 'test')
         self.assertEquals(t.typename, 'test type')
 
-    def test_from_requests_rise(self):
+    def test_from_requests_raise(self):
         t = st.ElementType('test', 'test type')
         self.assertRaises(exc.IllegalValue, t.from_string, None)
         self.assertRaises(exc.IllegalValue, t.from_request, None)
@@ -178,6 +178,10 @@ class TimestampTestCase(unittest.TestCase):
     def test_timestamp_from_request(self):
         self.assertEquals(
             self.ts.from_request('2012-09-13T19:46:00Z'), self.d)
+
+    def test_timestamp_from_request_no_none(self):
+        self.assertRaises(exc.IllegalValue,
+                          self.ts.from_request, None)
 
     def test_timestamp_list_from_request(self):
         lts = st.List(st.Timestamp('test'))

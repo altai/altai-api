@@ -19,8 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Miscellaneous utility functions
-"""
+"""Miscellaneous utility functions"""
 
 from flask import json, request, abort, g, after_this_request, current_app
 from datetime import datetime
@@ -136,7 +135,7 @@ def parse_request_data(allowed=None, required=None):
 
     """
     # NOTE(imelnikov): we don't use request.json because we want
-    # to rise our custom exception
+    # to raise our custom exception
     try:
         data = json.loads(request.data)
     except ValueError:

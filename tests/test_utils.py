@@ -85,7 +85,7 @@ class MakeResponseTestCase(TestCase):
             resp = make_json_response({'created': timestamp})
         self.assertTrue('"2012-09-13T15:03:42Z"' in resp.data)
 
-    def test_rises_nicely(self):
+    def test_raises_nicely(self):
         class TestClass(object):
             def __repr__(self):
                 return 'TEST CLASS'

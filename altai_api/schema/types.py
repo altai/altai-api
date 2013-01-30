@@ -221,7 +221,7 @@ class Timestamp(ElementType):
     def from_string(self, value):
         try:
             return datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
-        except ValueError:
+        except (ValueError, TypeError):
             self._raise(value)
 
     def from_request(self, value):
