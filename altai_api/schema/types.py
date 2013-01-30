@@ -86,14 +86,21 @@ class ElementType(object):
     """Resource element type descriptor"""
 
     def __init__(self, name, typename,
-                 search_matchers=None):
+                 basic_search_matchers,
+                 add_search_matchers=None,
+                 sortby_names=None,
+                 is_nullable=False):
         self.name = name
         self.typename = typename
-        if search_matchers is not None:
-            self._search_matchers = search_matchers
+        self._is_nullable = is_nullable
+
+        self._search_matchers = _matchers_plus(
+            basic_search_matchers, add_search_matchers)
+
+        if sortby_names is not None:
+            self.sortby_names = sortby_names
         else:
-            self._search_matchers = _BASIC_MATCHERS
-        self.sortby_names = (name,)
+            self.sortby_names = (name,)
 
     def _raise(self, value):
         raise exc.IllegalValue(self.name, self.typename, value)
@@ -104,6 +111,11 @@ class ElementType(object):
 
     def from_request(self, value):
         """Check that value from request is correct for this type"""
+        if self._is_nullable and value is None:
+            return None
+        return self._from_request_impl(value)
+
+    def _from_request_impl(self, value):
         self._raise(value)
 
     def get_search_matcher(self, filter_type):
@@ -125,19 +137,19 @@ class ElementType(object):
 class String(ElementType):
     """'string' element type"""
 
-    def __init__(self, name, add_search_matchers=None):
+    def __init__(self, name, **kwargs):
         matchers = _matchers_plus(_BASIC_MATCHERS, {
             'startswith': lambda value, pattern: value.startswith(pattern)
         })
-        matchers = _matchers_plus(matchers, add_search_matchers)
         super(String, self).__init__(name=name,
                                      typename='string',
-                                     search_matchers=matchers)
+                                     basic_search_matchers=matchers,
+                                     **kwargs)
 
     def from_string(self, string):
         return string
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         if not isinstance(value, basestring):
             self._raise(value)
         return value
@@ -153,8 +165,10 @@ class Boolean(ElementType):
         'false': False
     }
 
-    def __init__(self, name):
-        super(Boolean, self).__init__(name=name, typename='boolean')
+    def __init__(self, name, **kwargs):
+        super(Boolean, self).__init__(name=name, typename='boolean',
+                                      basic_search_matchers=_BASIC_MATCHERS,
+                                      **kwargs)
 
     def from_string(self, value):
         try:
@@ -162,7 +176,7 @@ class Boolean(ElementType):
         except KeyError:
             self._raise(value)
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         if not isinstance(value, bool):
             self._raise(value)
         return value
@@ -171,9 +185,10 @@ class Boolean(ElementType):
 class Int(ElementType):
     """'uint' element type"""
 
-    def __init__(self, name, min_val=0, max_val=None):
+    def __init__(self, name, min_val=0, max_val=None, **kwargs):
         super(Int, self).__init__(name=name, typename='uint',
-                                   search_matchers=_ORDERED_MATCHERS)
+                                  basic_search_matchers=_ORDERED_MATCHERS,
+                                  **kwargs)
         self.min_val = min_val
         self.max_val = max_val
 
@@ -181,7 +196,7 @@ class Int(ElementType):
         return int_from_string(value, self.min_val, self.max_val,
                                on_error=self._raise)
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         return int_from_user(value, self.min_val, self.max_val,
                              on_error=self._raise)
 
@@ -189,23 +204,21 @@ class Int(ElementType):
 class LinkObject(ElementType):
     """'link object' element type"""
 
-    def __init__(self, name, add_search_matchers=None):
-        matchers = _matchers_plus(
-            {
-                'eq': matcher(lambda value, pattern: value['id'] == pattern),
-                'in': matcher(lambda value, lst: value['id'] in lst)
-            },
-            add_search_matchers
-        )
-
-        super(LinkObject, self).__init__(name=name, typename='link object',
-                                         search_matchers=matchers)
-        self.sortby_names = (name + '.id', name + '.name')
+    def __init__(self, name, **kwargs):
+        matchers = {
+            'eq': matcher(lambda value, pattern: value['id'] == pattern),
+            'in': matcher(lambda value, lst: value['id'] in lst)
+        }
+        super(LinkObject, self).__init__(
+            name=name, typename='link object',
+            basic_search_matchers=matchers,
+            sortby_names=(name + '.id', name + '.name'),
+            **kwargs)
 
     def from_string(self, value):
         return value
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         if not isinstance(value, basestring):
             self._raise(value)
         return value
@@ -214,9 +227,11 @@ class LinkObject(ElementType):
 class Timestamp(ElementType):
     """'timestamp' element type"""
 
-    def __init__(self, name):
-        super(Timestamp, self).__init__(name=name, typename='timestamp',
-                                        search_matchers=_ORDERED_MATCHERS)
+    def __init__(self, name, **kwargs):
+        super(Timestamp, self).__init__(
+            name=name, typename='timestamp',
+            basic_search_matchers=_ORDERED_MATCHERS,
+            **kwargs)
 
     def from_string(self, value):
         try:
@@ -224,48 +239,52 @@ class Timestamp(ElementType):
         except (ValueError, TypeError):
             self._raise(value)
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         return self.from_string(value)
 
 
 class Ipv4(ElementType):
     """'ipv4' element type"""
 
-    def __init__(self, name):
-        super(Ipv4, self).__init__(name=name, typename='ipv4')
+    def __init__(self, name, **kwargs):
+        super(Ipv4, self).__init__(name=name, typename='ipv4',
+                                   basic_search_matchers=_BASIC_MATCHERS,
+                                   **kwargs)
 
     def from_string(self, value):
         return ipv4_from_user(value, on_error=self._raise)
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         return self.from_string(value)
 
 
 class Cidr(ElementType):
     """'cidr' element type"""
 
-    def __init__(self, name):
-        super(Cidr, self).__init__(name=name, typename='cidr')
+    def __init__(self, name, **kwargs):
+        super(Cidr, self).__init__(name=name, typename='cidr',
+                                   basic_search_matchers=_BASIC_MATCHERS,
+                                   **kwargs)
 
     def from_string(self, value):
         return cidr_from_user(value, on_error=self._raise)
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         return self.from_string(value)
 
 
 class List(ElementType):
-    def __init__(self, subtype):
+    def __init__(self, subtype, **kwargs):
         # TODO(imelnikov): list:has search matcher
         super(List, self).__init__(name=subtype.name,
                                    typename='list<%s>' % subtype.typename,
-                                   search_matchers={})
-        self.sortby_names = ()
+                                   basic_search_matchers={},
+                                   sortby_names=(),
+                                   **kwargs)
         self.subtype = subtype
 
-    def from_request(self, value):
+    def _from_request_impl(self, value):
         if not isinstance(value, list):
             self._raise(value)
-        return [self.subtype.from_request(v)
-                for v in value]
+        return [self.subtype.from_request(v) for v in value]
 

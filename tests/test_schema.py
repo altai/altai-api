@@ -32,12 +32,12 @@ from altai_api.schema import types as st
 class ElementTypeTestCase(unittest.TestCase):
 
     def test_constructor(self):
-        t = st.ElementType('test', 'test type')
+        t = st.ElementType('test', 'test type', {})
         self.assertEquals(t.name, 'test')
         self.assertEquals(t.typename, 'test type')
 
     def test_from_requests_raise(self):
-        t = st.ElementType('test', 'test type')
+        t = st.ElementType('test', 'test type', {})
         self.assertRaises(exc.IllegalValue, t.from_string, None)
         self.assertRaises(exc.IllegalValue, t.from_request, None)
 
@@ -187,6 +187,10 @@ class TimestampTestCase(unittest.TestCase):
         lts = st.List(st.Timestamp('test'))
         self.assertEquals(
             lts.from_request(['2012-09-13T19:46:00Z']), [self.d])
+
+    def test_nullable_timestamp(self):
+        ts = st.Timestamp('nullable', is_nullable=True)
+        self.assertEquals(None, ts.from_request(None))
 
 
 class Ipv4TestCase(unittest.TestCase):
