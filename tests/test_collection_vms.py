@@ -427,6 +427,22 @@ class UpdateTestCase(MockedTestCase):
         data = self.interact(params)
         self.assertEquals(data, 'REPLY')
 
+    def test_update_never_expires_and_remind(self):
+        params = {
+            'expires-at': None,
+            'remind-at': None
+        }
+        client = self.fake_client_set
+        server = doubles.make(self.mox, doubles.Server, id='VMID')
+
+        client.compute.servers.get(self.vm_id).AndReturn(server)
+        vms.VmDataDAO.update('VMID', expires_at=None, remind_at=None)
+        vms._vm_from_nova(server).AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        data = self.interact(params)
+        self.assertEquals(data, 'REPLY')
+
     def test_update_remind(self):
         params = {
             'remind-at': u'2013-02-17T15:36:00Z'
