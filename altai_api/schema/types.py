@@ -147,8 +147,11 @@ class ElementType(object):
         # ensure this filter type is supported:
         self.get_search_matcher(filter_type)
         if filter_type == 'in':
-            return [self.from_string(elem)
-                    for elem in split_with_escape(value, '|', '\\')]
+            try:
+                return [self.from_string(elem)
+                        for elem in split_with_escape(value, '|', '\\')]
+            except ValueError:
+                self._raise(value)
         elif filter_type == 'exists':
             return boolean_from_string(value, self._raise)
         else:

@@ -72,6 +72,11 @@ class ParseFiltersTestCase(unittest.TestCase):
         real = parse_filters(params.iteritems(), self.schema)
         self.assertEquals(expected, real)
 
+    def test_correct_in_error(self):
+        params = { 'size:in': '42|44\\' }
+        self.assertRaises(exc.IllegalValue,
+                          parse_filters, params.iteritems(), self.schema)
+
     def test_parses_exists(self):
         params = { 'size:exists': 'true' }
         expected = { 'size': {'exists': True} }
