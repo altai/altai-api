@@ -22,6 +22,8 @@
 
 import os
 import flask
+import logging.handlers
+import altai_api
 
 from openstackclient_base.base import monkey_patch
 monkey_patch()
@@ -89,9 +91,29 @@ _mount_blueprints((
 CONFIG_ENV = 'ALTAI_API_SETTINGS'
 
 
+def setup_logging(application):
+    log_file_name = application.config['LOG_FILE_NAME']
+    if log_file_name is not None:
+        log_handler = logging.handlers.WatchedFileHandler(log_file_name)
+    else:
+        log_handler = logging.StreamHandler()
+    application.logger.addHandler(log_handler)
+
+    log_level = application.config['LOG_LEVEL']
+    if log_level in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+        application.logger.setLevel(getattr(logging, log_level))
+    else:
+        application.logger.setLevel(logging.INFO)
+        application.logger.critical('Invalid log level: %r', log_level)
+
+    application.logger.info('Starting Altai API service v%s',
+                            altai_api.__version__)
+
+
 def main():
     if CONFIG_ENV in os.environ:
         app.config.from_envvar(CONFIG_ENV)
+    setup_logging(app)
 
     periodic_jobs = []
     if not app.config['USE_RELOADER'] \

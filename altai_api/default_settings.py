@@ -65,6 +65,12 @@ With best regards,
 Altai MailBot
 """
 
+# file to write logs to; None means write to stderr
+LOG_FILE_NAME = None
+
+# default log priority
+# possible values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
+LOG_LEVEL = 'INFO'
 
 # periodic job intervals, in seconds, may be floating point number
 RIP_EXPIRED_VMS_TASK_INTERVAL = 10.0

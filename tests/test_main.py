@@ -21,12 +21,21 @@
 
 
 import os
-from mox import MoxTestBase
+import unittest
+import logging.handlers
+import mox
 from altai_api import main
 from altai_api.utils.periodic_job import PeriodicJob
 
 
-class MainTestCase(MoxTestBase):
+class ConfigurationTestCase(unittest.TestCase):
+
+    def test_settings_are_read(self):
+        # we promise we will never redefine TEST_STRING
+        self.assertEquals(main.app.config['TEST_STRING'], 'Test')
+
+
+class MainTestCase(mox.MoxTestBase):
     config = {
         'USE_RELOADER': False,
         'HOST': '127.0.0.1',
@@ -34,22 +43,23 @@ class MainTestCase(MoxTestBase):
     }
     config_env = main.CONFIG_ENV
 
+    def setUp(self):
+        super(MainTestCase, self).setUp()
+        self.mox.StubOutWithMock(main, 'app')
+        self.mox.StubOutWithMock(main, 'setup_logging')
+        self.mox.StubOutWithMock(main.vms_jobs, 'jobs_factory')
+
     def tearDown(self):
         main.CONFIG_ENV = self.config_env
         super(MainTestCase, self).tearDown()
 
-    def test_settings_are_read(self):
-        # we promise we will never redefine TEST_STRING
-        self.assertEquals(main.app.config['TEST_STRING'], 'Test')
-
     def test_main_works(self):
         main.CONFIG_ENV = 'I_HOPE_THIS_WILL_NEVER_EVER_EXIST'
-        self.mox.StubOutWithMock(main, 'app')
-        self.mox.StubOutWithMock(main.vms_jobs, 'jobs_factory')
         main.app.config = self.config
         jobs = [self.mox.CreateMock(PeriodicJob),
                  self.mox.CreateMock(PeriodicJob)]
 
+        main.setup_logging(main.app)
         main.vms_jobs.jobs_factory(main.app).AndReturn(jobs)
         main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
@@ -60,8 +70,6 @@ class MainTestCase(MoxTestBase):
 
     def test_env_is_looked_at(self):
         main.CONFIG_ENV = os.environ.keys()[0]
-        self.mox.StubOutWithMock(main, 'app')
-        self.mox.StubOutWithMock(main.vms_jobs, 'jobs_factory')
         main.app.config = self.mox.CreateMockAnything()
 
         def side_effect(arg_):
@@ -69,9 +77,60 @@ class MainTestCase(MoxTestBase):
 
         main.app.config.from_envvar(main.CONFIG_ENV)\
                 .WithSideEffects(side_effect)
+        main.setup_logging(main.app)
         main.vms_jobs.jobs_factory(main.app).AndReturn([])
         main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
         self.mox.ReplayAll()
         main.main()
+
+
+class SetupLoggingTestCase(mox.MoxTestBase):
+
+    def test_setup_logging_to_file(self):
+        app = self.mox.CreateMockAnything()
+        app.logger = self.mox.CreateMockAnything()
+        app.config = {
+            'LOG_FILE_NAME': '/dev/null',
+            'LOG_LEVEL': 'DEBUG'
+        }
+
+        app.logger.addHandler(mox.IsA(
+            logging.handlers.WatchedFileHandler))
+        app.logger.setLevel(logging.DEBUG)
+        app.logger.info('Starting Altai API service v%s', mox.IsA(str))
+
+        self.mox.ReplayAll()
+        main.setup_logging(app)
+
+    def test_setup_logging_to_stderr(self):
+        app = self.mox.CreateMockAnything()
+        app.logger = self.mox.CreateMockAnything()
+        app.config = {
+            'LOG_FILE_NAME': None,
+            'LOG_LEVEL': 'ERROR'
+        }
+
+        app.logger.addHandler(mox.IsA(logging.StreamHandler))
+        app.logger.setLevel(logging.ERROR)
+        app.logger.info('Starting Altai API service v%s', mox.IsA(str))
+
+        self.mox.ReplayAll()
+        main.setup_logging(app)
+
+    def test_setup_logging_bad_level(self):
+        app = self.mox.CreateMockAnything()
+        app.logger = self.mox.CreateMockAnything()
+        app.config = {
+            'LOG_FILE_NAME': None,
+            'LOG_LEVEL': 'BAD LEVEL'
+        }
+
+        app.logger.addHandler(mox.IsA(logging.StreamHandler))
+        app.logger.setLevel(logging.INFO)
+        app.logger.critical(mox.IsA(str), 'BAD LEVEL')
+        app.logger.info('Starting Altai API service v%s', mox.IsA(str))
+
+        self.mox.ReplayAll()
+        main.setup_logging(app)
 
