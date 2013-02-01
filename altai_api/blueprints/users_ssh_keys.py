@@ -20,24 +20,16 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import url_for, g, Blueprint, abort
+from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import *
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from openstackclient_base import exceptions as osc_exc
+from altai_api.blueprints.my_ssh_keys import keypair_from_nova
+from altai_api.blueprints.users import fetch_user
 
-my_ssh_keys = Blueprint('my_ssh_keys', __name__)
-
-
-def keypair_from_nova(keypair):
-    return {
-        'href': url_for('my_ssh_keys.get_my_ssh_key',
-                        key_name=keypair.name),
-        'name': keypair.name,
-        'public-key': keypair.public_key,
-        'fingerprint': keypair.fingerprint
-    }
+users_ssh_keys = Blueprint('users_ssh_keys', __name__)
 
 
 _SCHEMA = Schema((
@@ -45,47 +37,48 @@ _SCHEMA = Schema((
     st.String('public-key'),
     st.String('fingerprint')),
 
-    required=('name'),
-    allowed=('public-key')
+    required=('name', 'public-key'),
 )
 
 
-@my_ssh_keys.route('/', methods=('GET',))
-def list_my_ssh_keys():
+@users_ssh_keys.route('/', methods=('GET',))
+def list_users_ssh_keys(user_id):
     parse_collection_request(_SCHEMA)
+    mgr = g.client_set.compute_ext.user_keypairs
+    user = fetch_user(user_id)  # to abort(404) when user not exists
 
-    result = [keypair_from_nova(keypair)
-              for keypair in g.client_set.compute.keypairs.list()]
-
+    result = [keypair_from_nova(keypair) for keypair in mgr.list(user)]
+    parent_href = url_for('users.get_user', user_id=user_id)
     return make_collection_response('ssh-keys', result,
-                                    parent_href=url_for('me.get_current_user'))
+                                    parent_href=parent_href)
 
 
-@my_ssh_keys.route('/<key_name>', methods=('GET',))
-def get_my_ssh_key(key_name):
+@users_ssh_keys.route('/<key_name>', methods=('GET',))
+def get_users_ssh_key(user_id, key_name):
+    mgr = g.client_set.compute_ext.user_keypairs
     try:
-        keypair = g.client_set.compute.keypairs.find(name=key_name)
+        keypair = mgr.get(user_id, key_name)
     except osc_exc.NotFound:
         abort(404)
     return make_json_response(keypair_from_nova(keypair))
 
 
-@my_ssh_keys.route('/', methods=('POST',))
-def create_my_ssh_key():
-    data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
-    kp = g.client_set.compute.keypairs.create(data['name'],
-                                              data.get('public-key'))
+@users_ssh_keys.route('/', methods=('POST',))
+def create_users_ssh_key(user_id):
+    data = parse_request_data(required=_SCHEMA.required)
+    mgr = g.client_set.compute_ext.user_keypairs
+    user = fetch_user(user_id)  # to abort(404) when user not exists
+
+    kp = mgr.create(user, data['name'], data['public-key'])
     set_audit_resource_id(kp.name)
-    result = keypair_from_nova(kp)
-    if hasattr(kp, 'private_key'):
-        result['private-key'] = kp.private_key
-    return make_json_response(result)
+    return make_json_response(keypair_from_nova(kp))
 
 
-@my_ssh_keys.route('/<key_name>', methods=('DELETE',))
-def delete_my_ssh_key(key_name):
+@users_ssh_keys.route('/<key_name>', methods=('DELETE',))
+def delete_users_ssh_key(user_id, key_name):
+    mgr = g.client_set.compute_ext.user_keypairs
     try:
-        g.client_set.compute.keypairs.delete(key_name)
+        mgr.delete(user_id, key_name)
     except osc_exc.NotFound:
         abort(404)
     return make_json_response(None, 204)

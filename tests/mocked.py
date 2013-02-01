@@ -34,6 +34,7 @@ from openstackclient_base.keystone.client import IdentityPublicClient
 from openstackclient_base.nova.client import ComputeClient
 from openstackclient_base.nova.client import VolumeClient
 from openstackclient_base.glance.v1.client import ImageClient
+from openstackclient_base.compute_ext.client import ComputeExtClient
 
 from keystoneclient.v2_0 import endpoints
 from keystoneclient.v2_0 import roles
@@ -66,6 +67,7 @@ from novaclient.v1_1 import volume_types
 
 from openstackclient_base.nova import networks
 from openstackclient_base.nova import fping
+from openstackclient_base.compute_ext import userinfo
 
 from glanceclient.v1 import images
 from glanceclient.v1 import image_members
@@ -183,6 +185,10 @@ def mock_client_set(mox, aliases=False):
         mox, ImageClient,
         images=mock(images.ImageManager),
         image_members=mock(image_members.ImageMemberManager))
+
+    cs.compute_ext = mock_with_attributes(
+        mox, ComputeExtClient,
+        user_keypairs=mock(userinfo.UserKeypairManager))
 
     if aliases:
         # we discourage their use, so we don't add them by default

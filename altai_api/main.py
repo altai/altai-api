@@ -84,6 +84,7 @@ _mount_blueprints((
      ('invites', '/v1/invites'),
      ('audit_log', '/v1/audit-log'),
      ('me', '/v1/me'),
+     ('users_ssh_keys', '/v1/users/<user_id>/ssh-keys'),
      ('my_ssh_keys', '/v1/me/ssh-keys')
 ))
 
