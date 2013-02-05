@@ -35,7 +35,7 @@ from altai_api.utils.parsers import timestamp_from_openstack, int_from_string
 
 from altai_api.authentication import client_set_for_tenant
 from altai_api.blueprints.users import link_for_user, fetch_user
-from altai_api.blueprints.projects import link_for_tenant
+from altai_api.blueprints.projects import link_for_project
 from altai_api.blueprints.images import link_for_image
 
 from altai_api.db.vm_data import VmDataDAO
@@ -56,7 +56,7 @@ def link_for_server(server):
 
 def _vm_from_nova(server):
     client = g.client_set
-    tenant = client.identity_admin.tenants.get(server.tenant_id)
+    project_link = link_for_project(server.tenant_id)
     flavor = client.compute.flavors.get(server.flavor['id'])
     user = fetch_user(server.user_id)
     vmdata = VmDataDAO.get(server.id)
@@ -65,7 +65,7 @@ def _vm_from_nova(server):
         u'id': server.id,
         u'href': url_for('vms.get_vm', vm_id=server.id),
         u'name': server.name,
-        u'project': link_for_tenant(tenant),
+        u'project': project_link,
         u'created-by': link_for_user(user),
         u'image': link_for_image(server.image['id']),
         u'instance-type': {

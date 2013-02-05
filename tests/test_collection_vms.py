@@ -35,49 +35,51 @@ from altai_api.blueprints import vms
 class VmFromNovaTestCase(MockedTestCase):
     maxDiff = None
 
-    def test_vm_from_nova_works(self):
-        self.mox.StubOutWithMock(vms, 'VmDataDAO')
+    def setUp(self):
+        super(VmFromNovaTestCase, self).setUp()
 
-        # DATA
-        vm = doubles.make(self.mox, doubles.Server,
-                          id=u'VMID',
-                          name=u'test vm',
-                          user_id=u'UID',
-                          tenant_id=u'TENANT',
-                          addresses={
-                              u'some-network': [
-                                  {
-                                      u'version': 4,
-                                      u'addr': u'10.5.1.3'
-                                  },
-                                  {
-                                      u'version': 6,
-                                      u'addr': u'::1'
-                                  }
-                              ]
-                          },
-                          accessIPv4=u'',
-                          accessIPv6=u'',
-                          image={ u'id': u'IMAGE', },
-                          flavor={ u'id': u'1', },
-                          status=u'BUILD',
-                          updated=u'2012-12-12T06:20:37Z',
-                          hostId=u'6186525952c6568e1f6f5ae666c6',
-                          key_name=u'',
-                          created=u'2012-12-12T06:20:27Z',
-                          metadata={})
-        tenant = doubles.make(self.mox, doubles.Tenant,
+        self.mox.StubOutWithMock(vms, 'VmDataDAO')
+        self.vm = doubles.make(
+            self.mox, doubles.Server,
+            id=u'VMID',
+            name=u'test vm',
+            user_id=u'UID',
+            tenant_id=u'TENANT',
+            addresses={
+                u'some-network': [
+                    {
+                        u'version': 4,
+                        u'addr': u'10.5.1.3'
+                    },
+                    {
+                        u'version': 6,
+                        u'addr': u'::1'
+                    }
+                ]
+            },
+            accessIPv4=u'',
+            accessIPv6=u'',
+            image={ u'id': u'IMAGE', },
+            flavor={ u'id': u'1', },
+            status=u'BUILD',
+            updated=u'2012-12-12T06:20:37Z',
+            hostId=u'6186525952c6568e1f6f5ae666c6',
+            key_name=u'',
+            created=u'2012-12-12T06:20:27Z',
+            metadata={})
+        self.tenant = doubles.make(self.mox, doubles.Tenant,
                               name=u'test project', id=u'TENANT')
-        flavor = doubles.make(self.mox, doubles.Flavor,
+        self.flavor = doubles.make(self.mox, doubles.Flavor,
                               name=u'test instance type', id=u'1')
-        user = doubles.make(self.mox, doubles.User,
+        self.user = doubles.make(self.mox, doubles.User,
                             name=u'test user', id=u'UID')
-        image = doubles.make(self.mox, doubles.Image,
+        self.image = doubles.make(self.mox, doubles.Image,
                              name=u'test image', id=u'IMAGE')
-        vmdata = VmData(vm_id=u'VMID',
+        self.vmdata = VmData(vm_id=u'VMID',
                         expires_at=datetime(2012, 12, 11, 10, 9, 8),
                         remind_at=datetime(2012, 12, 10, 8, 6, 4))
 
+    def test_vm_from_nova_works(self):
         expected = {
             u'id': u'VMID',
             u'href': '/v1/vms/VMID',
@@ -118,17 +120,38 @@ class VmFromNovaTestCase(MockedTestCase):
 
         # ACTION
         client = self.fake_client_set
-        client.identity_admin.tenants.get(u'TENANT').AndReturn(tenant)
-        client.compute.flavors.get(u'1').AndReturn(flavor)
-        client.identity_admin.users.get(u'UID').AndReturn(user)
-        client.image.images.get(u'IMAGE').AndReturn(image)
-        vms.VmDataDAO.get(u'VMID').AndReturn(vmdata)
+        client.identity_admin.tenants.get(u'TENANT').AndReturn(self.tenant)
+        client.compute.flavors.get(u'1').AndReturn(self.flavor)
+        client.identity_admin.users.get(u'UID').AndReturn(self.user)
+        client.image.images.get(u'IMAGE').AndReturn(self.image)
+        vms.VmDataDAO.get(u'VMID').AndReturn(self.vmdata)
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            result = vms._vm_from_nova(vm)
+            result = vms._vm_from_nova(self.vm)
         self.assertEquals(result, expected)
+
+    def test_vm_from_nova_no_tenant(self):
+        expected_project = {
+            'id': 'TENANT',
+            'href': '/v1/projects/%s' % 'TENANT',
+            'name': None
+        }
+        # ACTION
+        client = self.fake_client_set
+        client.identity_admin.tenants.get(u'TENANT')\
+                .AndRaise(osc_exc.NotFound('deleted'))
+        client.compute.flavors.get(u'1').AndReturn(self.flavor)
+        client.identity_admin.users.get(u'UID').AndReturn(self.user)
+        client.image.images.get(u'IMAGE').AndReturn(self.image)
+        vms.VmDataDAO.get(u'VMID').AndReturn(self.vmdata)
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = vms._vm_from_nova(self.vm)
+        self.assertEquals(result['project'], expected_project)
 
 
 class VmsListTestCase(MockedTestCase):

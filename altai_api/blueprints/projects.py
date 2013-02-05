@@ -46,8 +46,11 @@ def link_for_project(project_id, project_name=None):
 
     """
     if project_name is None:
-        tenant = g.client_set.identity_admin.tenants.get(project_id)
-        project_name = tenant.name
+        try:
+            tenant = g.client_set.identity_admin.tenants.get(project_id)
+            project_name = tenant.name
+        except osc_exc.NotFound:
+            project_name = None
     return {
         u'id': project_id,
         u'name': project_name,
