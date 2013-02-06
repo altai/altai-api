@@ -400,10 +400,21 @@ class DeleteProjectTestCase(MockedTestCase):
         self.mox.ReplayAll()
         self.interact(expected_status_code=404)
 
+    def test_project_deletion_with_servers_fails(self):
+        tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
+        self.fake_client_set.identity_admin \
+            .tenants.get(self.tenant_id).AndReturn(tenant)
+        self.fake_client_set.compute.servers.list(search_opts={
+            'project_id': tenant.id,
+            'all_tenants': 1
+        }).AndReturn(['s1', 's2', 's3'])
+
+        self.mox.ReplayAll()
+        data = self.interact(expected_status_code=400)
+        self.assertTrue('VMs' in data['message'])
+
     def test_project_deletion_works(self):
         tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
-        servers = [doubles.make(self.mox, doubles.Server, id=vmid)
-                   for vmid in ('vm1', 'vm2', 'vm3')]
         nets = [
             self._net(id='n1', project_id=self.tenant_id),
             self._net(id='n2', project_id=u'other'),
@@ -415,10 +426,7 @@ class DeleteProjectTestCase(MockedTestCase):
         self.fake_client_set.compute.servers.list(search_opts={
             'project_id': tenant.id,
             'all_tenants': 1
-        }).AndReturn(servers)
-        servers[0].delete()
-        servers[1].delete()
-        servers[2].delete()
+        }).AndReturn([])
 
         self.fake_client_set.compute.networks.list().AndReturn(nets)
         self.fake_client_set.compute.networks.disassociate(nets[0])

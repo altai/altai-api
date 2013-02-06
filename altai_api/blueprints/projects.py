@@ -235,9 +235,11 @@ def delete_project(project_id):
     set_audit_resource_id(project_id)
     tenant = get_tenant(project_id)
 
-    # kill all vms
-    for server in _servers_for_project(tenant.id):
-        server.delete()
+    # NOTE(imelnikov): server deletion in OpenStack is asynchronous and
+    #   takes a lot of time, so to avoid races we don't delete them here
+    if _servers_for_project(tenant.id):
+        raise exc.InvalidRequest("Can't delete project "
+                                 "while there are VMs")
 
     # detach all networks
     net_client = g.client_set.compute.networks
