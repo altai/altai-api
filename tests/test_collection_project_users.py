@@ -36,11 +36,8 @@ class ListProjectUsersTestCase(MockedTestCase):
 
     def test_list_works(self):
         project_id = u'PID'
-        tenant = doubles.make(self.mox, doubles.Tenant, id=project_id)
-        client = self.fake_client_set
-
-        client.identity_admin.tenants.get(project_id).AndReturn(tenant)
-        tenant.list_users().AndReturn(['U1', 'U2'])
+        self.fake_client_set.identity_admin\
+                .tenants.list_users(u'PID').AndReturn(['U1', 'U2'])
         project_users.link_for_user('U1').AndReturn(u'D1')
         project_users.link_for_user('U2').AndReturn(u'D2')
 
@@ -60,9 +57,15 @@ class ListProjectUsersTestCase(MockedTestCase):
 
     def test_list_no_project(self):
         project_id = u'PID'
-        self.fake_client_set.identity_admin.tenants.get(project_id)\
+        self.fake_client_set.identity_admin.tenants.list_users(u'PID') \
                 .AndRaise(osc_exc.NotFound('failure'))
 
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/projects/%s/users/' % project_id)
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_list_systenant_404(self):
+        project_id = u'SYSTENANT_ID'  # default_tenant_id() in our setup
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/projects/%s/users/' % project_id)
         self.check_and_parse_response(rv, status_code=404)
@@ -72,14 +75,12 @@ class GetProjectUserTestCase(MockedTestCase):
 
     def test_get_works(self):
         project_id = u'PID'
-        tenant = doubles.make(self.mox, doubles.Tenant, id=project_id)
         users = [doubles.make(self.mox, doubles.User,
                               id=uid, name=(uid + ' name'))
                  for uid in (u'U1', u'U2', u'U3')]
-        client = self.fake_client_set
 
-        client.identity_admin.tenants.get(project_id).AndReturn(tenant)
-        tenant.list_users().AndReturn(users)
+        self.fake_client_set.identity_admin\
+                .tenants.list_users(u'PID').AndReturn(users)
 
         expected = {
             u'id': u'U2',
@@ -94,7 +95,7 @@ class GetProjectUserTestCase(MockedTestCase):
 
     def test_get_no_project(self):
         project_id = u'PID'
-        self.fake_client_set.identity_admin.tenants.get(project_id)\
+        self.fake_client_set.identity_admin.tenants.list_users(u'PID') \
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
@@ -103,24 +104,22 @@ class GetProjectUserTestCase(MockedTestCase):
 
     def test_get_no_user(self):
         project_id = u'PID'
-        tenant = doubles.make(self.mox, doubles.Tenant, id=project_id)
         users = [doubles.make(self.mox, doubles.User,
                               id=uid, name=(uid + ' name'))
                  for uid in (u'U1', u'U2', u'U3')]
-        client = self.fake_client_set
 
-        client.identity_admin.tenants.get(project_id).AndReturn(tenant)
-        tenant.list_users().AndReturn(users)
+        self.fake_client_set.identity_admin\
+                .tenants.list_users(u'PID').AndReturn(users)
 
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/projects/%s/users/OTHER' % project_id)
         self.check_and_parse_response(rv, status_code=404)
 
 
-class AddAndRemoveProjectUserTestCase(MockedTestCase):
+class AddProjectUserTestCase(MockedTestCase):
 
     def setUp(self):
-        super(AddAndRemoveProjectUserTestCase, self).setUp()
+        super(AddProjectUserTestCase, self).setUp()
         self.project_id = u'PID'
         self.user_id = u'UID'
         self.tenant = doubles.make(self.mox, doubles.Tenant,
@@ -151,6 +150,60 @@ class AddAndRemoveProjectUserTestCase(MockedTestCase):
                               data=json.dumps(params))
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
+
+    def test_add_tenant_suddenly_removed(self):
+        ia = self.fake_client_set.identity_admin
+
+        ia.tenants.get(self.project_id).AndReturn(self.tenant)
+        ia.users.get(self.user_id).AndReturn(self.user)
+        ia.roles.list().AndReturn([
+            doubles.make(self.mox, doubles.Role, id=u'AR', name=u'admin'),
+            doubles.make(self.mox, doubles.Role, id=u'MR', name=u'member')
+        ])
+        self.tenant.add_user(self.user_id, u'MR') \
+                .AndRaise(osc_exc.NotFound('failure'))
+        ia.users.get(self.user_id).AndReturn(self.user)
+
+        self.mox.ReplayAll()
+        params = {'id': self.user_id}
+        rv = self.client.post('/v1/projects/%s/users/' % self.project_id,
+                              content_type='application/json',
+                              data=json.dumps(params))
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_add_user_suddenly_removed(self):
+        ia = self.fake_client_set.identity_admin
+
+        ia.tenants.get(self.project_id).AndReturn(self.tenant)
+        ia.users.get(self.user_id).AndReturn(self.user)
+        ia.roles.list().AndReturn([
+            doubles.make(self.mox, doubles.Role, id=u'AR', name=u'admin'),
+            doubles.make(self.mox, doubles.Role, id=u'MR', name=u'member')
+        ])
+        self.tenant.add_user(self.user_id, u'MR') \
+                .AndRaise(osc_exc.NotFound('failure'))
+        ia.users.get(self.user_id).AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        params = {'id': self.user_id}
+        rv = self.client.post('/v1/projects/%s/users/' % self.project_id,
+                              content_type='application/json',
+                              data=json.dumps(params))
+        self.check_and_parse_response(rv, status_code=400)
+
+    def test_add_no_users(self):
+        ia = self.fake_client_set.identity_admin
+
+        ia.tenants.get(self.project_id).AndReturn(self.tenant)
+        ia.users.get(self.user_id) \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        params = {'id': self.user_id}
+        rv = self.client.post('/v1/projects/%s/users/' % self.project_id,
+                              content_type='application/json',
+                              data=json.dumps(params))
+        self.check_and_parse_response(rv, status_code=400)
 
     def test_add_name_rejected(self):
         self.mox.ReplayAll()
@@ -183,16 +236,77 @@ class AddAndRemoveProjectUserTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv, status_code=500)
         self.assertTrue('role not found' in data.get('message').lower())
 
+
+class RemoveProjectUserTestCase(MockedTestCase):
+
+    def setUp(self):
+        super(RemoveProjectUserTestCase, self).setUp()
+        self.project_id = u'PID'
+        self.user_id = u'UID'
+        self.tenant = doubles.make(self.mox, doubles.Tenant,
+                                   id=self.project_id)
+        self.roles = [
+            doubles.make(self.mox, doubles.Role, id=u'AR', name=u'admin'),
+            doubles.make(self.mox, doubles.Role, id=u'MR', name=u'member')
+        ]
+
     def test_remove_works(self):
         ia = self.fake_client_set.identity_admin
 
         ia.tenants.get(self.project_id).AndReturn(self.tenant)
-        ia.users.get(self.user_id).AndReturn(self.user)
-        self.user.list_roles(self.tenant).AndReturn([
-            doubles.make(self.mox, doubles.Role, id=u'AR', name=u'admin'),
-            doubles.make(self.mox, doubles.Role, id=u'MR', name=u'member')
-        ])
+        ia.users.list_roles(self.user_id, self.project_id)\
+                .AndReturn(self.roles)
         self.tenant.remove_user(u'UID', u'AR')
+        self.tenant.remove_user(u'UID', u'MR')
+
+        self.mox.ReplayAll()
+        rv = self.client.delete('/v1/projects/%s/users/%s'
+                                % (self.project_id, self.user_id))
+        self.check_and_parse_response(rv, status_code=204)
+
+    def test_remove_no_tenant(self):
+        ia = self.fake_client_set.identity_admin
+
+        ia.tenants.get(self.project_id) \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.delete('/v1/projects/%s/users/%s'
+                                % (self.project_id, self.user_id))
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_remove_no_user(self):
+        ia = self.fake_client_set.identity_admin
+
+        ia.tenants.get(self.project_id).AndReturn(self.tenant)
+        ia.users.list_roles(self.user_id, self.project_id)\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.delete('/v1/projects/%s/users/%s'
+                                % (self.project_id, self.user_id))
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_remove_no_roles(self):
+        ia = self.fake_client_set.identity_admin
+
+        ia.tenants.get(self.project_id).AndReturn(self.tenant)
+        ia.users.list_roles(self.user_id, self.project_id)\
+                .AndReturn([])
+
+        self.mox.ReplayAll()
+        rv = self.client.delete('/v1/projects/%s/users/%s'
+                                % (self.project_id, self.user_id))
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_remove_late_not_found(self):
+        ia = self.fake_client_set.identity_admin
+
+        ia.tenants.get(self.project_id).AndReturn(self.tenant)
+        ia.users.list_roles(self.user_id, self.project_id)\
+                .AndReturn(self.roles)
+        self.tenant.remove_user(u'UID', u'AR') \
+                .AndRaise(osc_exc.NotFound('failure'))
         self.tenant.remove_user(u'UID', u'MR')
 
         self.mox.ReplayAll()

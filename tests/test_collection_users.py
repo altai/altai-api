@@ -501,6 +501,22 @@ class UsersCollectionTestCase(MockedTestCase):
 
         self.check_and_parse_response(rv, status_code=404)
 
+    def test_update_user_late_not_found(self):
+        ia = self.fake_client_set.identity_admin
+        # prepare
+        (name, email, passw) = ('user-upd', 'user-upd@example.com', 'orange')
+
+        ia.users.get('new-user').AndReturn('new-user')
+        ia.users.update('new-user', name=name, email=email) \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        post_params = { "name": name, "email": email, "password": passw }
+        rv = self.client.put('/v1/users/new-user',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+        self.check_and_parse_response(rv, status_code=404)
+
     def test_update_grant_admin(self):
         client = self.fake_client_set
         uid = u'user-a'

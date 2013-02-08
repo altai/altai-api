@@ -501,8 +501,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_reboot_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
-        s.reboot(REBOOT_SOFT)
+        self.fake_client_set.compute.servers.reboot(s.id, REBOOT_SOFT)
         self.fake_client_set.compute.servers.get(s.id).AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
 
@@ -511,7 +510,7 @@ class ActionsTestCase(MockedTestCase):
         self.assertEquals(data, 'REPLY')
 
     def test_reboot_not_found(self):
-        self.fake_client_set.compute.servers.get(u'VMID')\
+        self.fake_client_set.compute.servers.reboot('VMID', REBOOT_SOFT) \
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
@@ -528,8 +527,7 @@ class ActionsTestCase(MockedTestCase):
     #  there is no need to repeat all that tests once again
     def test_reset_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
-        s.reboot(REBOOT_HARD)
+        self.fake_client_set.compute.servers.reboot(s.id, REBOOT_HARD)
         self.fake_client_set.compute.servers.get(s.id).AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
 
@@ -539,8 +537,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_remove_vm_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
-        s.delete()
+        self.fake_client_set.compute.servers.delete(s.id)
         vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id).AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
@@ -551,8 +548,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_remove_vm_fast(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
-        s.delete()
+        self.fake_client_set.compute.servers.delete(s.id)
         vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id)\
                 .AndRaise(osc_exc.NotFound('gone'))
@@ -563,7 +559,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_remove_vm_not_found(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id)\
+        self.fake_client_set.compute.servers.delete(s.id) \
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
@@ -579,8 +575,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_delete_vm_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
-        s.delete()
+        self.fake_client_set.compute.servers.delete(s.id)
         vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id)\
                 .AndRaise(osc_exc.NotFound('gone'))
@@ -591,8 +586,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_delete_vm_pretends_waiting(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
-        s.delete()
+        self.fake_client_set.compute.servers.delete(s.id)
         vms.VmDataDAO.delete(s.id)
         self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
 
@@ -647,6 +641,17 @@ class ActionsTestCase(MockedTestCase):
         self.interact('/v1/vms/%s/console-output' % s.id, {},
                       expected_status_code=404)
 
+    def test_console_output_late_not_found(self):
+        s = self.server
+
+        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        s.get_console_output(length=None) \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        self.interact('/v1/vms/%s/console-output' % s.id, {},
+                      expected_status_code=404)
+
     def test_vnc_works(self):
         s = self.server
         expected = {
@@ -674,6 +679,16 @@ class ActionsTestCase(MockedTestCase):
     def test_vnc_not_found(self):
         s = self.server
         self.fake_client_set.compute.servers.get(s.id)\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        self.interact('/v1/vms/%s/vnc' % s.id, {},
+                      expected_status_code=404)
+
+    def test_vnc_late_not_found(self):
+        s = self.server
+        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        s.get_vnc_console(console_type='novnc')\
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()

@@ -216,8 +216,11 @@ def update_vm(vm_id):
 
 def _do_remove_vm(vm_id):
     """The real VM removal implementation"""
-    server = fetch_vm(vm_id)
-    server.delete()
+    try:
+        g.client_set.compute.servers.delete(vm_id)
+    except osc_exc.NotFound:
+        abort(404)
+
     VmDataDAO.delete(vm_id)
     try:
         return fetch_vm(vm_id)
@@ -257,9 +260,10 @@ def _do_reboot_vm(vm_id, method):
     """
     set_audit_resource_id(vm_id)
     parse_request_data()
-    server = fetch_vm(vm_id)
-    server.reboot(method)
-    # TODO(imelnikov): error handling
+    try:
+        g.client_set.compute.servers.reboot(vm_id, method)
+    except osc_exc.NotFound:
+        abort(404)
     # Fetch it again, with new status:
     return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
 
@@ -277,10 +281,15 @@ def reset_vm(vm_id):
 @vms.route('/<vm_id>/console-output', methods=('POST',))
 def vm_console_output(vm_id):
     set_audit_resource_id(vm_id)
-    server = fetch_vm(vm_id)
     length = int_from_string(request.args.get('length'), allow_none=True)
     g.unused_args.discard('length')
-    data = server.get_console_output(length=length)
+
+    try:
+        server = fetch_vm(vm_id)
+        data = server.get_console_output(length=length)
+    except osc_exc.NotFound:
+        abort(404)
+
     return make_json_response({
         'vm': link_for_server(server),
         'console-output': data
@@ -290,8 +299,13 @@ def vm_console_output(vm_id):
 @vms.route('/<vm_id>/vnc', methods=('POST',))
 def vm_vnc_console(vm_id):
     set_audit_resource_id(vm_id)
-    server = fetch_vm(vm_id)
-    vnc = server.get_vnc_console(console_type='novnc')['console']
+
+    try:
+        server = fetch_vm(vm_id)
+        vnc = server.get_vnc_console(console_type='novnc')['console']
+    except osc_exc.NotFound:
+        abort(404)
+
     return make_json_response({
         'vm': link_for_server(server),
         'url': vnc['url'],

@@ -192,6 +192,23 @@ class FwRulesTestCase(MockedTestCase):
                                 % (sg.id, ruleid))
         self.check_and_parse_response(rv, 404)
 
+    def test_delete_late_not_found(self):
+        ruleid = u'2'
+        rules = [{ u'id': 1, u'FAKE': u'fst' },
+                 { u'id': 2, u'FAKE': u'snd' },
+                 { u'id': 4, u'FAKE': u'lst' }]
+
+        sg = doubles.make(self.mox, doubles.SecurityGroup,
+                          id=u'42', name='Test SG', rules=rules)
+        self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
+        self.fake_client_set.compute.security_group_rules.delete(ruleid)\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s'
+                                % (sg.id, ruleid))
+        self.check_and_parse_response(rv, 204)
+
 
 class CreateRuleTestCase(MockedTestCase):
     sgid = u'42'

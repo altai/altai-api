@@ -65,13 +65,10 @@ def fetch_user(user_id):
 
 def member_role_id():
     """Get ID of member role that is used to add member to project"""
-    roles = g.client_set.identity_admin.roles.list()
-    try:
-        return (role.id
-                for role in roles
-                if role.name.lower() == 'member').next()
-    except StopIteration:
-        raise RuntimeError('Server misconfiguration: role not found')
+    for role in g.client_set.identity_admin.roles.list():
+        if role.name.lower() == 'member':
+            return role.id
+    raise RuntimeError('Server misconfiguration: role not found')
 
 
 def user_from_nova(user, invite=None, send_code=False):
@@ -234,11 +231,14 @@ def update_user_data(user, data):
     for key in ('name', 'email', 'fullname', 'enabled'):
         if key in data:
             fields_to_update[key] = data[key]
-    if fields_to_update:
-        user_mgr.update(user, **fields_to_update)
 
-    if 'password' in data:
-        user_mgr.update_password(user, data['password'])
+    try:
+        if fields_to_update:
+            user_mgr.update(user, **fields_to_update)
+        if 'password' in data:
+            user_mgr.update_password(user, data['password'])
+    except osc_exc.NotFound:
+        abort(404)
 
 
 @users.route('/<user_id>', methods=('PUT',))

@@ -22,6 +22,7 @@
 from flask import url_for, g, Blueprint, abort
 
 from altai_api.utils import *
+from altai_api.utils.parsers import int_from_string
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -37,26 +38,24 @@ from altai_api.blueprints.fw_rule_sets import link_for_security_group
 vm_fw_rule_sets = Blueprint('vm_fw_rule_sets', __name__)
 
 
-# NOTE(imelnikov): Next function asks for server so client have to fetch
-# server before calling it, because nova returns error 500 on invalid
-# server id which is really hard to distinguish from real errors.
-def _security_groups_for_server(server):
-    return g.client_set.compute.security_groups._list(
-        '/servers/%s/os-security-groups' % server.id, 'security_groups')
-
-
-def _find_sg_on_server(server, set_id):
+def _security_groups_for_server(vm_id):
     try:
-        sg_id = int(set_id)
-    except ValueError:
-        abort(404)
+        return g.client_set.compute.security_groups._list(
+            '/servers/%s/os-security-groups' % vm_id,
+            'security_groups')
+    except osc_exc.HttpException:
+        fetch_vm(vm_id)  # check that server exists; if not, abort(404)
+        raise            # if server exists, re-raise: it was other error
 
-    secgroups = _security_groups_for_server(server)
-    try:
-        sg = (sg for sg in secgroups if sg.id == sg_id).next()
-    except StopIteration:
-        abort(404)
-    return sg
+
+def _find_sg_on_server(vm_id, set_id):
+    # ids are (sic!) ints
+    sg_id = int_from_string(set_id,
+                            on_error=lambda value_: abort(404))
+    for sg in _security_groups_for_server(vm_id):
+        if sg.id == sg_id:
+            return sg
+    abort(404)
 
 
 _SCHEMA = Schema((
@@ -70,9 +69,8 @@ _SCHEMA = Schema((
 @vm_fw_rule_sets.route('/', methods=('GET',))
 def list_vm_fw_rule_sets(vm_id):
     parse_collection_request(_SCHEMA)
-    server = fetch_vm(vm_id)
     result = [link_for_security_group(sg)
-              for sg in _security_groups_for_server(server)]
+              for sg in _security_groups_for_server(vm_id)]
     parent_href = url_for('vms.get_vm', vm_id=vm_id)
     return make_collection_response(u'fw-rule-sets', result,
                                     parent_href=parent_href)
@@ -80,8 +78,7 @@ def list_vm_fw_rule_sets(vm_id):
 
 @vm_fw_rule_sets.route('/<set_id>', methods=('GET',))
 def get_vm_fw_rule_set(vm_id, set_id):
-    server = fetch_vm(vm_id)
-    sg = _find_sg_on_server(server, set_id)
+    sg = _find_sg_on_server(vm_id, set_id)
     return make_json_response(link_for_security_group(sg))
 
 
@@ -106,12 +103,16 @@ def add_vm_fw_rule_set(vm_id):
 @vm_fw_rule_sets.route('/<set_id>', methods=('DELETE',))
 def remove_vm_fw_rule_set(vm_id, set_id):
     server = fetch_vm(vm_id)
-    sg = _find_sg_on_server(server, set_id)
+    sg = _find_sg_on_server(vm_id, set_id)
     tcs = client_set_for_tenant(server.tenant_id)
 
     try:
         tcs.compute.servers.remove_security_group(server, sg.name)
     except osc_exc.BadRequest, e:
         raise exc.InvalidRequest(str(e))
+    except osc_exc.HttpException:
+        _find_sg_on_server(vm_id, set_id)  # to abort(404) vm or sg gone
+        raise
+
     return make_json_response(None, status_code=204)
 

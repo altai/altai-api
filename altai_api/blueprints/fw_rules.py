@@ -140,6 +140,9 @@ def delete_fw_rule(fw_rule_set_id, rule_id):
     set_audit_resource_id(rule_id)
     # we check that group exists and has given rule by looking for it there
     _find_rule(fw_rule_set_id, rule_id)
-    g.client_set.compute.security_group_rules.delete(rule_id)
+    try:
+        g.client_set.compute.security_group_rules.delete(rule_id)
+    except osc_exc.NotFound:
+        pass  # already deleted by someone else
     return make_json_response(None, 204)
 

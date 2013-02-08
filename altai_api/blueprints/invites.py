@@ -19,10 +19,11 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import Blueprint, abort
+from flask import Blueprint, abort, g
+from openstackclient_base import exceptions as osc_exc
 
 from altai_api.blueprints.users import (user_from_nova, fetch_user,
-                                        update_user_data, InvitesDAO)
+                                        InvitesDAO)
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -66,10 +67,15 @@ _ACCEPT_REQUIRES = Schema((
 @no_auth_endpoint
 def accept_invite(code):
     data = parse_request_data(_ACCEPT_SCHEMA, _ACCEPT_REQUIRES)
-
     invite, user = _invite_and_user(code)
-    data['enabled'] = True
-    update_user_data(user, data)
+
+    try:
+        user_mgr = g.client_set.identity_admin.users
+        user_mgr.update(user.id, enabled=True)
+        user_mgr.update_password(user.id, data['password'])
+    except osc_exc.NotFound:
+        abort(404)
+
     InvitesDAO.complete_for_user(user.id)
 
     # fetch updated user:

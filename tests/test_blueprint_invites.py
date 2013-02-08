@@ -38,7 +38,6 @@ class InvitesTestCase(MockedTestCase):
         super(InvitesTestCase, self).setUp()
         self.mox.StubOutWithMock(invites, 'InvitesDAO')
         self.mox.StubOutWithMock(invites, 'user_from_nova')
-        self.mox.StubOutWithMock(invites, 'update_user_data')
 
         self.code = '42'
         self.token = Token(code=self.code,
@@ -95,15 +94,12 @@ class InvitesTestCase(MockedTestCase):
 
     def test_accept_works(self):
         params = { 'password': '123' }
-        update_params = {
-            'password': '123',
-            'enabled': True
-        }
         user_mgr = self.fake_client_set.identity_admin.users
 
         invites.InvitesDAO.get(self.code).AndReturn(self.token)
         user_mgr.get(self.user.id).AndReturn(self.user)
-        invites.update_user_data(self.user, update_params)
+        user_mgr.update(self.user.id, enabled=True)
+        user_mgr.update_password(self.user.id, '123')
         invites.InvitesDAO.complete_for_user(self.user.id)
 
         user_mgr.get(self.user.id).AndReturn('USER')
@@ -115,6 +111,21 @@ class InvitesTestCase(MockedTestCase):
                              content_type='application/json')
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'REPLY')
+
+    def test_accept_late_not_found(self):
+        params = { 'password': '123' }
+        user_mgr = self.fake_client_set.identity_admin.users
+
+        invites.InvitesDAO.get(self.code).AndReturn(self.token)
+        user_mgr.get(self.user.id).AndReturn(self.user)
+        user_mgr.update(self.user.id, enabled=True)\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.put('/v1/invites/%s' % self.code,
+                             data=json.dumps(params),
+                             content_type='application/json')
+        self.check_and_parse_response(rv, status_code=404)
 
     def test_accept_no_password(self):
         self.mox.ReplayAll()

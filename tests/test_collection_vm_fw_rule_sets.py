@@ -44,9 +44,7 @@ class VmRuleSetsTestCase(MockedTestCase):
     def test_list_works(self):
         self.mox.StubOutWithMock(vm_fw_rule_sets, 'link_for_security_group')
 
-        compute = self.fake_client_set.compute
-        compute.servers.get(self.server.id).AndReturn(self.server)
-        compute.security_groups._list(
+        self.fake_client_set.compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([u'SG1', u'SG2', u'SG3'])
 
@@ -69,16 +67,28 @@ class VmRuleSetsTestCase(MockedTestCase):
         self.assertEquals(data, expected)
 
     def test_list_not_found(self):
+        self.fake_client_set.compute.security_groups._list(
+            '/servers/%s/os-security-groups' % self.server.id,
+            'security_groups') \
+                .AndRaise(osc_exc.HttpException('something happened'))
         self.fake_client_set.compute.servers.get(self.server.id) \
                 .AndRaise(osc_exc.NotFound('failure'))
         self.mox.ReplayAll()
         rv = self.client.get('/v1/vms/%s/fw-rule-sets/' % self.server.id)
         self.check_and_parse_response(rv, status_code=404)
 
+    def test_list_other_error(self):
+        self.fake_client_set.compute.security_groups._list(
+            '/servers/%s/os-security-groups' % self.server.id,
+            'security_groups') \
+                .AndRaise(osc_exc.HttpException('something happened'))
+        self.fake_client_set.compute.servers.get(self.server.id)
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/vms/%s/fw-rule-sets/' % self.server.id)
+        self.check_and_parse_response(rv, status_code=500)
+
     def test_get_works(self):
-        compute = self.fake_client_set.compute
-        compute.servers.get(self.server.id).AndReturn(self.server)
-        compute.security_groups._list(
+        self.fake_client_set.compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([self.sg2, self.sg])
         expected = {
@@ -95,6 +105,10 @@ class VmRuleSetsTestCase(MockedTestCase):
         self.assertEquals(data, expected)
 
     def test_get_vm_not_found(self):
+        self.fake_client_set.compute.security_groups._list(
+            '/servers/%s/os-security-groups' % self.server.id,
+            'security_groups') \
+                .AndRaise(osc_exc.HttpException('something happened'))
         self.fake_client_set.compute.servers.get(self.server.id) \
                 .AndRaise(osc_exc.NotFound('failure'))
 
@@ -105,7 +119,6 @@ class VmRuleSetsTestCase(MockedTestCase):
 
     def test_get_no_sg(self):
         compute = self.fake_client_set.compute
-        compute.servers.get(self.server.id).AndReturn(self.server)
         compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([self.sg2, self.sg])
@@ -116,9 +129,6 @@ class VmRuleSetsTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=404)
 
     def test_get_bad_sg(self):
-        compute = self.fake_client_set.compute
-        compute.servers.get(self.server.id).AndReturn(self.server)
-
         self.mox.ReplayAll()
         rv = self.client.get('/v1/vms/%s/fw-rule-sets/%s'
                              % (self.server.id, 'not an int'))
@@ -264,4 +274,22 @@ class RemoveFwRuleSetFromVMTestCase(MockedTestCase):
         self.mox.ReplayAll()
         self.interact(expected_status_code=400)
 
+    def test_remove_other_failure(self):
+        compute = self.fake_client_set.compute
+
+        compute.servers.get(self.server.id).AndReturn(self.server)
+        compute.security_groups._list(
+            '/servers/%s/os-security-groups' % self.server.id,
+            'security_groups').AndReturn([self.sg])
+        vm_fw_rule_sets.client_set_for_tenant(u'FWPROJECT')\
+                .AndReturn(self.tcs)
+        self.tcs.compute.servers.remove_security_group(
+            self.server, self.sg.name) \
+                .AndRaise(osc_exc.HttpException('failure'))
+        compute.security_groups._list(
+            '/servers/%s/os-security-groups' % self.server.id,
+            'security_groups').AndReturn([self.sg])
+
+        self.mox.ReplayAll()
+        self.interact(expected_status_code=500)
 

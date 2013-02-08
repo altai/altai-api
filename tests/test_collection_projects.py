@@ -400,6 +400,38 @@ class DeleteProjectTestCase(MockedTestCase):
         self.mox.ReplayAll()
         self.interact(expected_status_code=404)
 
+    def test_project_deletion_works(self):
+        tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
+
+        self.fake_client_set.identity_admin \
+            .tenants.get(self.tenant_id).AndReturn(tenant)
+        self.fake_client_set.compute.servers.list(search_opts={
+            'project_id': tenant.id,
+            'all_tenants': 1
+        }).AndReturn([])
+        self.fake_client_set.compute.networks.list().AndReturn([])
+
+        tenant.delete()
+
+        self.mox.ReplayAll()
+        self.interact(expected_status_code=204)
+
+    def test_project_deletion_late_not_found(self):
+        tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
+
+        self.fake_client_set.identity_admin \
+            .tenants.get(self.tenant_id).AndReturn(tenant)
+        self.fake_client_set.compute.servers.list(search_opts={
+            'project_id': tenant.id,
+            'all_tenants': 1
+        }).AndReturn([])
+        self.fake_client_set.compute.networks.list().AndReturn([])
+
+        tenant.delete().AndRaise(osc_exc.NotFound('deleted'))
+
+        self.mox.ReplayAll()
+        self.interact(expected_status_code=204)
+
     def test_project_deletion_with_servers_fails(self):
         tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
         self.fake_client_set.identity_admin \
@@ -413,7 +445,7 @@ class DeleteProjectTestCase(MockedTestCase):
         data = self.interact(expected_status_code=400)
         self.assertTrue('VMs' in data['message'])
 
-    def test_project_deletion_works(self):
+    def test_project_deletion_with_networks(self):
         tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
         nets = [
             self._net(id='n1', project_id=self.tenant_id),
@@ -481,6 +513,21 @@ class UpdateProjectTestCase(MockedTestCase):
         self.mox.ReplayAll()
         data = self.interact({'description': updated.description})
         self.assertEquals(data, 'UPDATED')
+
+    def test_update_project_late_not_found(self):
+        description = 'new description'
+        tenant = doubles.make(self.mox, doubles.Tenant,
+                              id=self.tenant_id, name='old name',
+                              description='old description')
+
+        self.fake_client_set.identity_admin \
+            .tenants.get(self.tenant_id).AndReturn(tenant)
+        tenant.update(description=description) \
+                .AndRaise(osc_exc.NotFound('deleted'))
+
+        self.mox.ReplayAll()
+        self.interact({'description': description},
+                      expected_status_code=404)
 
     def test_update_project_limits(self):
         tenant = doubles.make(self.mox, doubles.Tenant,

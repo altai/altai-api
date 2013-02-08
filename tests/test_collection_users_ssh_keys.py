@@ -46,10 +46,8 @@ class UsersSShKeysListTestCase(MockedTestCase):
             'ssh-keys': ['REPLY1', 'REPLY2']
         }
 
-        self.fake_client_set.identity_admin.users \
-                .get(self.user_id).AndReturn('USER')
         self.fake_client_set.compute_ext.user_keypairs \
-                .list('USER').AndReturn(['K1', 'K2'])
+                .list(self.user_id).AndReturn(['K1', 'K2'])
         users_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY1')
         users_ssh_keys.keypair_from_nova('K2').AndReturn('REPLY2')
 
@@ -57,6 +55,35 @@ class UsersSShKeysListTestCase(MockedTestCase):
         rv = self.client.get('/v1/users/%s/ssh-keys/' % self.user_id)
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
+
+    def test_list_no_keys(self):
+        expected = {
+            'collection': {
+                'name': 'ssh-keys',
+                'parent-href': '/v1/users/42',
+                'size': 0
+            },
+            'ssh-keys': []
+        }
+
+        self.fake_client_set.compute_ext.user_keypairs \
+                .list(self.user_id).AndReturn([])
+        self.fake_client_set.identity_admin.users.get(self.user_id)
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/users/%s/ssh-keys/' % self.user_id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
+    def test_list_no_user(self):
+        self.fake_client_set.compute_ext.user_keypairs \
+                .list(self.user_id).AndReturn([])
+        self.fake_client_set.identity_admin.users.get(self.user_id) \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/users/%s/ssh-keys/' % self.user_id)
+        self.check_and_parse_response(rv, status_code=404)
 
     def test_get_works(self):
         self.fake_client_set.compute_ext.user_keypairs\

@@ -21,8 +21,8 @@
 
 from flask import url_for, g, Blueprint, abort
 
-import openstackclient_base.exceptions as osc_exc
 from altai_api import exceptions as exc
+from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import *
 from altai_api.main import app
@@ -247,7 +247,10 @@ def delete_project(project_id):
         if net.project_id == tenant.id:
             net_client.disassociate(net)
 
-    tenant.delete()
+    try:
+        tenant.delete()
+    except osc_exc.NotFound:
+        pass  # already deleted by someone else
     return make_json_response(None, 204)
 
 
@@ -257,10 +260,12 @@ def update_project(project_id):
     set_audit_resource_id(project_id)
     tenant = get_tenant(project_id)
 
-    if 'description' in data:
-        tenant = tenant.update(description=data['description'])
-
-    _set_quota(project_id, data)
+    try:
+        if 'description' in data:
+            tenant = tenant.update(description=data['description'])
+        _set_quota(project_id, data)
+    except osc_exc.NotFound:
+        abort(404)
 
     net = _network_for_project(project_id)
     quotaset = _quotaset_for_project(project_id)
