@@ -44,7 +44,7 @@ MAIL.init_app(app)
 from altai_api import entry_points
 from altai_api import stats
 from altai_api import error_handlers
-from altai_api import authentication
+from altai_api import auth
 
 from altai_api.utils import audit
 from altai_api.utils import communication
@@ -55,7 +55,7 @@ from altai_api.jobs import vms as vms_jobs
 @app.before_request
 def check_request():
     audit.setup_audit()
-    authentication.require_auth()
+    auth.require_auth()
     communication.check_request_headers()
     communication.setup_args_handling()
     return None

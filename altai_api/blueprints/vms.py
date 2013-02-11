@@ -33,7 +33,7 @@ from altai_api.schema import types as st
 
 from altai_api.utils.parsers import timestamp_from_openstack, int_from_string
 
-from altai_api.authentication import client_set_for_tenant
+from altai_api.auth import client_set_for_tenant
 from altai_api.blueprints.users import link_for_user, fetch_user
 from altai_api.blueprints.projects import link_for_project
 from altai_api.blueprints.images import link_for_image

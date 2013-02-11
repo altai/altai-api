@@ -25,14 +25,12 @@ from altai_api import exceptions as exc
 
 from altai_api.main import app
 
+from altai_api import auth
 from altai_api.utils import *
-
 from altai_api.utils.decorators import root_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
-
-from altai_api import authentication as auth
 
 from altai_api.blueprints.projects import link_for_project
 

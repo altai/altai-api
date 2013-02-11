@@ -27,7 +27,7 @@ from openstackclient_base.exceptions import Unauthorized
 from mox import MoxTestBase
 from tests.mocked import MockedTestCase
 
-from altai_api import authentication as auth
+from altai_api import auth
 from altai_api.utils.decorators import no_auth_endpoint
 
 

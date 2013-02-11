@@ -33,7 +33,7 @@ from altai_api import exceptions as exc
 
 from altai_api.main import app
 from altai_api.utils import make_json_response
-from altai_api.authentication import is_authenticated
+from altai_api.auth import is_authenticated
 
 
 def _exception_to_message(error):

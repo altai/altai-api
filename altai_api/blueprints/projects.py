@@ -32,7 +32,7 @@ from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
-from altai_api.authentication import client_set_for_tenant
+from altai_api.auth import client_set_for_tenant
 
 
 projects = Blueprint('projects', __name__)

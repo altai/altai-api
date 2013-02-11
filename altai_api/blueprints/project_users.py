@@ -29,7 +29,7 @@ from altai_api.utils import *
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.authentication import default_tenant_id
+from altai_api.auth import default_tenant_id
 from altai_api.blueprints.projects import get_tenant
 from altai_api.blueprints.users import link_for_user, member_role_id
 

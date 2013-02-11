@@ -22,7 +22,7 @@
 import sys
 import unittest
 import altai_api.main
-import altai_api.authentication as auth
+from altai_api import auth
 from flask import g, json
 from flask.exceptions import HTTPException
 

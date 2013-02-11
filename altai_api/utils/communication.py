@@ -26,7 +26,7 @@ from datetime import datetime
 
 import altai_api
 
-from altai_api.authentication import is_authenticated
+from altai_api.auth import is_authenticated
 from altai_api import exceptions as exc
 
 

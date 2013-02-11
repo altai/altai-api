@@ -24,7 +24,7 @@ from threading import Timer, Lock
 from datetime import datetime
 
 from altai_api.db import DB
-from altai_api.authentication import keystone_auth
+from altai_api.auth import keystone_auth
 
 
 class PeriodicJob(object):

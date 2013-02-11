@@ -34,7 +34,7 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.blueprints.projects import link_for_project
-from altai_api.authentication import client_set_for_tenant, default_tenant_id
+from altai_api.auth import client_set_for_tenant, default_tenant_id
 
 
 images = Blueprint('images', __name__)

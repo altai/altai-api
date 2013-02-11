@@ -28,7 +28,7 @@ from tests import doubles
 from tests.mocked import MockedTestCase
 
 from altai_api.blueprints import invites
-from altai_api import authentication as auth
+from altai_api import auth
 
 
 class InvitesTestCase(MockedTestCase):
