@@ -33,18 +33,22 @@ from altai_api.db.vm_data import VmData
 
 
 class VmsJobsTestCase(MockedTestCase):
+    FAKE_AUTH = False
 
     def setUp(self):
         super(VmsJobsTestCase, self).setUp()
         self.mox.StubOutWithMock(vms, 'VmDataDAO')
         self.mox.StubOutWithMock(vms, 'AuditDAO')
+        self.mox.StubOutWithMock(vms, 'admin_client_set')
         self.mox.StubOutWithMock(vms, 'datetime')
         self.mox.StubOutWithMock(vms, 'send_vm_reminder')
         self.mox.StubOutWithMock(self.app.logger, 'exception')
+        self.fake_client_set = self._fake_client_set_factory()
 
     def test_vm_data_gc_works(self):
         server_mgr = self.fake_client_set.compute.servers
 
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.VmDataDAO.list_all()\
                 .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
         server_mgr.get('v1').AndRaise(osc_exc.NotFound('deleted'))
@@ -53,12 +57,12 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.vm_data_gc()
 
     def test_vm_data_gc_other_exception(self):
         server_mgr = self.fake_client_set.compute.servers
 
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.VmDataDAO.list_all()\
                 .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
         server_mgr.get('v1').AndRaise(RuntimeError('log me'))
@@ -67,11 +71,11 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.vm_data_gc()
 
     def test_rip_expired_vms(self):
         server_mgr = self.fake_client_set.compute.servers
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.datetime.utcnow().AndReturn('UTCNOW')
         vms.VmDataDAO.expired_list('UTCNOW')\
                 .AndReturn([VmData(vm_id='v1')])
@@ -85,11 +89,11 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.rip_expired_vms()
 
     def test_rip_expired_vms_not_found(self):
         server_mgr = self.fake_client_set.compute.servers
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.datetime.utcnow().AndReturn('UTCNOW')
         vms.VmDataDAO.expired_list('UTCNOW')\
                 .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
@@ -102,11 +106,11 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.rip_expired_vms()
 
     def test_rip_expired_vms_other_exception(self):
         server_mgr = self.fake_client_set.compute.servers
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.datetime.utcnow().AndReturn('UTCNOW')
         vms.VmDataDAO.expired_list('UTCNOW')\
                 .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
@@ -119,11 +123,11 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.rip_expired_vms()
 
     def test_remind_reminds(self):
         server_mgr = self.fake_client_set.compute.servers
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         user_mgr = self.fake_client_set.identity_admin.users
         server = doubles.make(self.mox, doubles.Server,
                               id='v2', name='vm-2', user_id='UID')
@@ -144,13 +148,13 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.remind_about_vms()
 
     def test_remind_server_not_found(self):
         server_mgr = self.fake_client_set.compute.servers
         expires = datetime(2013, 1, 19, 11, 12, 13)
 
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.datetime.utcnow().AndReturn('UTCNOW')
         vms.VmDataDAO.remind_list('UTCNOW')\
                 .AndReturn([VmData(vm_id='v1', expires_at=expires)])
@@ -159,7 +163,6 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.remind_about_vms()
 
     def test_remind_user_not_found(self):
@@ -169,6 +172,7 @@ class VmsJobsTestCase(MockedTestCase):
                               id='v2', name='vm-2', user_id='UID')
         expires = datetime(2013, 1, 19, 11, 12, 13)
 
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.datetime.utcnow().AndReturn('UTCNOW')
         vms.VmDataDAO.remind_list('UTCNOW')\
                 .AndReturn([VmData(vm_id='v2', expires_at=expires)])
@@ -179,13 +183,13 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.remind_about_vms()
 
     def test_remind_other_exception(self):
         server_mgr = self.fake_client_set.compute.servers
         expires = datetime(2013, 1, 19, 11, 12, 13)
 
+        vms.admin_client_set().AndReturn(self.fake_client_set)
         vms.datetime.utcnow().AndReturn('UTCNOW')
         vms.VmDataDAO.remind_list('UTCNOW')\
                 .AndReturn([VmData(vm_id='v1', expires_at=expires)])
@@ -194,7 +198,6 @@ class VmsJobsTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            self.install_fake_auth()
             vms.remind_about_vms()
 
 

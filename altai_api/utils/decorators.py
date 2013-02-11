@@ -19,6 +19,8 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
+from altai_api import auth
+
 
 def root_endpoint(name):
     """A decorator that marks an endpoint as root endpoint
@@ -38,12 +40,22 @@ def no_auth_endpoint(func):
 
     This decorator should be used to mark endpoints that need to be
     accessible without authentication. For such endpoints authentication
-    headers provided by users are ignored and global client set is
-    authenticated with admin credentials taken from application
-    configuration.
+    headers provided by users are ignored.
 
     """
-    func.altai_api_no_auth_endpoint = True
+    setattr(func, auth.ATTRIBUTE_NAME, auth.no_auth)
+    return func
+
+
+def user_endpoint(func):
+    """Mark endpoint as accessible by non-administrators."""
+    setattr(func, auth.ATTRIBUTE_NAME, auth.user_auth)
+    return func
+
+
+def admin_endpoint(func):
+    """Mark endpoint as accessible by administrators only."""
+    setattr(func, auth.ATTRIBUTE_NAME, auth.admin_auth)
     return func
 
 

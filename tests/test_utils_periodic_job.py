@@ -22,7 +22,6 @@
 import time
 import unittest
 import flask
-import mox
 from datetime import datetime, timedelta
 from tests.mocked import MockedTestCase
 
@@ -87,44 +86,29 @@ class PeriodicJobTestCase(unittest.TestCase):
 class PeriodicAdministrativeJobTestCase(MockedTestCase):
 
     def test_job_works(self):
-        self.mox.StubOutWithMock(periodic_job, 'keystone_auth')
-        self.app.config['KEYSTONE_ADMIN'] = 'test_keystone_admin'
-        self.app.config['KEYSTONE_ADMIN_PASSWORD'] = 'test_keystone_password'
-
-        periodic_job.keystone_auth('test_keystone_admin',
-                                    'test_keystone_password')\
-                .WithSideEffects(self.install_fake_auth)\
-                .AndReturn(True)
-        self.mox.ReplayAll()
-
         evidence = []
+
+        def test_fun(arg):
+            self.install_fake_auth()
+            evidence.extend((arg, flask.g.client_set))
+
+        self.mox.ReplayAll()
         job = periodic_job.PeriodicAdministrativeJob(
-            self.app, 0.5,
-            lambda x: evidence.extend((x, flask.g.client_set)),
-            'test')
+            self.app, 0.5, test_fun, 'test')
         time.sleep(0.1)
         job.cancel()
         self.assertEquals(evidence, ['test', self.fake_client_set])
 
-    def test_auth_failure(self):
-        self.mox.StubOutWithMock(periodic_job, 'keystone_auth')
-        self.mox.StubOutWithMock(self.app.logger, 'error')
-        self.app.config['KEYSTONE_ADMIN'] = 'test_keystone_admin'
-        self.app.config['KEYSTONE_ADMIN_PASSWORD'] = 'test_keystone_password'
-
-        periodic_job.keystone_auth('test_keystone_admin',
-                                    'test_keystone_password')\
-                .WithSideEffects(self.install_fake_auth)\
-                .AndReturn(False)
-        self.app.logger.error(mox.IsA(basestring))
-
+    def test_job_exception(self):
+        self.mox.StubOutWithMock(self.app.logger, 'exception')
+        self.app.logger.exception('Periodic job failed')
         self.mox.ReplayAll()
 
-        evidence = []
+        def test_fun(_):
+            raise RuntimeError('catch me')
+
         job = periodic_job.PeriodicAdministrativeJob(
-            self.app, 0.5,
-            evidence.append, 'test')
+            self.app, 0.5, test_fun, 'test')
         time.sleep(0.1)
         job.cancel()
-        self.assertEquals(evidence, [])  # append was not run
 

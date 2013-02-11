@@ -19,10 +19,11 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import g, url_for, current_app
+from flask import url_for, current_app
 from datetime import datetime
 from openstackclient_base import exceptions as osc_exc
 
+from altai_api.auth import admin_client_set
 from altai_api.db.vm_data import VmDataDAO
 from altai_api.db.audit import AuditDAO
 from altai_api.utils.mail import send_vm_reminder
@@ -31,7 +32,7 @@ from altai_api.utils.periodic_job import PeriodicAdministrativeJob
 
 def rip_expired_vms():
     """Run periodically to remove expired vms"""
-    server_mgr = g.client_set.compute.servers
+    server_mgr = admin_client_set().compute.servers
     for vmdata in VmDataDAO.expired_list(datetime.utcnow()):
         try:
             server_mgr.delete(vmdata.vm_id)
@@ -50,8 +51,9 @@ def rip_expired_vms():
 
 def remind_about_vms():
     """Run periodically to send reminding emails"""
-    server_mgr = g.client_set.compute.servers
-    user_mgr = g.client_set.identity_admin.users
+    cs = admin_client_set()
+    server_mgr = cs.compute.servers
+    user_mgr = cs.identity_admin.users
     for vmdata in VmDataDAO.remind_list(datetime.utcnow()):
         try:
             try:
@@ -76,7 +78,7 @@ def remind_about_vms():
 
 def vm_data_gc():
     """Remove vm data for already deleted servers"""
-    server_mgr = g.client_set.compute.servers
+    server_mgr = admin_client_set().compute.servers
     for vmdata in VmDataDAO.list_all():
         try:
             server_mgr.get(vmdata.vm_id)

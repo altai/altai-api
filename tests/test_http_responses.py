@@ -188,7 +188,8 @@ class ErrorHandlerTestCase(TestCase):
             except RuntimeError, ex:
                 resp = self.app.make_response(
                     error_handlers.exception_handler(ex))
-        self.check_and_parse_response(resp, status_code=500)
+        self.check_and_parse_response(resp, status_code=500,
+                                      authenticated=False)
         self.assertTrue('Test message' in resp.data)
         self.assertTrue('traceback' not in resp.data)
 
@@ -196,7 +197,8 @@ class ErrorHandlerTestCase(TestCase):
         with self.app.test_request_context():
             resp = self.app.make_response(
                 error_handlers.exception_handler(RuntimeError('Test message')))
-        self.check_and_parse_response(resp, status_code=500)
+        self.check_and_parse_response(resp, status_code=500,
+                                      authenticated=False)
         self.assertTrue('Test message' in resp.data)
 
     def test_authorized_500(self):

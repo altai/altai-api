@@ -19,12 +19,12 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import Blueprint, abort, g
+from flask import Blueprint, abort
 from openstackclient_base import exceptions as osc_exc
 
-from altai_api.blueprints.users import (user_from_nova, fetch_user,
-                                        InvitesDAO)
+from altai_api.blueprints.users import (user_from_nova, InvitesDAO)
 
+from altai_api.auth import admin_client_set
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
@@ -35,12 +35,13 @@ from altai_api.utils.decorators import no_auth_endpoint
 invites = Blueprint('invites', __name__)
 
 
-def _invite_and_user(code):
+def _invite_and_user(code, user_mgr):
     invite = InvitesDAO.get(code)
-    if invite.complete:
-        abort(404)
-    user = fetch_user(invite.user_id)
-    if user.enabled:
+    try:
+        assert not invite.complete
+        user = user_mgr.get(invite.user_id)
+        assert not user.enabled
+    except (osc_exc.NotFound, AssertionError):
         abort(404)
     return invite, user
 
@@ -48,7 +49,8 @@ def _invite_and_user(code):
 @invites.route('/<code>', methods=('GET',))
 @no_auth_endpoint
 def get_user_by_code(code):
-    invite, user = _invite_and_user(code)
+    user_mgr = admin_client_set().identity_admin.users
+    invite, user = _invite_and_user(code, user_mgr)
     return make_json_response(user_from_nova(user, invite))
 
 
@@ -67,18 +69,16 @@ _ACCEPT_REQUIRES = Schema((
 @no_auth_endpoint
 def accept_invite(code):
     data = parse_request_data(_ACCEPT_SCHEMA, _ACCEPT_REQUIRES)
-    invite, user = _invite_and_user(code)
+    user_mgr = admin_client_set().identity_admin.users
+    invite, user = _invite_and_user(code, user_mgr)
 
     try:
-        user_mgr = g.client_set.identity_admin.users
         user_mgr.update(user.id, enabled=True)
         user_mgr.update_password(user.id, data['password'])
+        user = user_mgr.get(user.id)
     except osc_exc.NotFound:
         abort(404)
 
     InvitesDAO.complete_for_user(user.id)
-
-    # fetch updated user:
-    user = fetch_user(user.id)
     return make_json_response(user_from_nova(user, invite), 200)
 

@@ -26,98 +26,146 @@ from openstackclient_base.client_set import ClientSet
 from openstackclient_base import exceptions as osc_exc
 
 
-def _is_no_auth_request():
-    if request.url_rule is None:
-        return False
-    return getattr(app.view_functions[request.url_rule.endpoint],
-                   'altai_api_no_auth_endpoint', False)
+ATTRIBUTE_NAME = 'altai_api_endpoint_auth_type'
 
 
 def require_auth():
-    """Handle request authentication
-    """
+    """Handle request authentication"""
+    if request.url_rule is None:
+        return user_auth()  # need user auth for 404
+
+    check_auth = getattr(app.view_functions[request.url_rule.endpoint],
+                         ATTRIBUTE_NAME, admin_auth)
+    return check_auth()
+
+
+def _keystone_auth(require_admin):
     auth = request.authorization
-    if _is_no_auth_request():
-        if keystone_auth(app.config['KEYSTONE_ADMIN'],
-                         app.config['KEYSTONE_ADMIN_PASSWORD']):
-            return None
-        raise RuntimeError('Service misconfiguration: '
-                           'invalid administrative credentials')
     if auth is None:
         abort(401)
-    if keystone_auth(auth.username, auth.password):
-        g.audit_data['user_id'] = current_user_id()
-        return None
+
+    try:
+        cs = _client_set(auth.username, auth.password,
+                         tenant_name=app.config['DEFAULT_TENANT'])
+    except (osc_exc.Unauthorized, osc_exc.Forbidden):
+        if require_admin:
+            abort(403)
+        try:
+            # as a user, try again without tenant
+            cs = _client_set(auth.username, auth.password)
+        except (osc_exc.Unauthorized, osc_exc.Forbidden):
+            abort(403)
+
+    if admin_role_id(cs) is None:
+        if require_admin:
+            abort(403)
+        g.is_admin = False
     else:
-        abort(403)
+        g.admin_client_set = cs
+        g.is_admin = True
+
+    g.client_set = cs
+    g.audit_data['user_id'] = current_user_id()
+    return None
 
 
-def keystone_auth(username, password):
-    """Authorize in keystone and save authorized client set to flask.g."""
+def admin_auth():
+    """Authorize for administrative endpoint"""
+    return _keystone_auth(require_admin=True)
+
+
+def user_auth():
+    """Authorize for users endpoint"""
+    return _keystone_auth(require_admin=False)
+
+
+def no_auth():
+    """Authorize for noauth endpoint"""
+    g.client_set = None
+    g.is_admin = False
+    return None
+
+
+def _client_set(username, password, tenant_name=None, tenant_id=None):
+    """Authorize in keystone and return client set
+
+    Returns None if authentication failed.
+    """
     cs = ClientSet(username=username,
                    password=password,
-                   tenant_name=app.config['DEFAULT_TENANT'],
+                   tenant_name=tenant_name,
+                   tenant_id=tenant_id,
                    auth_uri=app.config['KEYSTONE_URI'])
     try:
         cs.http_client.authenticate()
-    except osc_exc.Unauthorized:
-        return False
     except IOError, error:
         raise RuntimeError(
             'Failed to connect to authentication service (%s)' % error)
-    g.client_set = cs
-    return True
+    return cs
 
 
 def is_authenticated():
     """Returns True if client was authenticated."""
-    return hasattr(g, 'client_set')
+    return getattr(g, 'client_set', None) is not None
 
 
-def client_set_for_tenant(tenant_id=None, tenant_name=None):
+def client_set_for_tenant(tenant_id, eperm_status=403, fallback_to_api=False):
     """Returns client set scoped to given tenant"""
-    if tenant_name is None and tenant_id is None:
-        raise ValueError('Either tenant_name or tenant_id mist be specified')
-    return ClientSet(token=g.client_set.http_client.access['token']['id'],
-                     tenant_name=tenant_name,
-                     tenant_id=tenant_id,
-                     auth_uri=app.config['KEYSTONE_URI'])
+    cs = ClientSet(token=g.client_set.http_client.access['token']['id'],
+                   tenant_id=tenant_id,
+                   auth_uri=app.config['KEYSTONE_URI'])
+    try:
+        cs.http_client.authenticate()
+    except (osc_exc.Unauthorized, osc_exc.Forbidden):
+        if fallback_to_api and g.is_admin:
+            return api_client_set(tenant_id)
+        abort(eperm_status)
+    return cs
 
 
 def default_tenant_id():
     """Returns ID of tenant named app.config['DEFAULT_TENANT']
-
-    Works only for authorized users
-
     """
-    return g.client_set.http_client.access['token']['tenant']['id']
+    return admin_client_set().http_client.access['token']['tenant']['id']
 
 
-def admin_role_id():
+def admin_role_id(client_set=None):
     """Get ID of 'admin' role -- role of administrator of default tenant.
 
-    If client is not Altai administrator, she doesn't have this role and don't
-    need it's ID, so this function raises 403 HTTP error in this case.
+    If client is not Altai administrator, she does not need it, so
+    we can safely return None in this case.
 
     """
-    access = g.client_set.http_client.access
-    admin_role_ids = [role['id']
-                      for role in access['user']['roles']
-                      if role['name'] == 'admin']
-    try:
-        return admin_role_ids[0]
-    except IndexError:
-        abort(403)
+    if client_set is None:
+        # TODO(imelnikov): should we use admin_client_set()?
+        client_set = g.client_set
+    for role in client_set.http_client.access['user']['roles']:
+        if role['name'].lower() == 'admin':
+            return role['id']
+    return None
 
 
 def assert_admin():
-    """Abort with code 403 if current user is not Altai administrator"""
-    admin_role_id()
+    """Abort with 403 if current user is not Altai administrator"""
+    if not g.is_admin:
+        abort(403)
+
+
+def assert_admin_or_project_user(project_id, eperm_status=403):
+    """Abort with given value if current user has no access to project
+
+    User has access to project if he is member of the project or Altai
+    administrator.
+
+    """
+    if not g.is_admin:
+        if project_id not in current_user_project_ids():
+            abort(eperm_status)
 
 
 def current_user_id():
     """Return ID of current user"""
-    if _is_no_auth_request():
+    if not is_authenticated():
         # NOTE(imelnikov): calling this function inside no_auth_endpoint
         # is an application programmer's error
         raise RuntimeError('No current user for this request')
@@ -125,4 +173,94 @@ def current_user_id():
         return g.client_set.http_client.access['user']['id']
     except KeyError:
         abort(403)
+
+
+def add_api_superuser_to_project(project_id):
+    """Gives API superuser administrative permissions for given projects
+
+    API superuser should be granted all possible permissions.
+    """
+    try:
+        cs = api_client_set()
+        user_id = cs.http_client.access['user']['id']
+        cs.identity_admin.roles.add_user_role(
+            user_id, admin_role_id(cs), project_id)
+    except Exception, e:
+        app.logger.exception("Failed to add API superuser to "
+                             "project %r (%s)", project_id, e)
+
+
+def _api_client_set_impl(project_id=None):
+    user = app.config['KEYSTONE_ADMIN']
+    password = app.config['KEYSTONE_ADMIN_PASSWORD']
+    try:
+        if project_id is None:
+            cs = _client_set(user, password,
+                             tenant_name=app.config['DEFAULT_TENANT'])
+        else:
+            cs = _client_set(user, password, tenant_id=project_id)
+        if admin_role_id(cs) is not None:
+            return cs
+    except (osc_exc.Unauthorized, osc_exc.Forbidden):
+        pass
+    return None
+
+
+def api_client_set(project_id=None):
+    """Return client set with API superuser credentials
+
+    Useful when user is administrator, but not member of
+    project project_id.
+
+    """
+    cs = _api_client_set_impl(project_id)
+    if not cs and project_id is not None:
+        add_api_superuser_to_project(project_id)
+        cs = _api_client_set_impl(project_id)
+    if cs:
+        return cs
+    else:
+        raise RuntimeError('Service misconfiguration: '
+                           'invalid API superuser credentials')
+
+
+def admin_client_set():
+    """Get client set with administrative credentials.
+
+    If current user is Altai administrator, his client set bound to
+    systenant is returned. If not, api_client_set is returned.
+
+    """
+    try:
+        return g.admin_client_set
+    except AttributeError:
+        g.admin_client_set = api_client_set()
+        return g.admin_client_set
+
+
+def bound_client_set():
+    """Get client set bound to any tenant user is member of
+
+    Sometimes we don't care what tenant client is bound to, we just want
+    to speak to compute, but unbound client set we use by default for users
+    are very restricted.
+
+    """
+    roles = g.client_set.http_client.access['user'].get('roles')
+    if roles:
+        return g.client_set
+    tenants = g.client_set.identity_public.tenants.list()
+    if not tenants:
+        abort(403)
+    return client_set_for_tenant(tenants[0].id)
+
+
+def current_user_project_ids():
+    """Get set of project ids current user is member of"""
+    try:
+        return g.current_user_project_ids
+    except AttributeError:
+        tenants = g.client_set.identity_public.tenants.list()
+        g.current_user_project_ids = set((tenant.id for tenant in tenants))
+        return g.current_user_project_ids
 

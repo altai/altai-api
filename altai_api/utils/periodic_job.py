@@ -24,7 +24,6 @@ from threading import Timer, Lock
 from datetime import datetime
 
 from altai_api.db import DB
-from altai_api.auth import keystone_auth
 
 
 class PeriodicJob(object):
@@ -87,13 +86,9 @@ def _wrap_with_context(app, function):
     def wrapper(*args, **kwargs):
         with app.test_request_context():
             try:
-                if keystone_auth(app.config['KEYSTONE_ADMIN'],
-                                 app.config['KEYSTONE_ADMIN_PASSWORD']):
-                    return function(*args, **kwargs)
-                else:
-                    app.logger.error(
-                        'Service misconfiguration: '
-                        'failed to authenticate as API admin user')
+                return function(*args, **kwargs)
+            except Exception:
+                app.logger.exception('Periodic job failed')
             finally:
                 DB.session.remove()
     return wrapper

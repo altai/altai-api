@@ -39,6 +39,9 @@ class TestCase(unittest.TestCase):
         if not hasattr(self, 'fake_client_set'):
             self.fake_client_set = self._fake_client_set_factory()
         g.client_set = self.fake_client_set
+        # by default, pretend to be admin
+        g.admin_client_set = self.fake_client_set
+        g.is_admin = True
         return None
 
     def setUp(self):
@@ -71,7 +74,8 @@ class TestCase(unittest.TestCase):
         else:
             self.fail("HTTPException was not raised")
 
-    def check_and_parse_response(self, resp, status_code=200):
+    def check_and_parse_response(self, resp, status_code=200,
+                                 authenticated=True):
         try:
             if resp.data:
                 data = json.loads(resp.data)
@@ -85,7 +89,7 @@ class TestCase(unittest.TestCase):
                               status_code, resp.status_code,
                               json.dumps(data, indent=4, sort_keys=True)))
         self.assertEquals(resp.content_type, 'application/json')
-        if hasattr(self, 'fake_client_set'):
+        if authenticated:
             self.assertTrue('X-GD-Altai-Implementation' in resp.headers)
         else:
             self.assertTrue('X-GD-Altai-Implementation' not in resp.headers)
