@@ -28,7 +28,7 @@ from altai_api.main import app
 
 from altai_api import auth
 from altai_api.utils import *
-from altai_api.utils.decorators import root_endpoint
+from altai_api.utils.decorators import root_endpoint, user_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -66,7 +66,7 @@ def link_for_user_id(user_id, user_name=None):
 def fetch_user(user_id):
     """Get user from keystone or abort with 404 if user is not found"""
     try:
-        return g.client_set.identity_admin.users.get(user_id)
+        return auth.admin_client_set().identity_admin.users.get(user_id)
     except osc_exc.NotFound:
         abort(404)
 
@@ -179,7 +179,10 @@ def list_users():
 
 
 @users.route('/<user_id>', methods=('GET',))
+@user_endpoint
 def get_user(user_id):
+    if user_id != auth.current_user_id():
+        auth.assert_admin()
     user = fetch_user(user_id)
     return make_json_response(user_from_nova(user))
 

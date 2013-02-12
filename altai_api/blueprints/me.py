@@ -29,7 +29,8 @@ from altai_api.schema import types as st
 
 from altai_api.auth import current_user_id
 from altai_api.utils import make_json_response, parse_request_data
-from altai_api.utils.decorators import no_auth_endpoint
+from altai_api.utils.decorators import no_auth_endpoint, user_endpoint
+
 from altai_api.utils.mail import send_reset_password
 from altai_api.blueprints.users import get_user, fetch_user, update_user_data
 from altai_api.db.tokens import TokensDAO
@@ -40,6 +41,7 @@ ResetTokensDAO = TokensDAO('password-reset')
 
 
 @me.route('')
+@user_endpoint
 def get_current_user():
     """Current user resource shortcut"""
     return get_user(current_user_id())
