@@ -24,9 +24,11 @@ from tests import TestCase
 
 
 class EntryPointTestCase(TestCase):
+    FAKE_AUTH = False
+
     def test_get_entry_point(self):
         rv = self.client.get('/')
-        data = self.check_and_parse_response(rv)
+        data = self.check_and_parse_response(rv, authenticated=False)
         self.assertEquals(data, {
             "versions": [
                 {
@@ -37,15 +39,9 @@ class EntryPointTestCase(TestCase):
             ]
         })
 
-    def test_post_returns_405(self):
-        rv = self.client.post('/',
-                              content_type='application/json',
-                              data='{}')
-        self.check_and_parse_response(rv, status_code=405)
-
     def test_get_v1_entry_point(self):
         rv = self.client.get('/v1/')
-        data = self.check_and_parse_response(rv)
+        data = self.check_and_parse_response(rv, authenticated=False)
         self.assertEqual(data, {
             'major': 1,
             'minor': 0,

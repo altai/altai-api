@@ -23,6 +23,7 @@ from flask import url_for
 
 from altai_api.main import app
 from altai_api.utils import make_json_response
+from altai_api.utils.decorators import no_auth_endpoint
 
 
 def _make_v1_info():
@@ -35,6 +36,7 @@ def _make_v1_info():
 
 
 @app.route('/', methods=('GET',))
+@no_auth_endpoint
 def get_versions():
     """REST API entry point."""
     return make_json_response({
@@ -50,6 +52,7 @@ def _root_endpoints():
 
 
 @app.route('/v1/', methods=('GET',))
+@no_auth_endpoint
 def get_v1_endpoint():
     """Entry point for API v1"""
     response = _make_v1_info()
