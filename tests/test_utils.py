@@ -34,6 +34,7 @@ from altai_api.utils import (make_json_response,
                              make_collection_response,
                              parse_request_data)
 from altai_api.utils.collection import get_matcher_argument
+from altai_api.utils.communication import parse_my_projects_arg
 from altai_api.utils.sorting import parse_sortby, apply_sortby
 from altai_api.utils.parsers import int_from_string, int_from_user
 from altai_api.utils.parsers import cidr_from_user, ipv4_from_user
@@ -588,4 +589,65 @@ class SplitWithEscapeTestCase(unittest.TestCase):
     def test_split_unknown_esc(self):
         gen = split_with_escape(r'abc\a', '|')
         self.assertRaises(ValueError, list, gen)
+
+
+class ParseMyProjectsArgTestCase(TestCase):
+
+    def test_default_for_admins_is_false(self):
+        with self.app.test_request_context('/'):
+            self.install_fake_auth()
+            flask.g.unused_args = set(flask.request.args.iterkeys())
+
+            flask.g.is_admin = True
+            parse_my_projects_arg()
+            self.assertEquals(flask.g.my_projects, False)
+            self.assertEquals(flask.g.unused_args, set())
+
+    def test_default_for_non_admins_is_true(self):
+        with self.app.test_request_context('/'):
+            self.install_fake_auth()
+            flask.g.unused_args = set(flask.request.args.iterkeys())
+
+            flask.g.is_admin = False
+            parse_my_projects_arg()
+            self.assertEquals(flask.g.my_projects, True)
+            self.assertEquals(flask.g.unused_args, set())
+
+    def test_non_admin_can_set_true(self):
+        with self.app.test_request_context('/?my-projects=true'):
+            self.install_fake_auth()
+            flask.g.unused_args = set(flask.request.args.iterkeys())
+
+            flask.g.is_admin = False
+            parse_my_projects_arg()
+            self.assertEquals(flask.g.my_projects, True)
+            self.assertEquals(flask.g.unused_args, set())
+
+    def test_non_admin_can_not_set_false(self):
+        with self.app.test_request_context('/?my-projects=false'):
+            self.install_fake_auth()
+            flask.g.unused_args = set(flask.request.args.iterkeys())
+
+            flask.g.is_admin = False
+            self.assertRaises(exc.IllegalValue, parse_my_projects_arg)
+
+    def test_admin_can_set_true(self):
+        with self.app.test_request_context('/?my-projects=true'):
+            self.install_fake_auth()
+            flask.g.unused_args = set(flask.request.args.iterkeys())
+
+            flask.g.is_admin = True
+            parse_my_projects_arg()
+            self.assertEquals(flask.g.my_projects, True)
+            self.assertEquals(flask.g.unused_args, set())
+
+    def test_admin_can_set_false(self):
+        with self.app.test_request_context('/?my-projects=false'):
+            self.install_fake_auth()
+            flask.g.unused_args = set(flask.request.args.iterkeys())
+
+            flask.g.is_admin = True
+            parse_my_projects_arg()
+            self.assertEquals(flask.g.my_projects, False)
+            self.assertEquals(flask.g.unused_args, set())
 

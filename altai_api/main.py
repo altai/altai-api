@@ -58,6 +58,7 @@ def check_request():
     auth.require_auth()
     communication.check_request_headers()
     communication.setup_args_handling()
+    communication.parse_my_projects_arg()
     return None
 
 

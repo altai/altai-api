@@ -28,6 +28,7 @@ import altai_api
 
 from altai_api.auth import is_authenticated
 from altai_api import exceptions as exc
+from altai_api.utils.parsers import boolean_from_string
 
 
 # Content type for JSON
@@ -163,6 +164,19 @@ def parse_request_data(allowed=None, required=None):
             raise exc.UnknownElement(name=name)
 
     return result
+
+
+def parse_my_projects_arg():
+    """Parse my-projects request argument and save result to g.my_projects"""
+    try:
+        g.my_projects = boolean_from_string(request.args['my-projects'])
+        g.unused_args.discard('my-projects')
+        assert g.my_projects or g.is_admin
+    except KeyError:
+        g.my_projects = not g.is_admin
+    except (ValueError, AssertionError):
+        raise exc.IllegalValue('my-project', 'boolean',
+                               request.args.get('my-projects'))
 
 
 def setup_args_handling():
