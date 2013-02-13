@@ -70,5 +70,8 @@ class Schema(object):
         return self.__dict[name].get_search_matcher(match_type)
 
     def parse_argument(self, name, match_type, value):
-        return self.__dict[name].parse_search_argument(match_type, value)
+        element = self.__dict[name]
+        # ensure this filter type is supported:
+        element.get_search_matcher(match_type)
+        return element.parse_search_argument(match_type, value)
 

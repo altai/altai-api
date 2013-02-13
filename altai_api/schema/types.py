@@ -144,8 +144,6 @@ class ElementType(object):
 
     def parse_search_argument(self, filter_type, value):
         """Parse search argument of type filter_type"""
-        # ensure this filter type is supported:
-        self.get_search_matcher(filter_type)
         if filter_type == 'in':
             try:
                 return [self.from_string(elem)
@@ -292,9 +290,19 @@ class List(ElementType):
     def __init__(self, subtype, **kwargs):
         try:
             eq = subtype.get_search_matcher('eq')
+            has = lambda value, element: any((eq(v, element) for v in value))
+
+            @matcher
+            def match_any(value, pattern):
+                return any((has(value, element) for element in pattern))
+
+            @matcher
+            def match_all(value, pattern):
+                return all((has(value, element) for element in pattern))
+
             matchers = {
-                'has': matcher(lambda value, pattern: any((eq(v, pattern)
-                                                           for v in value)))
+                'any': match_any,
+                'all': match_all
             }
         except exc.InvalidRequest:  # no 'eq' matcher
             matchers = {}
@@ -312,7 +320,8 @@ class List(ElementType):
         return [self.subtype.from_request(v) for v in value]
 
     def parse_search_argument(self, filter_type, value):
-        if filter_type == 'has':
-            return self.subtype.from_string(value)
+        if filter_type in ('any', 'all'):
+            return [self.subtype.from_string(elem)
+                    for elem in split_with_escape(value, '|', '\\')]
         return super(List, self).parse_search_argument(filter_type, value)
 

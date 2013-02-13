@@ -108,15 +108,27 @@ class LinkObjectListTestCase(unittest.TestCase):
         self.assertRaises(exc.IllegalValue,
                           self.ll.from_request, '42')
 
-    def test_parses_has_argument(self):
-        value = '42'
-        result = self.ll.parse_search_argument('has', value)
-        self.assertEquals(value, result)
+    def test_parses_all_argument(self):
+        value = '42|43'
+        result = self.ll.parse_search_argument('all', value)
+        self.assertEquals(['42', '43'], result)
 
-    def test_has_matches(self):
-        has = self.ll.get_search_matcher('has')
-        self.assertEquals(True, has([{'id': '42'}, {'id': '43'}], '43'))
-        self.assertEquals(False, has([{'id': '42'}, {'id': '43'}], '44'))
+    def test_parses_any_argument(self):
+        value = '42|43'
+        result = self.ll.parse_search_argument('any', value)
+        self.assertEquals(['42', '43'], result)
+
+    def test_any_matches(self):
+        matcher = self.ll.get_search_matcher('any')
+        self.assertEquals(True, matcher([{'id': '42'}, {'id': '43'}], ['43']))
+        self.assertEquals(False, matcher([{'id': '42'}, {'id': '43'}], ['44']))
+
+    def test_all_matches(self):
+        matcher = self.ll.get_search_matcher('all')
+        self.assertEquals(True, matcher([{'id': '42'}, {'id': '43'}], ['43']))
+        self.assertEquals(False, matcher([{'id': '42'}, {'id': '43'}], ['44']))
+        self.assertEquals(False, matcher([{'id': '42'}, {'id': '43'}],
+                                         ['43', '45']))
 
     def test_list_of_lists_has_no_has(self):
         self.assertRaises(exc.InvalidRequest,
@@ -159,11 +171,11 @@ class BooleanTestCase(unittest.TestCase):
     def test_list_of_boolean_raises_on_bad_has_argument(self):
         self.assertRaises(exc.IllegalValue,
                           st.List(self.b).parse_search_argument,
-                          'has', '42')
+                          'all', '42')
 
     def test_list_of_boolean_parses_has_argument(self):
-        result = st.List(self.b).parse_search_argument('has', 'True')
-        self.assertEquals(True, result)
+        result = st.List(self.b).parse_search_argument('any', 'True')
+        self.assertEquals([True], result)
 
 
 class TimestampTestCase(unittest.TestCase):
