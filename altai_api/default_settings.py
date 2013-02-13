@@ -72,6 +72,12 @@ LOG_FILE_NAME = None
 # possible values: 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'
 LOG_LEVEL = 'INFO'
 
+# log format; see python.logging docs for available formats
+LOG_FORMAT = '%(asctime)s %(levelname)8s: %(message)s'
+
+# format for date in logs
+LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
+
 # periodic job intervals, in seconds, may be floating point number
 RIP_EXPIRED_VMS_TASK_INTERVAL = 10.0
 VMS_REMINDER_TASK_INTERVAL = 60.0

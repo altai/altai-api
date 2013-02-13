@@ -86,51 +86,45 @@ class MainTestCase(mox.MoxTestBase):
 
 
 class SetupLoggingTestCase(mox.MoxTestBase):
+    def setUp(self):
+        super(SetupLoggingTestCase, self).setUp()
+        self.app = self.mox.CreateMockAnything()
+        self.app.config = {
+            'LOG_FILE_NAME': None,
+            'LOG_LEVEL': 'DEBUG',
+            'LOG_FORMAT': '%(asctime)s %(levelname)8s: %(message)s',
+            'LOG_DATE_FORMAT': '%Y-%m-%d %H:%M:%S'
+        }
+        self.logger = self.mox.CreateMockAnything()
+        self.app.logger = self.logger
 
     def test_setup_logging_to_file(self):
-        app = self.mox.CreateMockAnything()
-        app.logger = self.mox.CreateMockAnything()
-        app.config = {
-            'LOG_FILE_NAME': '/dev/null',
-            'LOG_LEVEL': 'DEBUG'
-        }
 
-        app.logger.addHandler(mox.IsA(
+        self.logger.addHandler(mox.IsA(
             logging.handlers.WatchedFileHandler))
-        app.logger.setLevel(logging.DEBUG)
-        app.logger.info('Starting Altai API service v%s', mox.IsA(str))
+        self.logger.setLevel(logging.DEBUG)
+        self.logger.info('Starting Altai API service v%s', mox.IsA(str))
 
         self.mox.ReplayAll()
-        main.setup_logging(app)
+        self.app.config['LOG_FILE_NAME'] = '/dev/null'
+        main.setup_logging(self.app)
 
     def test_setup_logging_to_stderr(self):
-        app = self.mox.CreateMockAnything()
-        app.logger = self.mox.CreateMockAnything()
-        app.config = {
-            'LOG_FILE_NAME': None,
-            'LOG_LEVEL': 'ERROR'
-        }
-
-        app.logger.addHandler(mox.IsA(logging.StreamHandler))
-        app.logger.setLevel(logging.ERROR)
-        app.logger.info('Starting Altai API service v%s', mox.IsA(str))
+        self.logger.addHandler(mox.IsA(logging.StreamHandler))
+        self.logger.setLevel(logging.ERROR)
+        self.logger.info('Starting Altai API service v%s', mox.IsA(str))
 
         self.mox.ReplayAll()
-        main.setup_logging(app)
+        self.app.config['LOG_LEVEL'] = 'ERROR'
+        main.setup_logging(self.app)
 
     def test_setup_logging_bad_level(self):
-        app = self.mox.CreateMockAnything()
-        app.logger = self.mox.CreateMockAnything()
-        app.config = {
-            'LOG_FILE_NAME': None,
-            'LOG_LEVEL': 'BAD LEVEL'
-        }
-
-        app.logger.addHandler(mox.IsA(logging.StreamHandler))
-        app.logger.setLevel(logging.INFO)
-        app.logger.critical(mox.IsA(str), 'BAD LEVEL')
-        app.logger.info('Starting Altai API service v%s', mox.IsA(str))
+        self.logger.addHandler(mox.IsA(logging.StreamHandler))
+        self.logger.setLevel(logging.INFO)
+        self.logger.critical(mox.IsA(str), 'BAD LEVEL')
+        self.logger.info('Starting Altai API service v%s', mox.IsA(str))
 
         self.mox.ReplayAll()
-        main.setup_logging(app)
+        self.app.config['LOG_LEVEL'] = 'BAD LEVEL'
+        main.setup_logging(self.app)
 

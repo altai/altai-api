@@ -98,6 +98,9 @@ def setup_logging(application):
         log_handler = logging.handlers.WatchedFileHandler(log_file_name)
     else:
         log_handler = logging.StreamHandler()
+    log_handler.setFormatter(logging.Formatter(
+        application.config['LOG_FORMAT'],
+        application.config['LOG_DATE_FORMAT']))
     application.logger.addHandler(log_handler)
 
     log_level = application.config['LOG_LEVEL']
