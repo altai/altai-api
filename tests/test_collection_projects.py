@@ -108,44 +108,135 @@ class ConvertersTestCase(MockedTestCase):
 
 class ProjectsHelpersTestCase(MockedTestCase):
 
-    def net(self, **kwargs):
-        return doubles.make(self.mox, doubles.Network, **kwargs)
-
-    def setUp(self):
-        super(ProjectsHelpersTestCase, self).setUp()
-        self.nm_mock = self.fake_client_set.compute.networks
-        self.tm_mock = self.fake_client_set.identity_admin.tenants
-
     def test_network_for_project(self):
-        nets = (self.net(label=u'net1', id=u'netid1', project_id=u'pid1'),
-                self.net(label=u'net2', id=u'netid2', project_id=u'pid2'),
-                self.net(label=u'net3', id=u'netid3', project_id=u'pid3'))
-        self.nm_mock.list().AndReturn(nets)
+        def net(**kwargs):
+            return doubles.make(self.mox, doubles.Network, **kwargs)
+
+        nets = (net(label=u'net1', id=u'netid1', project_id=u'pid1'),
+                net(label=u'net2', id=u'netid2', project_id=u'pid2'),
+                net(label=u'net3', id=u'netid3', project_id=u'pid3'))
+
+        self.fake_client_set.compute.networks.list().AndReturn(nets)
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
             self.install_fake_auth()
-            net = projects._network_for_project(u'pid2')
-        self.assertEquals(net, nets[1])
+            result = projects._network_for_project(u'pid2')
+        self.assertEquals(result, nets[1])
 
     def test_no_network_for_project(self):
-        self.nm_mock.list().AndReturn([])
+        self.fake_client_set.compute.networks.list().AndReturn([])
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
             self.install_fake_auth()
-            net = projects._network_for_project(u'pid2')
-        self.assertEquals(net, None)
+            result = projects._network_for_project(u'pid2')
+        self.assertEquals(result, None)
 
     def test_quotaset_for_project(self):
         project_id = 'PID'
-        self.fake_client_set.compute.quotas.get(project_id) \
-                .AndReturn('QUOTA')
+        self.fake_client_set.compute.quotas.get(project_id).AndReturn('QUOTA')
+
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
             quota = projects._quotaset_for_project(project_id)
         self.assertEquals('QUOTA', quota)
+
+    def test_project_has_servers(self):
+        self.fake_client_set.compute.servers.list(
+            detailed=False,
+            search_opts=dict(all_tenants=1,
+                             tenant_id='PID',
+                             limit=1)) \
+                .AndReturn(['SERVER'])
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertTrue(projects._project_has_servers('PID'))
+
+
+class UserProjectsTestCase(MockedTestCase):
+    IS_ADMIN = False
+
+    def net(self, **kwargs):
+        return doubles.make(self.mox, doubles.Network, **kwargs)
+
+    def setUp(self):
+        super(UserProjectsTestCase, self).setUp()
+        self.nm_mock = self.fake_client_set.compute.networks
+        self.tm_mock = self.fake_client_set.identity_public.tenants
+
+        self.mox.StubOutWithMock(projects, '_quotaset_for_project')
+        self.mox.StubOutWithMock(projects, '_project_from_nova')
+        self.mox.StubOutWithMock(projects, '_network_for_project')
+
+    def test_get_project(self):
+        tenant = doubles.make(self.mox, doubles.Tenant,
+                              name=u'name', id=u'pid')
+
+        self.tm_mock.find(id=u'pid').AndReturn(tenant)
+        projects._quotaset_for_project(u'pid').AndReturn('QUOTA')
+        projects._network_for_project(u'pid').AndReturn('FAKE_NETWORK')
+        projects._project_from_nova(tenant, 'FAKE_NETWORK', 'QUOTA') \
+                .AndReturn('FAKE_PROJECT')
+
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/projects/pid')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'FAKE_PROJECT')
+
+    def test_project_not_found(self):
+        self.tm_mock.find(id=u'pid').AndRaise(osc_exc.NotFound("test message"))
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/projects/pid')
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_systenant_not_found(self):
+        systenant = doubles.make(self.mox, doubles.Tenant,
+                                 name=u'systenant', id=u'PID')
+        self.tm_mock.find(id=systenant.id).AndReturn(systenant)
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/projects/%s' % systenant.id)
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_get_all_projects(self):
+        tenants = (
+            doubles.make(self.mox, doubles.Tenant, name=u'tnt1', id=u't1'),
+            doubles.make(self.mox, doubles.Tenant, name=u'tnt2', id=u't2'),
+            doubles.make(self.mox, doubles.Tenant,
+                         name=u'systenant', id=u'SYSTENANT_ID'))
+        nets = (
+            self.net(label=u'net2', id=u'netid2', project_id=u't2'),
+            self.net(label=u'net_', id=u'netid_', project_id=None),  # unused
+            self.net(label=u'net1', id=u'netid1', project_id=u't1'))
+
+        self.tm_mock.list().AndReturn(tenants)
+        self.nm_mock.list().AndReturn(nets)
+        projects._quotaset_for_project(u't1').AndReturn('QUOTA1')
+        projects._project_from_nova(tenants[0], nets[2], 'QUOTA1')\
+                .AndReturn('PROJECT1')
+
+        projects._quotaset_for_project(u't2').AndReturn('QUOTA2')
+        projects._project_from_nova(tenants[1], nets[0], 'QUOTA2')\
+                .AndReturn('PROJECT2')
+
+        expected = {
+            u'collection': {
+                u'name': u'projects',
+                u'size': 2
+            },
+            u'projects': [ 'PROJECT1', 'PROJECT2' ]
+        }
+
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/projects/')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
 
 
 class ProjectsTestCase(MockedTestCase):
@@ -230,30 +321,22 @@ class ProjectsTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
-    def test_stats_not_found(self):
-        self.tm_mock.get(u'pid').AndRaise(osc_exc.NotFound("test message"))
-        self.mox.ReplayAll()
-
-        rv = self.client.get('/v1/projects/pid/stats')
-        self.check_and_parse_response(rv, 404)
-
 
 class ProjectStatsTestCase(MockedTestCase):
 
-    def test_stats_work_hard(self):
+    def test_stats_work(self):
         tcs = mock_client_set(self.mox)
         tenant = doubles.make(self.mox, doubles.Tenant,
                               id=u'pid', name=u'test project')
         self.mox.StubOutWithMock(projects, 'client_set_for_tenant')
 
-        self.fake_client_set.identity_admin\
-                .tenants.get(u'pid').AndReturn(tenant)
-        tenant.list_users().AndReturn(range(42))
-        self.fake_client_set.compute.servers.list(search_opts={
-            'project_id': u'pid',
-            'all_tenants': 1
-        }).AndReturn(range(3))
-        projects.client_set_for_tenant(tenant_id=u'pid').AndReturn(tcs)
+        self.fake_client_set.identity_admin.tenants.get(u'pid') \
+                .AndReturn(tenant)
+        self.fake_client_set.identity_admin.tenants.list_users(u'pid') \
+                .AndReturn(range(42))
+        projects.client_set_for_tenant(u'pid', fallback_to_api=True) \
+                .AndReturn(tcs)
+        tcs.compute.servers.list().AndReturn(range(3))
         tcs.image.images.list().AndReturn([])
 
         expected = {
@@ -273,6 +356,14 @@ class ProjectStatsTestCase(MockedTestCase):
         rv = self.client.get('/v1/projects/pid/stats')
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
+
+    def test_stats_not_found(self):
+        self.fake_client_set.identity_admin.tenants.get(u'pid') \
+                .AndRaise(osc_exc.NotFound("test message"))
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/projects/pid/stats')
+        self.check_and_parse_response(rv, 404)
 
 
 class CreateProjectTestCase(MockedTestCase):
@@ -383,15 +474,18 @@ class CreateProjectTestCase(MockedTestCase):
 
 
 class DeleteProjectTestCase(MockedTestCase):
-    tenant_id = u'PID'
+
+    def setUp(self):
+        super(DeleteProjectTestCase, self).setUp()
+        self.tenant_id = u'PID'
+        self.tenant = doubles.make(self.mox, doubles.Tenant,
+                                   id=self.tenant_id)
+        self.mox.StubOutWithMock(projects, '_project_has_servers')
 
     def interact(self, expected_status_code):
         rv = self.client.delete('/v1/projects/%s' % self.tenant_id)
         return self.check_and_parse_response(
             rv, status_code=expected_status_code)
-
-    def _net(self, **kwargs):
-        return doubles.make(self.mox, doubles.Network, **kwargs)
 
     def test_project_deletion_checks_existence(self):
         self.fake_client_set.identity_admin \
@@ -401,70 +495,54 @@ class DeleteProjectTestCase(MockedTestCase):
         self.interact(expected_status_code=404)
 
     def test_project_deletion_works(self):
-        tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
 
         self.fake_client_set.identity_admin \
-            .tenants.get(self.tenant_id).AndReturn(tenant)
-        self.fake_client_set.compute.servers.list(search_opts={
-            'project_id': tenant.id,
-            'all_tenants': 1
-        }).AndReturn([])
+            .tenants.get(self.tenant_id).AndReturn(self.tenant)
+        projects._project_has_servers(self.tenant_id).AndReturn(False)
         self.fake_client_set.compute.networks.list().AndReturn([])
 
-        tenant.delete()
+        self.tenant.delete()
 
         self.mox.ReplayAll()
         self.interact(expected_status_code=204)
 
     def test_project_deletion_late_not_found(self):
-        tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
-
         self.fake_client_set.identity_admin \
-            .tenants.get(self.tenant_id).AndReturn(tenant)
-        self.fake_client_set.compute.servers.list(search_opts={
-            'project_id': tenant.id,
-            'all_tenants': 1
-        }).AndReturn([])
+            .tenants.get(self.tenant_id).AndReturn(self.tenant)
+        projects._project_has_servers(self.tenant_id).AndReturn(False)
         self.fake_client_set.compute.networks.list().AndReturn([])
 
-        tenant.delete().AndRaise(osc_exc.NotFound('deleted'))
+        self.tenant.delete().AndRaise(osc_exc.NotFound('deleted'))
 
         self.mox.ReplayAll()
         self.interact(expected_status_code=204)
 
     def test_project_deletion_with_servers_fails(self):
-        tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
         self.fake_client_set.identity_admin \
-            .tenants.get(self.tenant_id).AndReturn(tenant)
-        self.fake_client_set.compute.servers.list(search_opts={
-            'project_id': tenant.id,
-            'all_tenants': 1
-        }).AndReturn(['s1', 's2', 's3'])
+            .tenants.get(self.tenant_id).AndReturn(self.tenant)
+        projects._project_has_servers(self.tenant_id).AndReturn(True)
 
         self.mox.ReplayAll()
         data = self.interact(expected_status_code=400)
         self.assertTrue('VMs' in data['message'])
 
     def test_project_deletion_with_networks(self):
-        tenant = doubles.make(self.mox, doubles.Tenant, id=self.tenant_id)
-        nets = [
-            self._net(id='n1', project_id=self.tenant_id),
-            self._net(id='n2', project_id=u'other'),
-            self._net(id='n3', project_id=self.tenant_id)
-        ]
+        def _net(**kwargs):
+            return doubles.make(self.mox, doubles.Network, **kwargs)
+
+        nets = [_net(id='n1', project_id=self.tenant_id),
+                _net(id='n2', project_id=u'other'),
+                _net(id='n3', project_id=self.tenant_id)]
 
         self.fake_client_set.identity_admin \
-            .tenants.get(self.tenant_id).AndReturn(tenant)
-        self.fake_client_set.compute.servers.list(search_opts={
-            'project_id': tenant.id,
-            'all_tenants': 1
-        }).AndReturn([])
+            .tenants.get(self.tenant_id).AndReturn(self.tenant)
+        projects._project_has_servers(self.tenant_id).AndReturn(False)
 
         self.fake_client_set.compute.networks.list().AndReturn(nets)
         self.fake_client_set.compute.networks.disassociate(nets[0])
         self.fake_client_set.compute.networks.disassociate(nets[2])
 
-        tenant.delete()
+        self.tenant.delete()
 
         self.mox.ReplayAll()
         self.interact(expected_status_code=204)

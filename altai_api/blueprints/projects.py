@@ -26,13 +26,13 @@ from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import *
 from altai_api.main import app
-from altai_api.utils.decorators import root_endpoint
+from altai_api.utils.decorators import root_endpoint, user_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
-from altai_api.auth import client_set_for_tenant
+from altai_api.auth import admin_client_set, client_set_for_tenant
 
 
 projects = Blueprint('projects', __name__)
@@ -89,26 +89,23 @@ def _project_from_nova(tenant, net, quotaset):
 
 
 def _network_for_project(project_id):
-    for net in g.client_set.compute.networks.list():
+    for net in admin_client_set().compute.networks.list():
         if net.project_id == project_id:
             return net
     return None
 
 
 def _quotaset_for_project(project_id):
-    return g.client_set.compute.quotas.get(project_id)
-
-
-def _servers_for_project(project_id):
-    return g.client_set.compute.servers.list(search_opts={
-        'project_id': project_id,
-        'all_tenants': 1
-    })
+    return admin_client_set().compute.quotas.get(project_id)
 
 
 def get_tenant(project_id):
     try:
-        tenant = g.client_set.identity_admin.tenants.get(project_id)
+        if g.is_admin:
+            tenant = admin_client_set().identity_admin.tenants.get(project_id)
+        else:
+            # NOTE(imelnikov): get does not work for public API
+            tenant = g.client_set.identity_public.tenants.find(id=project_id)
     except osc_exc.NotFound:
         abort(404)
 
@@ -119,8 +116,9 @@ def get_tenant(project_id):
 
 
 @projects.route('/<project_id>', methods=('GET',))
+@user_endpoint
 def get_project(project_id):
-    tenant = get_tenant(project_id)
+    tenant = get_tenant(project_id)  # checks permissions
     net = _network_for_project(project_id)
     quotaset = _quotaset_for_project(project_id)
 
@@ -147,12 +145,17 @@ _SCHEMA = Schema((
 
 @projects.route('/', methods=('GET',))
 @root_endpoint('projects')
+@user_endpoint
 def list_projects():
     parse_collection_request(_SCHEMA)
-    cs = g.client_set
-    tenants = cs.identity_admin.tenants.list()
+    if g.my_projects:
+        client = g.client_set.identity_public
+    else:
+        client = admin_client_set().identity_admin
+
+    tenants = client.tenants.list()
     networks = dict(((net.project_id, net)
-                     for net in cs.compute.networks.list()
+                     for net in admin_client_set().compute.networks.list()
                      if net.project_id))
     systenant = app.config['DEFAULT_TENANT']
     # systenant is special entity, not a 'project' in Altai sense
@@ -163,13 +166,13 @@ def list_projects():
 
 
 @projects.route('/<project_id>/stats', methods=('GET',))
+@user_endpoint
 def get_project_stats(project_id):
     tenant = get_tenant(project_id)
+    users = admin_client_set().identity_admin.tenants.list_users(tenant.id)
 
-    users = tenant.list_users()
-    servers = _servers_for_project(tenant.id)
-
-    tcs = client_set_for_tenant(tenant_id=tenant.id)
+    tcs = client_set_for_tenant(project_id, fallback_to_api=g.is_admin)
+    servers = tcs.compute.servers.list()
     images = tcs.image.images.list()
     local_images = [image for image in images
                     if image.owner == tenant.id]
@@ -230,6 +233,15 @@ def create_project():
     return make_json_response(result)
 
 
+def _project_has_servers(project_id):
+    s = admin_client_set().compute.servers.list(
+        detailed=False,
+        search_opts=dict(all_tenants=1,
+                         tenant_id=project_id,
+                         limit=1))
+    return len(s) > 0
+
+
 @projects.route('/<project_id>', methods=('DELETE',))
 def delete_project(project_id):
     set_audit_resource_id(project_id)
@@ -237,12 +249,12 @@ def delete_project(project_id):
 
     # NOTE(imelnikov): server deletion in OpenStack is asynchronous and
     #   takes a lot of time, so to avoid races we don't delete them here
-    if _servers_for_project(tenant.id):
+    if _project_has_servers(project_id):
         raise exc.InvalidRequest("Can't delete project "
                                  "while there are VMs")
 
     # detach all networks
-    net_client = g.client_set.compute.networks
+    net_client = admin_client_set().compute.networks
     for net in net_client.list():
         if net.project_id == tenant.id:
             net_client.disassociate(net)

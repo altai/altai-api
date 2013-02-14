@@ -29,6 +29,8 @@ from flask.exceptions import HTTPException
 
 class TestCase(unittest.TestCase):
     FAKE_AUTH = True
+    # by default, pretend to be admin
+    IS_ADMIN = True
 
     def _fake_client_set_factory(self):
         class _Fake(object):
@@ -39,9 +41,8 @@ class TestCase(unittest.TestCase):
         if not hasattr(self, 'fake_client_set'):
             self.fake_client_set = self._fake_client_set_factory()
         g.client_set = self.fake_client_set
-        # by default, pretend to be admin
         g.admin_client_set = self.fake_client_set
-        g.is_admin = True
+        g.is_admin = self.IS_ADMIN
         return None
 
     def setUp(self):
