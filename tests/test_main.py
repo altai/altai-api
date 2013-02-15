@@ -24,6 +24,8 @@ import os
 import unittest
 import logging.handlers
 import mox
+from tests.mocked import MockedTestCase
+
 from altai_api import main
 from altai_api.utils.periodic_job import PeriodicJob
 
@@ -47,6 +49,7 @@ class MainTestCase(mox.MoxTestBase):
         super(MainTestCase, self).setUp()
         self.mox.StubOutWithMock(main, 'app')
         self.mox.StubOutWithMock(main, 'setup_logging')
+        self.mox.StubOutWithMock(main, 'check_connection')
         self.mox.StubOutWithMock(main.vms_jobs, 'jobs_factory')
 
     def tearDown(self):
@@ -60,6 +63,7 @@ class MainTestCase(mox.MoxTestBase):
                  self.mox.CreateMock(PeriodicJob)]
 
         main.setup_logging(main.app)
+        main.check_connection().AndReturn(True)
         main.vms_jobs.jobs_factory(main.app).AndReturn(jobs)
         main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
@@ -67,6 +71,15 @@ class MainTestCase(mox.MoxTestBase):
         jobs[1].cancel()
         self.mox.ReplayAll()
         main.main()
+
+    def test_main_check_failed(self):
+        main.CONFIG_ENV = 'I_HOPE_THIS_WILL_NEVER_EVER_EXIST'
+        main.app.config = self.config
+
+        main.setup_logging(main.app)
+        main.check_connection().AndReturn(False)
+        self.mox.ReplayAll()
+        self.assertRaises(SystemExit, main.main)
 
     def test_env_is_looked_at(self):
         main.CONFIG_ENV = os.environ.keys()[0]
@@ -78,6 +91,7 @@ class MainTestCase(mox.MoxTestBase):
         main.app.config.from_envvar(main.CONFIG_ENV)\
                 .WithSideEffects(side_effect)
         main.setup_logging(main.app)
+        main.check_connection().AndReturn(True)
         main.vms_jobs.jobs_factory(main.app).AndReturn([])
         main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
@@ -127,4 +141,19 @@ class SetupLoggingTestCase(mox.MoxTestBase):
         self.mox.ReplayAll()
         self.app.config['LOG_LEVEL'] = 'BAD LEVEL'
         main.setup_logging(self.app)
+
+
+class CheckConnectionTestCase(MockedTestCase):
+
+    def test_check_connection_ok(self):
+        self.mox.StubOutWithMock(main.auth, 'api_client_set')
+        main.auth.api_client_set()
+        self.mox.ReplayAll()
+        self.assertEquals(True, main.check_connection())
+
+    def test_check_connection_fail(self):
+        self.mox.StubOutWithMock(main.auth, 'api_client_set')
+        main.auth.api_client_set().AndRaise(RuntimeError('catch_me'))
+        self.mox.ReplayAll()
+        self.assertEquals(False, main.check_connection())
 

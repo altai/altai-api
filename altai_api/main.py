@@ -21,6 +21,7 @@
 """Application entry point"""
 
 import os
+import sys
 import flask
 import logging.handlers
 import altai_api
@@ -115,10 +116,24 @@ def setup_logging(application):
                             altai_api.__version__)
 
 
+def check_connection():
+    """Attempt to connect to identity service"""
+    try:
+        with app.test_request_context():
+            auth.api_client_set()
+        return True
+    except Exception, e:
+        app.logger.error('Configuration check failed (%s)', e)
+    return False
+
+
 def main():
     if CONFIG_ENV in os.environ:
         app.config.from_envvar(CONFIG_ENV)
     setup_logging(app)
+
+    if not check_connection():
+        sys.exit(1)
 
     periodic_jobs = []
     if not app.config['USE_RELOADER'] \
