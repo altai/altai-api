@@ -22,6 +22,7 @@
 import time
 import unittest
 import flask
+from threading import Event
 from datetime import datetime, timedelta
 from tests.mocked import MockedTestCase
 
@@ -35,20 +36,26 @@ class PeriodicJobTestCase(unittest.TestCase):
         for idx in xrange(len(deltas)):
             ref = started + timedelta(seconds=deltas[idx])
             diff = when[idx] - ref
-            if abs(diff) > timedelta(seconds=0.1):
+            if abs(diff) > timedelta(seconds=0.25):
                 self.fail('Times are too different: '
                           'expected %s, got %s (idx=%s)'
                           % (ref, when[idx], idx))
 
     def test_periodic_job_works(self):
+        def append_now(lst):
+            try:
+                lst.append(datetime.utcnow())
+            finally:
+                event.set()
+
         when = []
         started = datetime.utcnow()
-
-        def append_now(lst):
-            lst.append(datetime.utcnow())
-
+        event = Event()
+        event.clear()
         job = periodic_job.PeriodicJob(0.5, append_now, when)
-        time.sleep(1.2)
+        for _ in xrange(3):
+            event.wait(0.7)
+            event.clear()
         job.cancel()
         self.check_times(when, started, [0, 0.5, 1])
         time.sleep(0.4)
@@ -85,17 +92,25 @@ class PeriodicJobTestCase(unittest.TestCase):
 
 class PeriodicAdministrativeJobTestCase(MockedTestCase):
 
+    def setUp(self):
+        super(PeriodicAdministrativeJobTestCase, self).setUp()
+        self.event = Event()
+        self.event.clear()
+
     def test_job_works(self):
         evidence = []
 
         def test_fun(arg):
-            self.install_fake_auth()
-            evidence.extend((arg, flask.g.client_set))
+            try:
+                self.install_fake_auth()
+                evidence.extend((arg, flask.g.client_set))
+            finally:
+                self.event.set()
 
         self.mox.ReplayAll()
         job = periodic_job.PeriodicAdministrativeJob(
-            self.app, 0.5, test_fun, 'test')
-        time.sleep(0.1)
+            self.app, 10.0, test_fun, 'test')
+        self.event.wait(5.0)
         job.cancel()
         self.assertEquals(evidence, ['test', self.fake_client_set])
 
@@ -105,10 +120,14 @@ class PeriodicAdministrativeJobTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         def test_fun(_):
-            raise RuntimeError('catch me')
+            try:
+                raise RuntimeError('catch me')
+            finally:
+                self.event.set()
 
         job = periodic_job.PeriodicAdministrativeJob(
-            self.app, 0.5, test_fun, 'test')
-        time.sleep(0.1)
+            self.app, 10.0, test_fun, 'test')
+        self.event.wait(5.0)
         job.cancel()
+        time.sleep(0.5)
 
