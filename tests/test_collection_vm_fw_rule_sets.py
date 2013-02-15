@@ -82,10 +82,12 @@ class VmRuleSetsTestCase(MockedTestCase):
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups') \
                 .AndRaise(osc_exc.HttpException('something happened'))
-        self.fake_client_set.compute.servers.get(self.server.id)
+        self.fake_client_set.compute.servers.get(self.server.id) \
+                .AndReturn(self.server)
         self.mox.ReplayAll()
         rv = self.client.get('/v1/vms/%s/fw-rule-sets/' % self.server.id)
-        self.check_and_parse_response(rv, status_code=500)
+        data = self.check_and_parse_response(rv, status_code=500)
+        self.assertTrue('something happened' in data.get('message', ''))
 
     def test_get_works(self):
         self.fake_client_set.compute.security_groups._list(

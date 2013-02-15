@@ -34,7 +34,8 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.blueprints.projects import link_for_project
-from altai_api.auth import client_set_for_tenant, default_tenant_id
+from altai_api.auth import (admin_client_set, client_set_for_tenant,
+                            default_tenant_id)
 
 
 images = Blueprint('images', __name__)
@@ -54,7 +55,7 @@ def _fetch_image(image_id):
 def link_for_image(image_id, image_name=None):
     if image_name is None:
         try:
-            image_name = g.client_set.image.images.get(image_id).name
+            image_name = admin_client_set().image.images.get(image_id).name
         except osc_exc.NotFound:
             image_name = None
     return {

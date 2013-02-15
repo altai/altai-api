@@ -26,14 +26,18 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import *
-from altai_api.utils.decorators import root_endpoint
+from altai_api.utils.decorators import root_endpoint, user_endpoint
+from altai_api.utils.collection import get_matcher_argument
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 from altai_api.utils.parsers import timestamp_from_openstack, int_from_string
 
-from altai_api.auth import client_set_for_tenant
+from altai_api.auth import (client_set_for_tenant, admin_client_set,
+                            current_user_project_ids,
+                            assert_admin_or_project_user)
+
 from altai_api.blueprints.users import link_for_user_id
 from altai_api.blueprints.projects import link_for_project
 from altai_api.blueprints.images import link_for_image
@@ -55,7 +59,7 @@ def link_for_server(server):
 
 
 def _vm_from_nova(server):
-    client = g.client_set
+    client = admin_client_set()
     project_link = link_for_project(server.tenant_id)
     flavor = client.compute.flavors.get(server.flavor['id'])
     user_link = link_for_user_id(server.user_id)
@@ -99,9 +103,11 @@ def _vm_from_nova(server):
 
 def fetch_vm(vm_id):
     try:
-        return g.client_set.compute.servers.get(vm_id)
+        vm = admin_client_set().compute.servers.get(vm_id)
     except osc_exc.NotFound:
         abort(404)
+    assert_admin_or_project_user(vm.tenant_id, eperm_status=404)
+    return vm
 
 
 _SCHEMA = Schema((
@@ -129,17 +135,37 @@ _SCHEMA = Schema((
 )
 
 
+def _servers_for_user():
+    project_id = get_matcher_argument('project', 'eq')
+    if project_id is not None:
+        projects = (project_id,)
+    else:
+        projects = get_matcher_argument('project', 'in')
+
+    result = []
+    for project_id in current_user_project_ids():
+        if projects is None or project_id in projects:
+            cs = client_set_for_tenant(project_id)
+            result.extend(cs.compute.servers.list())
+    return result
+
+
 @vms.route('/', methods=('GET',))
 @root_endpoint('vms')
+@user_endpoint
 def list_vms():
     parse_collection_request(_SCHEMA.sortby)
-    servers = g.client_set.compute.servers.list(
-            search_opts={'all_tenants': 1})
+    if g.my_projects:
+        servers = _servers_for_user()
+    else:
+        servers = g.client_set.compute.servers.list(
+                search_opts={'all_tenants': 1})
     return make_collection_response( u'vms', [_vm_from_nova(vm)
                                               for vm in servers])
 
 
 @vms.route('/<vm_id>', methods=('GET',))
+@user_endpoint
 def get_vm(vm_id):
     return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
 
@@ -164,6 +190,7 @@ def _security_group_ids_to_names(security_groups_ids, sg_manager):
 
 
 @vms.route('/', methods=('POST',))
+@user_endpoint
 def create_vm():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
@@ -194,11 +221,12 @@ def create_vm():
 
 
 @vms.route('/<vm_id>', methods=('PUT',))
+@user_endpoint
 def update_vm(vm_id):
     data = parse_request_data(_SCHEMA.updatable)
     if 'name' in data:
         try:
-            g.client_set.compute.servers.update(vm_id, name=data['name'])
+            fetch_vm(vm_id).update(name=data['name'])
         except osc_exc.NotFound:
             abort(404)
     vm = fetch_vm(vm_id)
@@ -218,7 +246,7 @@ def update_vm(vm_id):
 def _do_remove_vm(vm_id):
     """The real VM removal implementation"""
     try:
-        g.client_set.compute.servers.delete(vm_id)
+        fetch_vm(vm_id).delete()
     except osc_exc.NotFound:
         abort(404)
 
@@ -230,6 +258,7 @@ def _do_remove_vm(vm_id):
 
 
 @vms.route('/<vm_id>/remove', methods=('POST',))
+@user_endpoint
 def remove_vm(vm_id):
     parse_request_data()
     server = _do_remove_vm(vm_id)
@@ -241,6 +270,7 @@ def remove_vm(vm_id):
 
 
 @vms.route('/<vm_id>', methods=('DELETE',))
+@user_endpoint
 def delete_vm(vm_id):
     set_audit_resource_id(vm_id)
     server = _do_remove_vm(vm_id)
@@ -262,7 +292,7 @@ def _do_reboot_vm(vm_id, method):
     set_audit_resource_id(vm_id)
     parse_request_data()
     try:
-        g.client_set.compute.servers.reboot(vm_id, method)
+        fetch_vm(vm_id).reboot(method)
     except osc_exc.NotFound:
         abort(404)
     # Fetch it again, with new status:
@@ -270,16 +300,19 @@ def _do_reboot_vm(vm_id, method):
 
 
 @vms.route('/<vm_id>/reboot', methods=('POST',))
+@user_endpoint
 def reboot_vm(vm_id):
     return _do_reboot_vm(vm_id, REBOOT_SOFT)
 
 
 @vms.route('/<vm_id>/reset', methods=('POST',))
+@user_endpoint
 def reset_vm(vm_id):
     return _do_reboot_vm(vm_id, REBOOT_HARD)
 
 
 @vms.route('/<vm_id>/console-output', methods=('POST',))
+@user_endpoint
 def vm_console_output(vm_id):
     set_audit_resource_id(vm_id)
     length = int_from_string(request.args.get('length'), allow_none=True)
@@ -298,6 +331,7 @@ def vm_console_output(vm_id):
 
 
 @vms.route('/<vm_id>/vnc', methods=('POST',))
+@user_endpoint
 def vm_vnc_console(vm_id):
     set_audit_resource_id(vm_id)
 

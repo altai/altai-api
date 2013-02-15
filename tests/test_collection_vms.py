@@ -28,6 +28,7 @@ from tests.mocked import MockedTestCase, mock_client_set
 
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 from openstackclient_base import exceptions as osc_exc
+from werkzeug.exceptions import NotFound
 
 from altai_api.blueprints import vms
 
@@ -180,6 +181,8 @@ class VmsListTestCase(MockedTestCase):
     def setUp(self):
         super(VmsListTestCase, self).setUp()
         self.mox.StubOutWithMock(vms, '_vm_from_nova')
+        self.mox.StubOutWithMock(vms, '_servers_for_user')
+        self.mox.StubOutWithMock(vms, 'fetch_vm')
 
     def test_list_vms_works(self):
         self.fake_client_set.compute.servers\
@@ -201,8 +204,27 @@ class VmsListTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
+    def test_list_vms_my_projects(self):
+        vms._servers_for_user() \
+                .AndReturn([u'VM1', u'VM2'])
+        vms._vm_from_nova(u'VM1').AndReturn(u'R1')
+        vms._vm_from_nova(u'VM2').AndReturn(u'R2')
+
+        expected = {
+            u'collection': {
+                u'name': u'vms',
+                u'size': 2
+            },
+            u'vms': [ u'R1', u'R2' ]
+        }
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/vms/?my-projects=true')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
     def test_get_vm_works(self):
-        self.fake_client_set.compute.servers.get(u'VMID').AndReturn('VM1')
+        vms.fetch_vm(u'VMID').AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -210,13 +232,79 @@ class VmsListTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'REPLY')
 
-    def test_get_vm_not_found(self):
-        self.fake_client_set.compute.servers.get(u'VMID')\
-                .AndRaise(osc_exc.NotFound('failure'))
+
+class UserVmTestCase(MockedTestCase):
+    IS_ADMIN = False
+
+    def test_fetch_vm_as_user(self):
+        self.mox.StubOutWithMock(vms, 'admin_client_set')
+        self.mox.StubOutWithMock(vms, 'assert_admin_or_project_user')
+        vm = doubles.make(self.mox, doubles.Server,
+                          id='VMID', tenant_id='PID', name='test')
+
+        tcs = self._fake_client_set_factory()
+        vms.admin_client_set().AndReturn(tcs)
+        tcs.compute.servers.get('VMID').AndReturn(vm)
+        vms.assert_admin_or_project_user('PID', eperm_status=404)
 
         self.mox.ReplayAll()
-        rv = self.client.get('/v1/vms/VMID')
-        self.check_and_parse_response(rv, 404)
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = vms.fetch_vm('VMID')
+        self.assertEquals(result, vm)
+
+    def test_fetch_vm_as_non_permitted_user(self):
+        self.mox.StubOutWithMock(vms, 'admin_client_set')
+        self.mox.StubOutWithMock(vms, 'assert_admin_or_project_user')
+        vm = doubles.make(self.mox, doubles.Server,
+                          id='VMID', tenant_id='PID', name='test')
+
+        tcs = self._fake_client_set_factory()
+        vms.admin_client_set().AndReturn(tcs)
+        tcs.compute.servers.get('VMID').AndReturn(vm)
+        vms.assert_admin_or_project_user('PID', eperm_status=404) \
+                .AndRaise(NotFound)
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertAborts(404, vms.fetch_vm, 'VMID')
+
+
+class ServersForUserTestCase(MockedTestCase):
+
+    def test_servers_for_user_work(self):
+        self.mox.StubOutWithMock(vms, 'client_set_for_tenant')
+        tenants = [doubles.make(self.mox, doubles.Tenant, id='P1'),
+                   doubles.make(self.mox, doubles.Tenant, id='P3')]
+        tcs = self._fake_client_set_factory()
+
+        self.fake_client_set.identity_public.tenants.list() \
+                .AndReturn(tenants)
+        vms.client_set_for_tenant('P1').AndReturn(tcs)
+        tcs.compute.servers.list().AndReturn(['V1', 'V2', 'V3'])
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context('/v1/vms?my-projects=true'
+                                           '&project:in=P1|P2'):
+            self.install_fake_auth()
+            vms.parse_collection_request(vms._SCHEMA.sortby)
+            result = vms._servers_for_user()
+        self.assertEquals(result, ['V1', 'V2', 'V3'])
+
+    def test_servers_for_user_none(self):
+        self.mox.StubOutWithMock(vms, 'client_set_for_tenant')
+        tenants = [doubles.make(self.mox, doubles.Tenant, id='P2'),
+                   doubles.make(self.mox, doubles.Tenant, id='P3')]
+        self.fake_client_set.identity_public.tenants.list() \
+                .AndReturn(tenants)
+        self.mox.ReplayAll()
+        with self.app.test_request_context('/v1/vms?my-projects=true'
+                                           '&project:eq=P1'):
+            self.install_fake_auth()
+            vms.parse_collection_request(vms._SCHEMA.sortby)
+            result = vms._servers_for_user()
+        self.assertEquals(result, [])
 
 
 class CreateTestCase(MockedTestCase):
@@ -406,6 +494,9 @@ class UpdateTestCase(MockedTestCase):
         super(UpdateTestCase, self).setUp()
         self.mox.StubOutWithMock(vms, '_vm_from_nova')
         self.mox.StubOutWithMock(vms, 'VmDataDAO')
+        self.mox.StubOutWithMock(vms, 'fetch_vm')
+        self.server = doubles.make(self.mox, doubles.Server,
+                                   id=self.vm_id, name=u'VICTIM VM')
 
     def interact(self, data, expected_status_code=200):
         rv = self.client.put('/v1/vms/%s' % self.vm_id,
@@ -416,10 +507,10 @@ class UpdateTestCase(MockedTestCase):
 
     def test_rename_works(self):
         params = { 'name': u'new name' }
-        client = self.fake_client_set
 
-        client.compute.servers.update(self.vm_id, name=u'new name')
-        client.compute.servers.get(self.vm_id).AndReturn('VM')
+        vms.fetch_vm(self.vm_id).AndReturn(self.server)
+        self.server.update(name=u'new name')
+        vms.fetch_vm(self.vm_id).AndReturn('VM')
         vms._vm_from_nova('VM').AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -428,18 +519,17 @@ class UpdateTestCase(MockedTestCase):
 
     def test_rename_not_found(self):
         params = { 'name': u'new name' }
-        client = self.fake_client_set
 
-        client.compute.servers.update(self.vm_id, name=u'new name')\
+        vms.fetch_vm(self.vm_id).AndReturn(self.server)
+        self.server.update(name=u'new name') \
                 .AndRaise(osc_exc.NotFound('failure'))
         self.mox.ReplayAll()
         self.interact(params, expected_status_code=404)
 
     def test_update_empty(self):
         params = {}
-        client = self.fake_client_set
 
-        client.compute.servers.get(self.vm_id).AndReturn('VM')
+        vms.fetch_vm(self.vm_id).AndReturn('VM')
         vms._vm_from_nova('VM').AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -459,10 +549,9 @@ class UpdateTestCase(MockedTestCase):
         params = {
             'expires-at': u'2013-02-17T15:36:00Z'
         }
-        client = self.fake_client_set
         server = doubles.make(self.mox, doubles.Server, id='VMID')
 
-        client.compute.servers.get(self.vm_id).AndReturn(server)
+        vms.fetch_vm(self.vm_id).AndReturn(server)
         vms.VmDataDAO.update('VMID',
                              expires_at=datetime(2013, 2, 17, 15, 36, 0))
         vms._vm_from_nova(server).AndReturn('REPLY')
@@ -476,10 +565,9 @@ class UpdateTestCase(MockedTestCase):
             'expires-at': None,
             'remind-at': None
         }
-        client = self.fake_client_set
         server = doubles.make(self.mox, doubles.Server, id='VMID')
 
-        client.compute.servers.get(self.vm_id).AndReturn(server)
+        vms.fetch_vm(self.vm_id).AndReturn(server)
         vms.VmDataDAO.update('VMID', expires_at=None, remind_at=None)
         vms._vm_from_nova(server).AndReturn('REPLY')
 
@@ -491,10 +579,9 @@ class UpdateTestCase(MockedTestCase):
         params = {
             'remind-at': u'2013-02-17T15:36:00Z'
         }
-        client = self.fake_client_set
         server = doubles.make(self.mox, doubles.Server, id='VMID')
 
-        client.compute.servers.get(self.vm_id).AndReturn(server)
+        vms.fetch_vm(self.vm_id).AndReturn(server)
         vms.VmDataDAO.update('VMID',
                              remind_at=datetime(2013, 2, 17, 15, 36, 0))
         vms._vm_from_nova(server).AndReturn('REPLY')
@@ -512,6 +599,7 @@ class ActionsTestCase(MockedTestCase):
                                    id=u'VICTIM', name=u'VICTIM VM')
         self.mox.StubOutWithMock(vms, '_vm_from_nova')
         self.mox.StubOutWithMock(vms, 'VmDataDAO')
+        self.mox.StubOutWithMock(vms, 'fetch_vm')
 
     def interact(self, url, data, expected_status_code=200):
         rv = self.client.post(url,
@@ -522,8 +610,9 @@ class ActionsTestCase(MockedTestCase):
 
     def test_reboot_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.reboot(s.id, REBOOT_SOFT)
-        self.fake_client_set.compute.servers.get(s.id).AndReturn('VM1')
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.reboot(REBOOT_SOFT)
+        vms.fetch_vm(s.id).AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -531,11 +620,13 @@ class ActionsTestCase(MockedTestCase):
         self.assertEquals(data, 'REPLY')
 
     def test_reboot_not_found(self):
-        self.fake_client_set.compute.servers.reboot('VMID', REBOOT_SOFT) \
-                .AndRaise(osc_exc.NotFound('failure'))
+        s = self.server
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.reboot(REBOOT_SOFT).AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
-        self.interact('/v1/vms/VMID/reboot', {}, expected_status_code=404)
+        self.interact('/v1/vms/%s/reboot' % s.id,
+                      {}, expected_status_code=404)
 
     def test_reboot_vm_checks_input(self):
         self.mox.ReplayAll()
@@ -548,8 +639,9 @@ class ActionsTestCase(MockedTestCase):
     #  there is no need to repeat all that tests once again
     def test_reset_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.reboot(s.id, REBOOT_HARD)
-        self.fake_client_set.compute.servers.get(s.id).AndReturn('VM1')
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.reboot(REBOOT_HARD)
+        vms.fetch_vm(s.id).AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -558,9 +650,10 @@ class ActionsTestCase(MockedTestCase):
 
     def test_remove_vm_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.delete(s.id)
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.delete()
         vms.VmDataDAO.delete(s.id)
-        self.fake_client_set.compute.servers.get(s.id).AndReturn('VM1')
+        vms.fetch_vm(s.id).AndReturn('VM1')
         vms._vm_from_nova('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -569,10 +662,11 @@ class ActionsTestCase(MockedTestCase):
 
     def test_remove_vm_fast(self):
         s = self.server
-        self.fake_client_set.compute.servers.delete(s.id)
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.delete()
         vms.VmDataDAO.delete(s.id)
-        self.fake_client_set.compute.servers.get(s.id)\
-                .AndRaise(osc_exc.NotFound('gone'))
+        vms.fetch_vm(s.id)\
+                .AndRaise(NotFound())
 
         self.mox.ReplayAll()
         self.interact('/v1/vms/%s/remove' % s.id, {},
@@ -580,8 +674,8 @@ class ActionsTestCase(MockedTestCase):
 
     def test_remove_vm_not_found(self):
         s = self.server
-        self.fake_client_set.compute.servers.delete(s.id) \
-                .AndRaise(osc_exc.NotFound('failure'))
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.delete().AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
         self.interact('/v1/vms/%s/remove' % s.id, {},
@@ -596,10 +690,10 @@ class ActionsTestCase(MockedTestCase):
 
     def test_delete_vm_works(self):
         s = self.server
-        self.fake_client_set.compute.servers.delete(s.id)
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.delete()
         vms.VmDataDAO.delete(s.id)
-        self.fake_client_set.compute.servers.get(s.id)\
-                .AndRaise(osc_exc.NotFound('gone'))
+        vms.fetch_vm(s.id).AndRaise(NotFound())
 
         self.mox.ReplayAll()
         rv = self.client.delete('/v1/vms/%s' % s.id)
@@ -607,9 +701,10 @@ class ActionsTestCase(MockedTestCase):
 
     def test_delete_vm_pretends_waiting(self):
         s = self.server
-        self.fake_client_set.compute.servers.delete(s.id)
+        vms.fetch_vm(s.id).AndReturn(s)
+        s.delete()
         vms.VmDataDAO.delete(s.id)
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        vms.fetch_vm(s.id).AndReturn(s)
 
         self.mox.ReplayAll()
         rv = self.client.delete('/v1/vms/%s' % s.id)
@@ -626,7 +721,7 @@ class ActionsTestCase(MockedTestCase):
             'console-output': 'CONSOLE LOG'
         }
 
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        vms.fetch_vm(s.id).AndReturn(s)
         s.get_console_output(length=None).AndReturn('CONSOLE LOG')
 
         self.mox.ReplayAll()
@@ -645,7 +740,7 @@ class ActionsTestCase(MockedTestCase):
         }
         length = 42
 
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        vms.fetch_vm(s.id).AndReturn(s)
         s.get_console_output(length=length).AndReturn('CONSOLE LOG')
 
         self.mox.ReplayAll()
@@ -655,7 +750,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_console_output_not_found(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id)\
+        vms.fetch_vm(s.id)\
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
@@ -665,7 +760,7 @@ class ActionsTestCase(MockedTestCase):
     def test_console_output_late_not_found(self):
         s = self.server
 
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        vms.fetch_vm(s.id).AndReturn(s)
         s.get_console_output(length=None) \
                 .AndRaise(osc_exc.NotFound('failure'))
 
@@ -689,7 +784,7 @@ class ActionsTestCase(MockedTestCase):
             'type': 'novnc'
         }
 
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        vms.fetch_vm(s.id).AndReturn(s)
         s.get_vnc_console(console_type='novnc')\
                 .AndReturn({'console': console})
 
@@ -699,7 +794,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_vnc_not_found(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id)\
+        vms.fetch_vm(s.id)\
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()
@@ -708,7 +803,7 @@ class ActionsTestCase(MockedTestCase):
 
     def test_vnc_late_not_found(self):
         s = self.server
-        self.fake_client_set.compute.servers.get(s.id).AndReturn(s)
+        vms.fetch_vm(s.id).AndReturn(s)
         s.get_vnc_console(console_type='novnc')\
                 .AndRaise(osc_exc.NotFound('failure'))
 
