@@ -99,7 +99,7 @@ def apply_password_reset(code):
     token = ResetTokensDAO.get(code)
     if not token or token.complete:
         abort(404)
-    user = fetch_user(token.user_id)
+    user = fetch_user(token.user_id, admin_mode=True)
     update_user_data(user, data)
     ResetTokensDAO.complete_for_user(token.user_id)
     return make_json_response(None, status_code=204)

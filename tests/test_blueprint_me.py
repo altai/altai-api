@@ -139,7 +139,7 @@ class ResetPasswordTestCase(MockedTestCase):
         params = { 'password': 'p@ssw0rd' }
 
         me.ResetTokensDAO.get('THE_CODE').AndReturn(token)
-        me.fetch_user(uid).AndReturn('USER')
+        me.fetch_user(uid, admin_mode=True).AndReturn('USER')
         me.update_user_data('USER', params)
         me.ResetTokensDAO.complete_for_user(uid)
 

@@ -43,6 +43,7 @@ class TestCase(unittest.TestCase):
         g.client_set = self.fake_client_set
         g.admin_client_set = self.fake_client_set
         g.is_admin = self.IS_ADMIN
+        g.my_projects = not self.IS_ADMIN
         return None
 
     def setUp(self):

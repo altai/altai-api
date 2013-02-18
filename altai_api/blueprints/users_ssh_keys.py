@@ -48,7 +48,8 @@ def list_users_ssh_keys(user_id):
 
     result = [keypair_from_nova(keypair) for keypair in mgr.list(user_id)]
     if not result:
-        fetch_user(user_id)  # to abort(404) when user not exists
+        # abort(404) when user not exists or not visible:
+        fetch_user(user_id, g.is_admin)
 
     parent_href = url_for('users.get_user', user_id=user_id)
     return make_collection_response('ssh-keys', result,
@@ -69,7 +70,8 @@ def get_users_ssh_key(user_id, key_name):
 def create_users_ssh_key(user_id):
     data = parse_request_data(required=_SCHEMA.required)
     mgr = g.client_set.compute_ext.user_keypairs
-    user = fetch_user(user_id)  # to abort(404) when user not exists
+    # abort(404) when user not exists or not visible:
+    user = fetch_user(user_id, g.is_admin)
 
     kp = mgr.create(user, data['name'], data['public-key'])
     set_audit_resource_id(kp.name)

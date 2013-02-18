@@ -19,7 +19,8 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-import json
+import flask
+from flask import json
 
 from datetime import datetime
 from openstackclient_base import exceptions as osc_exc
@@ -37,13 +38,7 @@ class UserFromNovaTestCase(MockedTestCase):
     def setUp(self):
         super(UserFromNovaTestCase, self).setUp()
         self.mox.StubOutWithMock(users, 'InvitesDAO')
-
-    def test_user_from_nova_works(self):
-        user = doubles.make(self.mox, doubles.User,
-                            id=u'42', name=u'iv', email=u'iv@example.com',
-                            fullname=u'Example User', enabled=True)
-
-        user.list_roles().AndReturn([
+        self.roles = [
             doubles.make(self.mox, doubles.Role,
                          role={'id': u'42', 'name': u'admin'},
                          tenant={'id': 'SYS', 'name': 'systenant'}),
@@ -53,7 +48,13 @@ class UserFromNovaTestCase(MockedTestCase):
             doubles.make(self.mox, doubles.Role,
                          role={'id': u'44', 'name': u'member'},
                          tenant={'id': 'PID2', 'name': 'other'})
-        ])
+        ]
+
+    def test_user_from_nova_works(self):
+        user = doubles.make(self.mox, doubles.User,
+                            id=u'42', name=u'iv', email=u'iv@example.com',
+                            fullname=u'Example User', enabled=True)
+        user.list_roles().AndReturn(self.roles)
 
         expected = {
             u'id': u'42',
@@ -80,6 +81,7 @@ class UserFromNovaTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
+            self.install_fake_auth()
             data = users.user_from_nova(user)
         self.assertEquals(data, expected)
 
@@ -105,6 +107,7 @@ class UserFromNovaTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
+            self.install_fake_auth()
             data = users.user_from_nova(user)
         self.assertEquals(data, expected)
 
@@ -132,6 +135,7 @@ class UserFromNovaTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            self.install_fake_auth()
             data = users.user_from_nova(user)
         self.assertEquals(data, expected)
 
@@ -160,14 +164,39 @@ class UserFromNovaTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            self.install_fake_auth()
             data = users.user_from_nova(user, invite, send_code=True)
         self.assertEquals(data, expected)
 
+    def test_user_from_nova_with_my_projects(self):
+        tenant = doubles.make(self.mox, doubles.Tenant,
+                              id='PID', name='ptest')
+        user = doubles.make(self.mox, doubles.User,
+                            id=u'42', name=u'iv', email=u'iv@example.com',
+                            fullname=u'Example User', enabled=True)
 
-class UsersCollectionTestCase(MockedTestCase):
+        user.list_roles().AndReturn(self.roles)
+        self.fake_client_set.identity_public.tenants.list()\
+                .AndReturn([tenant])
+
+        expected_projects = [{
+            u'id': 'PID',
+            u'name': 'ptest',
+            u'href': '/v1/projects/PID'
+        }]
+        self.mox.ReplayAll()
+
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            flask.g.my_projects = True
+            data = users.user_from_nova(user)
+        self.assertEquals(data['projects'], expected_projects)
+
+
+class GetUsersTestCase(MockedTestCase):
 
     def setUp(self):
-        super(UsersCollectionTestCase, self).setUp()
+        super(GetUsersTestCase, self).setUp()
         self.mox.StubOutWithMock(users, 'user_from_nova')
         self.mox.StubOutWithMock(users, 'member_role_id')
 
@@ -211,6 +240,14 @@ class UsersCollectionTestCase(MockedTestCase):
         rv = self.client.get('/v1/users/user-a')
         # verify
         self.check_and_parse_response(rv, status_code=404)
+
+
+class CreateUserTestCase(MockedTestCase):
+
+    def setUp(self):
+        super(CreateUserTestCase, self).setUp()
+        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'member_role_id')
 
     def test_create_user(self):
         client = self.fake_client_set
@@ -459,6 +496,14 @@ class UsersCollectionTestCase(MockedTestCase):
 
         self.check_and_parse_response(rv, status_code=400)
 
+
+class UpdateUserTestCase(MockedTestCase):
+
+    def setUp(self):
+        super(UpdateUserTestCase, self).setUp()
+        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'member_role_id')
+
     def test_update_user(self):
         ia = self.fake_client_set.identity_admin
         # prepare
@@ -573,6 +618,60 @@ class UsersCollectionTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'REPLY')
 
+
+class UpdateUserSelfTestCase(MockedTestCase):
+    IS_ADMIN = False
+    name = 'user-upd'
+
+    def setUp(self):
+        super(UpdateUserSelfTestCase, self).setUp()
+        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'member_role_id')
+        self.mox.StubOutWithMock(users.auth, 'current_user_id')
+        self.mox.StubOutWithMock(users, 'fetch_user')
+        self.user = doubles.make(self.mox, doubles.User,
+                                 id='UID', name='old-name')
+
+    def test_update_self(self):
+        users.fetch_user(self.user.id, False).AndReturn(self.user)
+        users.auth.current_user_id().AndReturn(self.user.id)  # to compare
+        self.fake_client_set.identity_admin \
+                    .users.update(self.user, name=self.name) \
+                    .AndReturn('new-user')
+
+        users.fetch_user(self.user.id, False).AndReturn('new-user')
+        users.user_from_nova('new-user').AndReturn('new-user-dict')
+        self.mox.ReplayAll()
+
+        post_params = { "name": self.name }
+        rv = self.client.put('/v1/users/%s' % self.user.id,
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'new-user-dict')
+
+    def test_update_paranoia(self):
+        # NOTE(imelnikov): this can never happen, as other users
+        # are 'invisible', but it's still better to double check
+        users.fetch_user(self.user.id, False).AndReturn(self.user)
+        users.auth.current_user_id().AndReturn('OTHER_UID')  # to compare
+
+        self.mox.ReplayAll()
+
+        post_params = { "name": self.name }
+        rv = self.client.put('/v1/users/%s' % self.user.id,
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+        self.check_and_parse_response(rv, status_code=403)
+
+
+class DeleteUserTestCase(MockedTestCase):
+
+    def setUp(self):
+        super(DeleteUserTestCase, self).setUp()
+        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'member_role_id')
+
     def test_delete_user(self):
         # prepare
         self.fake_client_set.identity_admin.users.delete('user-a')
@@ -668,4 +767,78 @@ class SendInviteTestCase(MockedTestCase):
         self.mox.ReplayAll()
         data = self.interact({'send-invite-mail': False})
         self.assertEquals(data, 'REPLY')
+
+
+class UserFetchesUserTestCase(MockedTestCase):
+    IS_ADMIN = False
+
+    def setUp(self):
+        super(UserFetchesUserTestCase, self).setUp()
+        self.mox.StubOutWithMock(users.auth, 'admin_client_set')
+        self.mox.StubOutWithMock(users.auth, 'current_user_id')
+        self.mox.StubOutWithMock(users.auth, 'current_user_project_ids')
+        self.user = doubles.make(self.mox, doubles.User,
+                                 id='UID', name='Test')
+        self.role = doubles.make(self.mox, doubles.Role,
+                                 tenant={'id': 'PID'},
+                                 id='ROLE', name='Role')
+        self.admin_cs = self._fake_client_set_factory()
+
+    def test_fetch_user_as_user(self):
+        users.auth.admin_client_set().AndReturn(self.admin_cs)
+        self.admin_cs.identity_admin.users.get('UID').AndReturn(self.user)
+        users.auth.current_user_id().AndReturn('ME')
+        self.user.list_roles().AndReturn([self.role])
+        users.auth.current_user_project_ids().AndReturn(['PID', 'PID2'])
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            user = users.fetch_user('UID', False)
+        self.assertEquals(user, self.user)
+
+    def test_fetch_self(self):
+        users.auth.admin_client_set().AndReturn(self.admin_cs)
+        self.admin_cs.identity_admin.users.get('UID').AndReturn(self.user)
+        users.auth.current_user_id().AndReturn('UID')
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            user = users.fetch_user('UID', False)
+        self.assertEquals(user, self.user)
+
+    def test_fetch_invisible(self):
+        users.auth.admin_client_set().AndReturn(self.admin_cs)
+        self.admin_cs.identity_admin.users.get('UID').AndReturn(self.user)
+        users.auth.current_user_id().AndReturn('ME')
+        self.user.list_roles().AndReturn([self.role])
+        users.auth.current_user_project_ids().AndReturn(['PID1', 'PID2'])
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertAborts(404, users.fetch_user, 'UID', False)
+
+    def test_fetch_not_found(self):
+        users.auth.admin_client_set().AndReturn(self.admin_cs)
+        self.admin_cs.identity_admin.users.get('UID') \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertAborts(404, users.fetch_user, 'UID', False)
+
+    def test_fetch_user_error(self):
+        users.auth.admin_client_set().AndReturn(self.admin_cs)
+        self.admin_cs.identity_admin.users.get('UID').AndReturn(self.user)
+        users.auth.current_user_id().AndReturn('ME')
+        self.user.list_roles() \
+                .AndRaise(osc_exc.NotFound('gone'))
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertAborts(404, users.fetch_user, 'UID', False)
 
