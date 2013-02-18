@@ -19,25 +19,26 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import g
-
 from altai_api.utils.decorators import root_endpoint
 
 from altai_api.main import app
+from altai_api.auth import admin_client_set
 from altai_api.utils import make_json_response
+from altai_api.utils.decorators import user_endpoint
 from altai_api.blueprints.images import list_all_images
 
 
 @app.route('/v1/stats', methods=('GET',))
 @root_endpoint('stats')
+@user_endpoint
 def altai_stats():
-    cs = g.client_set
+    cs = admin_client_set()
     tenants = cs.identity_admin.tenants.list()
     users = cs.identity_admin.users.list()
 
     # TODO(imelnikov): should we ignore servers in systenant?
     servers = cs.compute.servers.list(search_opts={'all_tenants': 1})
-    images = list_all_images()
+    images = list_all_images(cs.image.images)
     global_images = [image for image in images if image.is_public]
 
     return make_json_response({

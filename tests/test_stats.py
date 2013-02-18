@@ -48,7 +48,7 @@ class StatsTestCase(MockedTestCase):
                 .AndReturn(['user%s' % i for i in xrange(9)])
         cs.compute.servers.list(search_opts={'all_tenants': 1})\
                 .AndReturn(['vm%s' % i for i in xrange(14)])
-        stats.list_all_images().AndReturn(images)
+        stats.list_all_images(cs.image.images).AndReturn(images)
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/stats')

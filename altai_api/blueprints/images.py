@@ -94,13 +94,15 @@ def _image_from_nova(image, tenant=None):
     return result
 
 
-def list_all_images():
+def list_all_images(client=None):
     """Get list of all images from all tenants"""
     # NOTE(imelnikov): When is_public is True (the default), images
     # available for current tenant are returned (public images and
     # images from current tenant). When is_public is set to None
     # explicitly, current tenant is ignored.
-    return g.client_set.image.images.list(filters={'is_public': None})
+    if client is None:
+        client = g.client_set.image.images
+    return client.list(filters={'is_public': None})
 
 
 _SCHEMA = Schema((
