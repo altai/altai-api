@@ -153,6 +153,27 @@ class VmFromNovaTestCase(MockedTestCase):
             result = vms._vm_from_nova(self.vm)
         self.assertEquals(result['project'], expected_project)
 
+    def test_vm_from_nova_no_user(self):
+        expected_user = {
+            'id': 'UID',
+            'href': '/v1/users/%s' % 'UID',
+            'name': None
+        }
+        # ACTION
+        client = self.fake_client_set
+        client.identity_admin.tenants.get(u'TENANT').AndReturn(self.tenant)
+        client.compute.flavors.get(u'1').AndReturn(self.flavor)
+        client.identity_admin.users.get(u'UID') \
+                .AndRaise(osc_exc.NotFound('gone'))
+        client.image.images.get(u'IMAGE').AndReturn(self.image)
+        vms.VmDataDAO.get(u'VMID').AndReturn(self.vmdata)
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = vms._vm_from_nova(self.vm)
+        self.assertEquals(result['created-by'], expected_user)
+
 
 class VmsListTestCase(MockedTestCase):
 

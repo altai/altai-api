@@ -20,6 +20,7 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import Blueprint, g, url_for, abort
+from flask.exceptions import HTTPException
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
@@ -46,10 +47,19 @@ InvitesDAO = TokensDAO('invite')
 
 
 def link_for_user(user):
+    return link_for_user_id(user.id, user.name)
+
+
+def link_for_user_id(user_id, user_name=None):
+    if user_name is None:
+        try:
+            user_name = fetch_user(user_id).name
+        except HTTPException:
+            user_name = None
     return {
-        u'id': user.id,
-        u'name': user.name,
-        u'href': url_for('users.get_user', user_id=user.id)
+        u'id': user_id,
+        u'name': user_name,
+        u'href': url_for('users.get_user', user_id=user_id)
     }
 
 

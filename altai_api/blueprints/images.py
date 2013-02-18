@@ -53,7 +53,10 @@ def _fetch_image(image_id):
 
 def link_for_image(image_id, image_name=None):
     if image_name is None:
-        image_name = g.client_set.image.images.get(image_id).name
+        try:
+            image_name = g.client_set.image.images.get(image_id).name
+        except osc_exc.NotFound:
+            image_name = None
     return {
         u'id': image_id,
         u'href': url_for('images.get_image', image_id=image_id),
@@ -138,8 +141,7 @@ def _images_for_all_tenants():
     tenants = g.client_set.identity_admin.tenants.list()
     tenant_dict = dict(((tenant.id, tenant) for tenant in tenants))
 
-    return [_image_from_nova(image,
-                             tenant_dict[image.owner])
+    return [_image_from_nova(image, tenant_dict.get(image.owner))
             for image in list_all_images()]
 
 

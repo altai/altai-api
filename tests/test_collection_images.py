@@ -231,6 +231,31 @@ class ListImagesTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
+    def test_list_missing_project(self):
+        client = self.fake_client_set
+
+        client.identity_admin.tenants.list().AndReturn([self.tenants[0]])
+        client.image.images.list(filters={'is_public': None})\
+                .AndReturn(self.images)
+
+        images._image_from_nova(self.images[0],
+                                self.tenants[0]).AndReturn('I1')
+        images._image_from_nova(self.images[1], None).AndReturn('I2')
+        images._image_from_nova(self.images[2], None).AndReturn('I3')
+
+        expected = {
+            u'collection': {
+                u'name': u'images',
+                u'size': 3
+            },
+            u'images': [ 'I1', 'I2', 'I3' ]
+        }
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
     def test_list_for_project(self):
         tcs = mock_client_set(self.mox)
         tenant = self.tenants[1]
@@ -527,4 +552,51 @@ class RemoveImageTestCase(MockedTestCase):
         self.mox.ReplayAll()
         rv = self.client.delete(u'/v1/images/%s' % image_id)
         self.check_and_parse_response(rv, status_code=404)
+
+
+class LinkForImageTestCase(MockedTestCase):
+    def test_link_for_image(self):
+        expected = {
+            'id': 'IMG',
+            'href': '/v1/images/IMG',
+            'name': 'test image'
+        }
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = images.link_for_image('IMG', 'test image')
+        self.assertEquals(result, expected)
+
+    def test_link_for_image_fetches(self):
+        expected = {
+            'id': 'IMG',
+            'href': '/v1/images/IMG',
+            'name': 'test image'
+        }
+
+        image = doubles.make(self.mox, doubles.Image,
+                             id=u'IMG', owner=u'PID', name='test image')
+        self.fake_client_set.image.images.get('IMG').AndReturn(image)
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = images.link_for_image('IMG')
+        self.assertEquals(result, expected)
+
+    def test_link_for_image_not_found(self):
+        expected = {
+            'id': 'IMG',
+            'href': '/v1/images/IMG',
+            'name': None
+        }
+
+        self.fake_client_set.image.images.get('IMG') \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = images.link_for_image('IMG')
+        self.assertEquals(result, expected)
 

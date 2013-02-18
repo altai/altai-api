@@ -34,7 +34,7 @@ from altai_api.schema import types as st
 from altai_api.utils.parsers import timestamp_from_openstack, int_from_string
 
 from altai_api.auth import client_set_for_tenant
-from altai_api.blueprints.users import link_for_user, fetch_user
+from altai_api.blueprints.users import link_for_user_id
 from altai_api.blueprints.projects import link_for_project
 from altai_api.blueprints.images import link_for_image
 
@@ -58,7 +58,8 @@ def _vm_from_nova(server):
     client = g.client_set
     project_link = link_for_project(server.tenant_id)
     flavor = client.compute.flavors.get(server.flavor['id'])
-    user = fetch_user(server.user_id)
+    user_link = link_for_user_id(server.user_id)
+    image_link = link_for_image(server.image['id'])
     vmdata = VmDataDAO.get(server.id)
 
     result = {
@@ -66,8 +67,8 @@ def _vm_from_nova(server):
         u'href': url_for('vms.get_vm', vm_id=server.id),
         u'name': server.name,
         u'project': project_link,
-        u'created-by': link_for_user(user),
-        u'image': link_for_image(server.image['id']),
+        u'created-by': user_link,
+        u'image': image_link,
         u'instance-type': {
             u'id': flavor.id,
             u'name': flavor.name,
