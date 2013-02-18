@@ -25,6 +25,7 @@ from tests import doubles
 from tests.mocked import MockedTestCase
 
 from openstackclient_base import exceptions as osc_exc
+from werkzeug.exceptions import NotFound
 from altai_api.blueprints import project_users
 
 
@@ -66,6 +67,67 @@ class ListProjectUsersTestCase(MockedTestCase):
 
     def test_list_systenant_404(self):
         project_id = u'SYSTENANT_ID'  # default_tenant_id() in our setup
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/projects/%s/users/' % project_id)
+        self.check_and_parse_response(rv, status_code=404)
+
+
+class UserListProjectUsersTestCase(MockedTestCase):
+    IS_ADMIN = False
+
+    def setUp(self):
+        super(UserListProjectUsersTestCase, self).setUp()
+        self.mox.StubOutWithMock(project_users, 'link_for_user')
+        self.mox.StubOutWithMock(project_users,
+                                 'assert_admin_or_project_user')
+
+    def test_list_works(self):
+        project_id = u'PID'
+        project_users.assert_admin_or_project_user(project_id,
+                                                   eperm_status=404)
+        self.fake_client_set.identity_admin\
+                .tenants.list_users(u'PID').AndReturn(['U1', 'U2'])
+        project_users.link_for_user('U1').AndReturn(u'D1')
+        project_users.link_for_user('U2').AndReturn(u'D2')
+
+        expected = {
+            u'collection': {
+                u'name': u'users',
+                u'parent-href': u'/v1/projects/%s' % project_id,
+                u'size': 2
+            },
+            u'users': [ u'D1', u'D2' ]
+        }
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/projects/%s/users/' % project_id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
+    def test_list_no_project(self):
+        project_id = u'PID'
+        project_users.assert_admin_or_project_user(project_id,
+                                                   eperm_status=404)
+        self.fake_client_set.identity_admin.tenants.list_users(u'PID') \
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/projects/%s/users/' % project_id)
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_list_systenant_404(self):
+        project_id = u'SYSTENANT_ID'  # default_tenant_id() in our setup
+        project_users.assert_admin_or_project_user(project_id,
+                                                   eperm_status=404)
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/projects/%s/users/' % project_id)
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_list_denied_404(self):
+        project_id = u'PID'  # default_tenant_id() in our setup
+        project_users.assert_admin_or_project_user(project_id,
+                                                   eperm_status=404) \
+                .AndRaise(NotFound())
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/projects/%s/users/' % project_id)
         self.check_and_parse_response(rv, status_code=404)

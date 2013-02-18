@@ -25,6 +25,9 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.utils import *
+from altai_api.utils.decorators import user_endpoint
+from altai_api.auth import (admin_client_set, assert_admin_or_project_user,
+                            assert_admin, current_user_id)
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -46,15 +49,17 @@ _SCHEMA = Schema((
 
 
 def _project_users_list(project_id):
+    assert_admin_or_project_user(project_id, eperm_status=404)
     if project_id == default_tenant_id():
         abort(404)
     try:
-        return g.client_set.identity_admin.tenants.list_users(project_id)
+        return admin_client_set().identity_admin.tenants.list_users(project_id)
     except osc_exc.NotFound:
         abort(404)
 
 
 @project_users.route('/', methods=('GET',))
+@user_endpoint
 def list_project_users(project_id):
     parse_collection_request(_SCHEMA)
     result = [link_for_user(user) for user in _project_users_list(project_id)]
@@ -63,6 +68,7 @@ def list_project_users(project_id):
 
 
 @project_users.route('/<user_id>', methods=('GET',))
+@user_endpoint
 def get_project_user(project_id, user_id):
     for user in _project_users_list(project_id):
         if user.id == user_id:
@@ -94,10 +100,14 @@ def add_project_user(project_id):
 
 
 @project_users.route('/<user_id>', methods=('DELETE',))
+@user_endpoint
 def remove_project_user(project_id, user_id):
     tenant = get_tenant(project_id)
+    if user_id != current_user_id():
+        assert_admin()
+
     try:
-        user_mgr = g.client_set.identity_admin.users
+        user_mgr = admin_client_set().identity_admin.users
         roles = user_mgr.list_roles(user_id, project_id)
     except osc_exc.NotFound:
         abort(404)
