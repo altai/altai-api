@@ -21,8 +21,9 @@
 
 import flask
 
+from altai_api.auth import admin_client_set
 from altai_api.utils import *
-from altai_api.utils.decorators import root_endpoint
+from altai_api.utils.decorators import root_endpoint, user_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -67,18 +68,19 @@ _SCHEMA = Schema((
 
 @networks.route('/', methods=('GET',))
 @root_endpoint('networks')
+@user_endpoint
 def list_networks():
     parse_collection_request(_SCHEMA)
-    nets = flask.g.client_set.compute.networks.list()
+    nets = admin_client_set().compute.networks.list()
     return make_collection_response(u'networks',
                                     [_net_to_dict(net) for net in nets])
 
 
 @networks.route('/<net_id>', methods=('GET',))
+@user_endpoint
 def get_network(net_id):
-    client = flask.g.client_set
     try:
-        net = client.compute.networks.get(net_id)
+        net = admin_client_set().compute.networks.get(net_id)
     except osc_exc.NotFound:
         flask.abort(404)
 
