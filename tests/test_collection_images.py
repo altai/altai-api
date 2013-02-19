@@ -100,7 +100,7 @@ class ImageFromNovaWorks(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            image.owner = images.default_tenant_id()
+            image.owner = images.auth.default_tenant_id()
             data = images._image_from_nova(image)
         self.assertEquals(data, expected)
 
@@ -130,7 +130,7 @@ class ImageFromNovaWorks(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            image.owner = images.default_tenant_id()
+            image.owner = images.auth.default_tenant_id()
             data = images._image_from_nova(image)
         self.assertEquals(data, expected)
 
@@ -183,7 +183,7 @@ class ImageFromNovaWorks(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            image.owner = images.default_tenant_id()
+            image.owner = images.auth.default_tenant_id()
             data = images._image_from_nova(image)
         self.assertEquals(data, expected)
 
@@ -192,7 +192,10 @@ class ListImagesTestCase(MockedTestCase):
 
     def setUp(self):
         super(ListImagesTestCase, self).setUp()
-        self.mox.StubOutWithMock(images, 'client_set_for_tenant')
+        self.mox.StubOutWithMock(images.auth, 'client_set_for_tenant')
+        self.mox.StubOutWithMock(images.auth, 'default_tenant_id')
+        self.mox.StubOutWithMock(images.auth, 'assert_admin')
+        self.mox.StubOutWithMock(images.auth, 'api_client_set')
         self.mox.StubOutWithMock(images, '_image_from_nova')
         self.tenants = [
             doubles.make(self.mox, doubles.Tenant, id='SYS', name='systenant'),
@@ -208,11 +211,11 @@ class ListImagesTestCase(MockedTestCase):
         client = self.fake_client_set
 
         client.identity_admin.tenants.list().AndReturn(self.tenants)
+        images.auth.default_tenant_id().AndReturn('SYS')
         client.image.images.list(filters={'is_public': None})\
                 .AndReturn(self.images)
 
-        images._image_from_nova(self.images[0],
-                                self.tenants[0]).AndReturn('I1')
+        images._image_from_nova(self.images[0], None).AndReturn('I1')
         images._image_from_nova(self.images[1],
                                 self.tenants[1]).AndReturn('I2')
         images._image_from_nova(self.images[2],
@@ -234,12 +237,12 @@ class ListImagesTestCase(MockedTestCase):
     def test_list_missing_project(self):
         client = self.fake_client_set
 
+        images.auth.default_tenant_id().AndReturn('SYS')
         client.identity_admin.tenants.list().AndReturn([self.tenants[0]])
         client.image.images.list(filters={'is_public': None})\
                 .AndReturn(self.images)
 
-        images._image_from_nova(self.images[0],
-                                self.tenants[0]).AndReturn('I1')
+        images._image_from_nova(self.images[0], None).AndReturn('I1')
         images._image_from_nova(self.images[1], None).AndReturn('I2')
         images._image_from_nova(self.images[2], None).AndReturn('I3')
 
@@ -262,8 +265,10 @@ class ListImagesTestCase(MockedTestCase):
 
         self.fake_client_set.identity_admin.tenants.get(tenant.id)\
                 .AndReturn(tenant)
-        images.client_set_for_tenant(tenant.id).AndReturn(tcs)
-        tcs.image.images.list().AndReturn(['ii1', 'ii2'])
+        images.auth.client_set_for_tenant(tenant.id, fallback_to_api=True) \
+                .AndReturn(tcs)
+        tcs.image.images.list(filters={'is_public': None}) \
+                .AndReturn(['ii1', 'ii2'])
         images._image_from_nova('ii1', self.tenants[0]).AndReturn('I1')
         images._image_from_nova('ii2', self.tenants[1]).AndReturn('I2')
 
@@ -298,24 +303,12 @@ class ListImagesTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
-    def test_list_for_project_forbidden(self):
-        tcs = mock_client_set(self.mox)
-        tenant = self.tenants[1]
-
-        self.fake_client_set.identity_admin.tenants.get(tenant.id)\
-                .AndReturn(tenant)
-        images.client_set_for_tenant(tenant.id).AndReturn(tcs)
-        tcs.image.images.list().AndRaise(osc_exc.Forbidden('failure'))
-
-        self.mox.ReplayAll()
-        rv = self.client.get(u'/v1/images/?project:for=%s' % tenant.id)
-        self.check_and_parse_response(rv, status_code=403)
-
     def test_get_image_works(self):
         client = self.fake_client_set
         image = self.images[-1]
 
         client.image.images.get(image.id).AndReturn(image)
+        images.auth.default_tenant_id().AndReturn('SYS')
         images._image_from_nova(image).AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -346,6 +339,177 @@ class ListImagesTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=404)
 
 
+class ImagesAsUserTestCase(MockedTestCase):
+    IS_ADMIN = False
+
+    def setUp(self):
+        super(ImagesAsUserTestCase, self).setUp()
+        self.mox.StubOutWithMock(images.auth, 'client_set_for_tenant')
+        self.mox.StubOutWithMock(images.auth, 'default_tenant_id')
+        self.mox.StubOutWithMock(images.auth, 'current_user_project_ids')
+        self.mox.StubOutWithMock(images, '_image_from_nova')
+        self.tenant = doubles.make(self.mox, doubles.Tenant,
+                                   id='PID', name='ptest')
+        self.images = [
+            doubles.make(self.mox, doubles.Image, id='IMAGE1', owner='SYS'),
+            doubles.make(self.mox, doubles.Image, id='IMAGE2', owner='PID'),
+            doubles.make(self.mox, doubles.Image, id='IMAGE3', owner='PID'),
+        ]
+
+    def test_list_works(self):
+        client = self.fake_client_set
+
+        client.identity_public.tenants.list().AndReturn([self.tenant])
+        images.auth.default_tenant_id().AndReturn('SYS')
+        client.image.images.list(filters={'is_public': None})\
+                .AndReturn(self.images)
+
+        images._image_from_nova(self.images[0], None).AndReturn('I1')
+        images._image_from_nova(self.images[1],
+                                self.tenant).AndReturn('I2')
+        images._image_from_nova(self.images[2],
+                                self.tenant).AndReturn('I3')
+
+        expected = {
+            u'collection': {
+                u'name': u'images',
+                u'size': 3
+            },
+            u'images': [ 'I1', 'I2', 'I3' ]
+        }
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, expected)
+
+    def test_list_for_project(self):
+        tcs = mock_client_set(self.mox)
+
+        self.fake_client_set.identity_admin.tenants.get(self.tenant.id)\
+                .AndReturn(self.tenant)
+        images.auth.client_set_for_tenant(self.tenant.id,
+                                          fallback_to_api=False) \
+                .AndReturn(tcs)
+        tcs.image.images.list(filters={'is_public': None}) \
+                .AndReturn(['ii1'])
+        images._image_from_nova('ii1', self.tenant).AndReturn('I1')
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/?project:for=%s' % self.tenant.id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data.get('images'), ['I1'])
+
+    def test_list_eq_project(self):
+        # differs with previous in request argument and list filters
+        tcs = mock_client_set(self.mox)
+        fake_image_dict = {
+            'name': 'I1',
+            'project': { 'id': self.tenant.id }
+        }
+
+        self.fake_client_set.identity_admin.tenants.get(self.tenant.id)\
+                .AndReturn(self.tenant)
+        images.auth.client_set_for_tenant(self.tenant.id,
+                                          fallback_to_api=False) \
+                .AndReturn(tcs)
+        tcs.image.images.list(filters={'is_public': False}) \
+                .AndReturn(['ii1'])
+        images._image_from_nova('ii1', self.tenant).AndReturn(fake_image_dict)
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/?project:eq=%s' % self.tenant.id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data.get('images'), [fake_image_dict])
+
+    def test_list_in_project(self):
+        # differs with previous only in request argument
+        tcs = mock_client_set(self.mox)
+        fake_image_dict = {
+            'name': 'I1',
+            'project': { 'id': self.tenant.id }
+        }
+
+        self.fake_client_set.identity_admin.tenants.get(self.tenant.id)\
+                .AndReturn(self.tenant)
+        images.auth.client_set_for_tenant(self.tenant.id,
+                                          fallback_to_api=False) \
+                .AndReturn(tcs)
+        tcs.image.images.list(filters={'is_public': False}) \
+                .AndReturn(['ii1'])
+        images._image_from_nova('ii1', self.tenant).AndReturn(fake_image_dict)
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/?project:in=%s' % self.tenant.id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data.get('images'), [fake_image_dict])
+
+    def test_get_image_works(self):
+        client = self.fake_client_set
+        image = self.images[-1]
+
+        client.image.images.get(image.id).AndReturn(image)
+        images.auth.default_tenant_id().AndReturn('SYS')
+        images.auth.current_user_project_ids().AndReturn(['PID'])
+        images._image_from_nova(image).AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/%s' % image.id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'REPLY')
+
+    def test_get_image_other_project(self):
+        client = self.fake_client_set
+        image = self.images[-1]
+
+        client.image.images.get(image.id).AndReturn(image)
+        images.auth.default_tenant_id().AndReturn('SYS')
+        images.auth.current_user_project_ids().AndReturn(['PID2'])
+
+        self.mox.ReplayAll()
+        rv = self.client.get(u'/v1/images/%s' % image.id)
+        self.check_and_parse_response(rv, status_code=403)
+
+    def test_remove_image_works(self):
+        client = self.fake_client_set
+        image = doubles.make(self.mox, doubles.Image,
+                             id=u'IMAGE', owner=u'PID')
+
+        client.image.images.get(image.id).AndReturn(image)
+        images.auth.default_tenant_id().AndReturn('SYS')
+        images.auth.current_user_project_ids().AndReturn(['PID'])
+        image.delete()
+
+        self.mox.ReplayAll()
+        rv = self.client.delete(u'/v1/images/%s' % image.id)
+        self.check_and_parse_response(rv, status_code=204)
+
+    def test_remove_image_other_project(self):
+        client = self.fake_client_set
+        image = doubles.make(self.mox, doubles.Image,
+                             id=u'IMAGE', owner=u'PID')
+
+        client.image.images.get(image.id).AndReturn(image)
+        images.auth.default_tenant_id().AndReturn('SYS')
+        images.auth.current_user_project_ids().AndReturn(['PID2'])
+
+        self.mox.ReplayAll()
+        rv = self.client.delete(u'/v1/images/%s' % image.id)
+        self.check_and_parse_response(rv, status_code=403)
+
+    def test_remove_global_image(self):
+        client = self.fake_client_set
+        image = doubles.make(self.mox, doubles.Image,
+                             id=u'IMAGE', owner=u'SYS')
+
+        client.image.images.get(image.id).AndReturn(image)
+        images.auth.default_tenant_id().AndReturn('SYS')
+
+        self.mox.ReplayAll()
+        rv = self.client.delete(u'/v1/images/%s' % image.id)
+        self.check_and_parse_response(rv, status_code=403)
+
+
 class UpdateImageTestCase(MockedTestCase):
 
     def setUp(self):
@@ -364,9 +528,10 @@ class UpdateImageTestCase(MockedTestCase):
         image = doubles.make(self.mox, doubles.Image,
                              id=u'IMAGE', owner=u'PID')
 
-        images._fetch_image(image.id).AndReturn(image)
+        images._fetch_image(image.id, to_modify=True).AndReturn(image)
         image.update(name='UPDATED')
-        images._fetch_image(image.id).AndReturn('UPDATED IMAGE')
+        images._fetch_image(image.id, to_modify=False)\
+                .AndReturn('UPDATED IMAGE')
         images._image_from_nova('UPDATED IMAGE').AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -378,7 +543,9 @@ class CreateImageTestCase(MockedTestCase):
     def setUp(self):
         super(CreateImageTestCase, self).setUp()
         self.mox.StubOutWithMock(images, '_image_from_nova')
-        self.mox.StubOutWithMock(images, 'client_set_for_tenant')
+        self.mox.StubOutWithMock(images.auth, 'client_set_for_tenant')
+        self.mox.StubOutWithMock(images.auth, 'assert_admin')
+        self.mox.StubOutWithMock(images.auth, 'api_client_set')
 
     def interact(self, params, expected_status_code=200):
         rv = self.client.post('/v1/images/',
@@ -395,6 +562,7 @@ class CreateImageTestCase(MockedTestCase):
             u'container-format': u'bare',
         }
 
+        images.auth.assert_admin()
         self.fake_client_set.image.images.create(
             name=u'TestImage',
             disk_format=u'raw',
@@ -437,7 +605,7 @@ class CreateImageTestCase(MockedTestCase):
         }
         tcs = mock_client_set(self.mox)
 
-        images.client_set_for_tenant(u'PROJECT_ID').AndReturn(tcs)
+        images.auth.client_set_for_tenant(u'PROJECT_ID').AndReturn(tcs)
         tcs.image.images.create(
             name=u'TestImage',
             disk_format=u'raw',
@@ -460,6 +628,7 @@ class CreateImageTestCase(MockedTestCase):
             u'ramdisk': u'RAMDISK_ID'
         }
 
+        images.auth.assert_admin()
         self.fake_client_set.image.images.create(
             name=u'TestImage',
             disk_format=u'ami',

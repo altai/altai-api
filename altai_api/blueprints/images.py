@@ -20,11 +20,14 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import url_for, g, Blueprint, abort, request
+from flask.exceptions import HTTPException
 
+from altai_api import auth
 from altai_api.utils import *
 from altai_api.utils import collection
 
-from altai_api.utils.decorators import data_handler, root_endpoint
+from altai_api.utils.decorators import (data_handler, root_endpoint,
+                                        user_endpoint)
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -34,29 +37,32 @@ from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.blueprints.projects import link_for_project
-from altai_api.auth import (admin_client_set, client_set_for_tenant,
-                            default_tenant_id)
 
 
 images = Blueprint('images', __name__)
 
 
-def _fetch_image(image_id):
+def _fetch_image(image_id, to_modify):
     try:
-        image = g.client_set.image.images.get(image_id)
+        image = auth.admin_client_set().image.images.get(image_id)
     except osc_exc.NotFound:
         abort(404)
-    # NOTE(imelnikov): yes, nova may return False as string
+    # NOTE(imelnikov): yes, glance may return False as string
     if image.deleted and image.deleted != 'False':
         abort(404)
+    if image.owner == auth.default_tenant_id():
+        if to_modify:
+            auth.assert_admin()
+    else:
+        auth.assert_admin_or_project_user(image.owner)
     return image
 
 
 def link_for_image(image_id, image_name=None):
     if image_name is None:
         try:
-            image_name = admin_client_set().image.images.get(image_id).name
-        except osc_exc.NotFound:
+            image_name = _fetch_image(image_id, to_modify=False).name
+        except HTTPException:
             image_name = None
     return {
         u'id': image_id,
@@ -75,7 +81,7 @@ def _image_from_nova(image, tenant=None):
         u'md5sum': image.checksum,
         u'size': image.size
     })
-    if image.owner == default_tenant_id():
+    if image.owner == auth.default_tenant_id():
         result[u'global'] = True
     else:
         result[u'global'] = False
@@ -94,14 +100,12 @@ def _image_from_nova(image, tenant=None):
     return result
 
 
-def list_all_images(client=None):
+def list_all_images(client):
     """Get list of all images from all tenants"""
     # NOTE(imelnikov): When is_public is True (the default), images
     # available for current tenant are returned (public images and
     # images from current tenant). When is_public is set to None
     # explicitly, current tenant is ignored.
-    if client is None:
-        client = g.client_set.image.images
     return client.list(filters={'is_public': None})
 
 
@@ -127,36 +131,57 @@ _SCHEMA = Schema((
 )
 
 
-def _images_for_tenant(tenant_id):
+def _images_for_tenant(tenant_id, is_public):
     try:
-        tenant = g.client_set.identity_admin.tenants.get(tenant_id)
+        tenant = auth.admin_client_set().identity_admin \
+                .tenants.get(tenant_id)
     except osc_exc.NotFound:
         return []  # consistent with project:eq
 
-    try:
-        image_list = client_set_for_tenant(tenant_id).image.images.list()
-    except osc_exc.Forbidden:
-        abort(403)
+    client = auth.client_set_for_tenant(tenant_id,
+                                        fallback_to_api=g.is_admin)
+    image_list = client.image.images.list(
+            filters={'is_public': is_public})
     return [_image_from_nova(image, tenant) for image in image_list]
 
 
 def _images_for_all_tenants():
-    tenants = g.client_set.identity_admin.tenants.list()
+    if g.my_projects:
+        tenants = g.client_set.identity_public.tenants.list()
+    else:
+        tenants = g.client_set.identity_admin.tenants.list()
+
     tenant_dict = dict(((tenant.id, tenant) for tenant in tenants))
+    tenant_dict[auth.default_tenant_id()] = None
 
     return [_image_from_nova(image, tenant_dict.get(image.owner))
-            for image in list_all_images()]
+            for image in list_all_images(auth.admin_client_set().image.images)
+            if not g.my_projects or image.owner in tenant_dict]
+
+
+def _project_argument():
+    tenant_id = collection.get_matcher_argument('project', 'eq')
+    if tenant_id is not None:
+        return tenant_id, False
+    tenants = collection.get_matcher_argument('project', 'in')
+    if tenants and len(tenants) == 1:
+        return tenants[0], False
+    tenant_id = collection.get_matcher_argument('project', 'for',
+                                                delete_if_found=True)
+    if tenant_id is not None:
+        return tenant_id, None
+    return None, None
 
 
 @images.route('/', methods=('GET',))
 @root_endpoint('images')
+@user_endpoint
 def list_images():
     parse_collection_request(_SCHEMA)
 
-    tenant_id = collection.get_matcher_argument('project', 'for',
-                                                delete_if_found=True)
+    tenant_id, is_public = _project_argument()
     if tenant_id is not None:
-        result = _images_for_tenant(tenant_id)
+        result = _images_for_tenant(tenant_id, is_public)
     else:
         result = _images_for_all_tenants()
 
@@ -164,23 +189,25 @@ def list_images():
 
 
 @images.route('/<image_id>', methods=('GET',))
+@user_endpoint
 def get_image(image_id):
-    image = _fetch_image(image_id)
+    image = _fetch_image(image_id, to_modify=False)
     return make_json_response(_image_from_nova(image))
 
 
 @images.route('/<image_id>', methods=('PUT',))
+@user_endpoint
 def update_image(image_id):
     data = parse_request_data(_SCHEMA.updatable)
     set_audit_resource_id(image_id)
     fields_to_update = {}
-    image = _fetch_image(image_id)
+    image = _fetch_image(image_id, to_modify=True)
 
     if 'name' in data:
         fields_to_update['name'] = data['name']
     if fields_to_update:
         image.update(**fields_to_update)
-        image = _fetch_image(image_id)
+        image = _fetch_image(image_id, to_modify=False)
 
     return make_json_response(_image_from_nova(image))
 
@@ -191,18 +218,19 @@ def _assert_param_absent(name, data):
 
 
 @images.route('/', methods=('POST',))
+@user_endpoint
 def create_image():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
     is_public = data.get('global', 'project' not in data)
     if is_public:
         _assert_param_absent('project', data)
-        image_mgr = g.client_set.image.images
+        auth.assert_admin()
+        client_set = g.client_set
     else:
         if 'project' not in data:
             raise exc.MissingElement('project')
-        # TODO(imelnikov): check project existence
-        image_mgr = client_set_for_tenant(data['project']).image.images
+        client_set = auth.client_set_for_tenant(data['project'])
 
     props = {}
     if data['disk-format'] == 'ami':
@@ -215,7 +243,7 @@ def create_image():
         _assert_param_absent('kernel', data)
         _assert_param_absent('ramdisk', data)
 
-    image = image_mgr.create(
+    image = client_set.image.images.create(
         name=data['name'],
         disk_format=data['disk-format'],
         container_format=data['container-format'],
@@ -226,15 +254,17 @@ def create_image():
 
 
 @images.route('/<image_id>', methods=('DELETE',))
+@user_endpoint
 def remove_image(image_id):
     set_audit_resource_id(image_id)
-    image = _fetch_image(image_id)
+    image = _fetch_image(image_id, to_modify=True)  # also, checks permissions
     image.delete()
     return make_json_response(None, status_code=204)
 
 
 @images.route('/<image_id>/data', methods=('PUT',))
 @data_handler
+@user_endpoint
 def upload_image_data(image_id):
     # first, we have to validate request
     if request.content_type != 'application/octet-stream':
@@ -246,7 +276,7 @@ def upload_image_data(image_id):
     if expect not in ('', '100-', '200-', '204-'):
         abort(417)  # Expectations failed
 
-    image = _fetch_image(image_id)
+    image = _fetch_image(image_id, to_modify=True)  # also, checks permissions
     if image.status != 'queued':
         abort(405)  # Method not allowed
 
