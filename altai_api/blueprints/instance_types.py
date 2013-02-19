@@ -26,10 +26,11 @@ from flask import Blueprint, abort, url_for, g
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
-from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
+from altai_api.auth import bound_client_set
 from altai_api.utils import *
+from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
 
-from altai_api.utils.decorators import root_endpoint
+from altai_api.utils.decorators import root_endpoint, user_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -75,15 +76,17 @@ _SCHEMA = Schema((
 
 @instance_types.route('/', methods=('GET',))
 @root_endpoint('instance-types')
+@user_endpoint
 def list_instance_types():
     parse_collection_request(_SCHEMA)
-    all_flavors = g.client_set.compute.flavors.list()
+    all_flavors = bound_client_set().compute.flavors.list()
     result = [_instance_type_from_nova(flavor)
               for flavor in all_flavors]
     return make_collection_response(u'instance-types', result)
 
 
 @instance_types.route('/<instance_type_id>', methods=('GET',))
+@user_endpoint
 def get_instance_type(instance_type_id):
     # the following great code returns deleted flavors...
     #try:
@@ -91,7 +94,7 @@ def get_instance_type(instance_type_id):
     #except osc_exc.NotFound:
     #    abort(404)
 
-    all_flavors = g.client_set.compute.flavors.list()
+    all_flavors = bound_client_set().compute.flavors.list()
     for flavor in all_flavors:
         if flavor.id == instance_type_id:
             return make_json_response(_instance_type_from_nova(flavor))
