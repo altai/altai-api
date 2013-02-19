@@ -27,6 +27,7 @@ from altai_api.auth import bound_client_set
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
+from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
 my_ssh_keys = Blueprint('my_ssh_keys', __name__)
@@ -78,8 +79,12 @@ def get_my_ssh_key(key_name):
 @user_endpoint
 def create_my_ssh_key():
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
-    kp = bound_client_set().compute.keypairs.create(
-            data['name'], data.get('public-key'))
+    try:
+        kp = bound_client_set().compute.keypairs.create(
+                data['name'], data.get('public-key'))
+    except osc_exc.BadRequest, e:
+        raise exc.InvalidRequest(str(e))
+
     set_audit_resource_id(kp.name)
     result = keypair_from_nova(kp)
     if hasattr(kp, 'private_key'):

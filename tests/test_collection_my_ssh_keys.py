@@ -150,3 +150,13 @@ class CreateMySshKeyTestCase(MockedTestCase):
         data = self.interact({'name': kp.name, 'public-key': 'PUBLIC'})
         self.assertEquals(data, 'REPLY')
 
+    def test_upload_bad(self):
+        self.fake_client_set.compute.keypairs.create('TestKP', 'PUBLIC')\
+                .AndRaise(osc_exc.BadRequest('Keypair data is invalid'))
+
+        self.mox.ReplayAll()
+
+        data = self.interact({'name': 'TestKP', 'public-key': 'PUBLIC'},
+                             expected_status_code=400)
+        self.assertTrue('Keypair data' in data.get('message', ''))
+

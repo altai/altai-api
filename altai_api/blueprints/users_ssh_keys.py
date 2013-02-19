@@ -21,6 +21,7 @@
 
 from flask import url_for, g, Blueprint, abort
 from openstackclient_base import exceptions as osc_exc
+from altai_api import exceptions as exc
 
 from altai_api import auth
 from altai_api.utils import *
@@ -80,7 +81,10 @@ def create_users_ssh_key(user_id):
     fetch_user(user_id, g.is_admin)  # check that user exists and is visible
 
     mgr = auth.admin_client_set().compute_ext.user_keypairs
-    kp = mgr.create(user_id, data['name'], data['public-key'])
+    try:
+        kp = mgr.create(user_id, data['name'], data['public-key'])
+    except osc_exc.BadRequest, e:
+        raise exc.InvalidRequest(str(e))
     set_audit_resource_id(kp.name)
     return make_json_response(keypair_from_nova(kp))
 
