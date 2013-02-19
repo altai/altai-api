@@ -35,6 +35,8 @@ class UsersSShKeysListTestCase(MockedTestCase):
     def setUp(self):
         super(UsersSShKeysListTestCase, self).setUp()
         self.mox.StubOutWithMock(users_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(users_ssh_keys, 'fetch_user')
+        self.mox.StubOutWithMock(users_ssh_keys.auth, 'assert_admin')
 
     def test_list_works(self):
         expected = {
@@ -46,6 +48,7 @@ class UsersSShKeysListTestCase(MockedTestCase):
             'ssh-keys': ['REPLY1', 'REPLY2']
         }
 
+        users_ssh_keys.fetch_user(self.user_id, True)
         self.fake_client_set.compute_ext.user_keypairs \
                 .list(self.user_id).AndReturn(['K1', 'K2'])
         users_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY1')
@@ -55,35 +58,6 @@ class UsersSShKeysListTestCase(MockedTestCase):
         rv = self.client.get('/v1/users/%s/ssh-keys/' % self.user_id)
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
-
-    def test_list_no_keys(self):
-        expected = {
-            'collection': {
-                'name': 'ssh-keys',
-                'parent-href': '/v1/users/42',
-                'size': 0
-            },
-            'ssh-keys': []
-        }
-
-        self.fake_client_set.compute_ext.user_keypairs \
-                .list(self.user_id).AndReturn([])
-        self.fake_client_set.identity_admin.users.get(self.user_id)
-
-        self.mox.ReplayAll()
-        rv = self.client.get('/v1/users/%s/ssh-keys/' % self.user_id)
-        data = self.check_and_parse_response(rv)
-        self.assertEquals(data, expected)
-
-    def test_list_no_user(self):
-        self.fake_client_set.compute_ext.user_keypairs \
-                .list(self.user_id).AndReturn([])
-        self.fake_client_set.identity_admin.users.get(self.user_id) \
-                .AndRaise(osc_exc.NotFound('failure'))
-
-        self.mox.ReplayAll()
-        rv = self.client.get('/v1/users/%s/ssh-keys/' % self.user_id)
-        self.check_and_parse_response(rv, status_code=404)
 
     def test_get_works(self):
         self.fake_client_set.compute_ext.user_keypairs\
@@ -107,6 +81,7 @@ class UsersSShKeysListTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=404)
 
     def test_delete_works(self):
+        users_ssh_keys.auth.assert_admin()
         self.fake_client_set.compute_ext.user_keypairs\
                 .delete(self.user_id, 'kp')
 
@@ -116,6 +91,7 @@ class UsersSShKeysListTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=204)
 
     def test_delete_not_found(self):
+        users_ssh_keys.auth.assert_admin()
         self.fake_client_set.compute_ext.user_keypairs\
                 .delete(self.user_id, 'kp') \
                 .AndRaise(osc_exc.NotFound('failure'))
@@ -126,12 +102,37 @@ class UsersSShKeysListTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=404)
 
 
+class UserUsersSShKeysListTestCase(MockedTestCase):
+    user_id = '42'
+    IS_ADMIN = False
+
+    def setUp(self):
+        super(UserUsersSShKeysListTestCase, self).setUp()
+        self.mox.StubOutWithMock(users_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(users_ssh_keys, 'fetch_user')
+        self.mox.StubOutWithMock(users_ssh_keys.auth, 'assert_admin')
+
+    def test_get_works_for_user(self):
+        users_ssh_keys.fetch_user(self.user_id, False)
+        self.fake_client_set.compute_ext.user_keypairs\
+                .get(self.user_id, 'kp').AndReturn('K1')
+        users_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY')
+
+        self.mox.ReplayAll()
+
+        rv = self.client.get('/v1/users/%s/ssh-keys/kp' % self.user_id)
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'REPLY')
+
+
 class CreateMySshKeyTestCase(MockedTestCase):
     user_id = '42'
 
     def setUp(self):
         super(CreateMySshKeyTestCase, self).setUp()
         self.mox.StubOutWithMock(users_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(users_ssh_keys, 'fetch_user')
+        self.mox.StubOutWithMock(users_ssh_keys.auth, 'assert_admin')
 
     def interact(self, data, expected_status_code=200):
         rv = self.client.post('/v1/users/%s/ssh-keys/' % self.user_id,
@@ -144,10 +145,11 @@ class CreateMySshKeyTestCase(MockedTestCase):
         kp = doubles.make(self.mox, doubles.Keypair,
                           name='TestKP', public_key='PUBKEY',
                           fingerprint='FP')
-        self.fake_client_set.identity_admin.users \
-                .get(self.user_id).AndReturn('USER')
+
+        users_ssh_keys.auth.assert_admin()
+        users_ssh_keys.fetch_user(self.user_id, True)
         self.fake_client_set.compute_ext.user_keypairs \
-                .create('USER', kp.name, 'PUBLIC') \
+                .create(self.user_id, kp.name, 'PUBLIC') \
                 .AndReturn(kp)
         users_ssh_keys.keypair_from_nova(kp).AndReturn('REPLY')
 

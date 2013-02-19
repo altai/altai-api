@@ -22,7 +22,9 @@
 from flask import url_for, g, Blueprint, abort
 from openstackclient_base import exceptions as osc_exc
 
+from altai_api import auth
 from altai_api.utils import *
+from altai_api.utils.decorators import user_endpoint
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
@@ -42,14 +44,13 @@ _SCHEMA = Schema((
 
 
 @users_ssh_keys.route('/', methods=('GET',))
+@user_endpoint
 def list_users_ssh_keys(user_id):
     parse_collection_request(_SCHEMA)
-    mgr = g.client_set.compute_ext.user_keypairs
+    fetch_user(user_id, g.is_admin)  # check that user exists and is visible
 
+    mgr = auth.admin_client_set().compute_ext.user_keypairs
     result = [keypair_from_nova(keypair) for keypair in mgr.list(user_id)]
-    if not result:
-        # abort(404) when user not exists or not visible:
-        fetch_user(user_id, g.is_admin)
 
     parent_href = url_for('users.get_user', user_id=user_id)
     return make_collection_response('ssh-keys', result,
@@ -57,9 +58,12 @@ def list_users_ssh_keys(user_id):
 
 
 @users_ssh_keys.route('/<key_name>', methods=('GET',))
+@user_endpoint
 def get_users_ssh_key(user_id, key_name):
-    mgr = g.client_set.compute_ext.user_keypairs
+    if not g.is_admin:
+        fetch_user(user_id, False)  # check that user is visible
     try:
+        mgr = auth.admin_client_set().compute_ext.user_keypairs
         keypair = mgr.get(user_id, key_name)
     except osc_exc.NotFound:
         abort(404)
@@ -67,20 +71,26 @@ def get_users_ssh_key(user_id, key_name):
 
 
 @users_ssh_keys.route('/', methods=('POST',))
+@user_endpoint
 def create_users_ssh_key(user_id):
     data = parse_request_data(required=_SCHEMA.required)
-    mgr = g.client_set.compute_ext.user_keypairs
-    # abort(404) when user not exists or not visible:
-    user = fetch_user(user_id, g.is_admin)
 
-    kp = mgr.create(user, data['name'], data['public-key'])
+    if user_id != auth.current_user_id():
+        auth.assert_admin()
+    fetch_user(user_id, g.is_admin)  # check that user exists and is visible
+
+    mgr = auth.admin_client_set().compute_ext.user_keypairs
+    kp = mgr.create(user_id, data['name'], data['public-key'])
     set_audit_resource_id(kp.name)
     return make_json_response(keypair_from_nova(kp))
 
 
 @users_ssh_keys.route('/<key_name>', methods=('DELETE',))
 def delete_users_ssh_key(user_id, key_name):
-    mgr = g.client_set.compute_ext.user_keypairs
+    if user_id != auth.current_user_id():
+        auth.assert_admin()
+
+    mgr = auth.admin_client_set().compute_ext.user_keypairs
     try:
         mgr.delete(user_id, key_name)
     except osc_exc.NotFound:

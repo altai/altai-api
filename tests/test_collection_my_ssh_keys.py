@@ -41,6 +41,7 @@ class KeypairFromNovaTestCase(MockedTestCase):
             'fingerprint': 'FP',
             'href': '/v1/me/ssh-keys/Test%20KP'
         }
+        self.mox.ReplayAll()
         with self.app.test_request_context():
             data = my_ssh_keys.keypair_from_nova(kp)
         self.assertEquals(data, expected)

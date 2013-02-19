@@ -19,9 +19,11 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, g, Blueprint, abort
+from flask import url_for, Blueprint, abort
 
 from altai_api.utils import *
+from altai_api.utils.decorators import user_endpoint
+from altai_api.auth import bound_client_set
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
@@ -51,30 +53,33 @@ _SCHEMA = Schema((
 
 
 @my_ssh_keys.route('/', methods=('GET',))
+@user_endpoint
 def list_my_ssh_keys():
     parse_collection_request(_SCHEMA)
 
     result = [keypair_from_nova(keypair)
-              for keypair in g.client_set.compute.keypairs.list()]
+              for keypair in bound_client_set().compute.keypairs.list()]
 
     return make_collection_response('ssh-keys', result,
                                     parent_href=url_for('me.get_current_user'))
 
 
 @my_ssh_keys.route('/<key_name>', methods=('GET',))
+@user_endpoint
 def get_my_ssh_key(key_name):
     try:
-        keypair = g.client_set.compute.keypairs.find(name=key_name)
+        keypair = bound_client_set().compute.keypairs.find(name=key_name)
     except osc_exc.NotFound:
         abort(404)
     return make_json_response(keypair_from_nova(keypair))
 
 
 @my_ssh_keys.route('/', methods=('POST',))
+@user_endpoint
 def create_my_ssh_key():
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
-    kp = g.client_set.compute.keypairs.create(data['name'],
-                                              data.get('public-key'))
+    kp = bound_client_set().compute.keypairs.create(
+            data['name'], data.get('public-key'))
     set_audit_resource_id(kp.name)
     result = keypair_from_nova(kp)
     if hasattr(kp, 'private_key'):
@@ -83,9 +88,10 @@ def create_my_ssh_key():
 
 
 @my_ssh_keys.route('/<key_name>', methods=('DELETE',))
+@user_endpoint
 def delete_my_ssh_key(key_name):
     try:
-        g.client_set.compute.keypairs.delete(key_name)
+        bound_client_set().compute.keypairs.delete(key_name)
     except osc_exc.NotFound:
         abort(404)
     return make_json_response(None, 204)
