@@ -20,20 +20,19 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import url_for, g, Blueprint, abort
+from openstackclient_base import exceptions as osc_exc
 
 from altai_api.main import app
 from altai_api.utils import *
 
-from altai_api.utils.decorators import root_endpoint
+from altai_api.utils.decorators import root_endpoint, user_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.auth import client_set_for_tenant
-from altai_api.blueprints.projects import link_for_tenant
-
-from altai_api import exceptions as exc
-from openstackclient_base import exceptions as osc_exc
+from altai_api.auth import (client_set_for_tenant, admin_client_set,
+                            assert_admin_or_project_user)
+from altai_api.blueprints.projects import link_for_project
 
 
 fw_rule_sets = Blueprint('fw_rule_sets', __name__)
@@ -49,15 +48,11 @@ def link_for_security_group(secgroup):
     }
 
 
-def _sg_from_nova(secgroup, tenant):
-    if secgroup.tenant_id != tenant.id:
-        # this is a bit of well tested paranoia
-        raise ValueError('Firewall rule set %s is from tenant %s, not %s'
-                         % (secgroup.name, secgroup.tenant_id, tenant.id))
+def _sg_from_nova(secgroup, project_name=None):
     result = link_for_security_group(secgroup)
     result.update((
         (u'description', secgroup.description),
-        (u'project', link_for_tenant(tenant))
+        (u'project', link_for_project(secgroup.tenant_id, project_name))
     ))
     return result
 
@@ -75,53 +70,52 @@ _SCHEMA = Schema((
 
 @fw_rule_sets.route('/', methods=('GET',))
 @root_endpoint('fw-rule-sets')
+@user_endpoint
 def list_fw_rule_sets():
     parse_collection_request(_SCHEMA)
-    tenants = g.client_set.identity_admin.tenants.list()
-    systenant = app.config['DEFAULT_TENANT']
+    if g.my_projects:
+        tenants = g.client_set.identity_public.tenants.list()
+    else:
+        tenants = admin_client_set().identity_admin.tenants.list()
 
     result = []
     for tenant in tenants:
-        if tenant.name != systenant:
-            tcs = client_set_for_tenant(tenant.id)
+        if tenant.name != app.config['DEFAULT_TENANT']:
+            tcs = client_set_for_tenant(tenant.id, fallback_to_api=g.is_admin)
             for sg in tcs.compute.security_groups.list():
-                result.append(_sg_from_nova(sg, tenant))
+                result.append(_sg_from_nova(sg, tenant.name))
     return make_collection_response(u'fw-rule-sets', result)
 
 
 @fw_rule_sets.route('/<fw_rule_set_id>', methods=('GET',))
+@user_endpoint
 def get_fw_rule_set(fw_rule_set_id):
     try:
         sg = g.client_set.compute.security_groups.get(fw_rule_set_id)
     except osc_exc.NotFound:
         abort(404)
-    tenant = g.client_set.identity_admin.tenants.get(sg.tenant_id)
-    # if tenant is not found, something is wrong, so 500 is right response
-    return make_json_response(_sg_from_nova(sg, tenant))
+    assert_admin_or_project_user(sg.tenant_id, eperm_status=404)
+    return make_json_response(_sg_from_nova(sg))
 
 
 @fw_rule_sets.route('/', methods=('POST',))
+@user_endpoint
 def create_fw_rule_set():
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
-    try:
-        tenant = g.client_set.identity_admin.tenants.get(data['project'])
-    except osc_exc.NotFound:
-        raise exc.IllegalValue(name=u'project',
-                               typename=u'link object',
-                               value=data['project'])
-
-    tcs = client_set_for_tenant(tenant.id)
+    tcs = client_set_for_tenant(data['project'], eperm_status=404,
+                                fallback_to_api=g.is_admin)
     sg = tcs.compute.security_groups.create(
         name=data['name'], description=data.get('description', ''))
     set_audit_resource_id(sg)
-    return make_json_response(_sg_from_nova(sg, tenant))
+    return make_json_response(_sg_from_nova(sg))
 
 
 @fw_rule_sets.route('/<fw_rule_set_id>', methods=('DELETE',))
+@user_endpoint
 def delete_fw_rule_set(fw_rule_set_id):
     try:
-        sg = g.client_set.compute.security_groups.get(fw_rule_set_id)
-        # if sg is deleted between this two lines, next call raises NotFound
+        sg = admin_client_set().compute.security_groups.get(fw_rule_set_id)
+        assert_admin_or_project_user(sg.tenant_id, eperm_status=404)
         sg.delete()
     except osc_exc.NotFound:
         abort(404)

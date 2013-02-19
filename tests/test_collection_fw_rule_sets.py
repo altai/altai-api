@@ -53,21 +53,8 @@ class ConvertersTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
-            res = fw_rule_sets._sg_from_nova(sg, tenant)
+            res = fw_rule_sets._sg_from_nova(sg, tenant.name)
         self.assertEquals(expected, res)
-
-    def test_sg_from_nova_wrong_tenant_raises(self):
-        tenant = doubles.make(self.mox, doubles.Tenant,
-                              id=u'PID', name=u'Tenant')
-        sg = doubles.make(self.mox, doubles.SecurityGroup,
-                          id=u'SGID', name=u'Test SG',
-                          description=u'XXX', tenant_id=u'WRONG TENANT')
-
-        self.mox.ReplayAll()
-
-        with self.app.test_request_context():
-            self.assertRaises(ValueError,
-                              fw_rule_sets._sg_from_nova, sg, tenant)
 
 
 class RuleSetsTestCase(MockedTestCase):
@@ -86,15 +73,17 @@ class RuleSetsTestCase(MockedTestCase):
         self.fake_client_set.identity_admin.tenants.list().AndReturn(tenants)
 
         tcs1 = mock_client_set(self.mox)
-        fw_rule_sets.client_set_for_tenant(u'PID1').AndReturn(tcs1)
+        fw_rule_sets.client_set_for_tenant(u'PID1', fallback_to_api=True) \
+                .AndReturn(tcs1)
         tcs1.compute.security_groups.list().AndReturn(['SG1', 'SG2'])
-        fw_rule_sets._sg_from_nova('SG1', tenants[0]).AndReturn('REPLY1')
-        fw_rule_sets._sg_from_nova('SG2', tenants[0]).AndReturn('REPLY2')
+        fw_rule_sets._sg_from_nova('SG1', tenants[0].name).AndReturn('REPLY1')
+        fw_rule_sets._sg_from_nova('SG2', tenants[0].name).AndReturn('REPLY2')
 
         tcs2 = mock_client_set(self.mox)
-        fw_rule_sets.client_set_for_tenant(u'PID2').AndReturn(tcs2)
+        fw_rule_sets.client_set_for_tenant(u'PID2', fallback_to_api=True) \
+                .AndReturn(tcs2)
         tcs2.compute.security_groups.list().AndReturn(['SG3'])
-        fw_rule_sets._sg_from_nova('SG3', tenants[2]).AndReturn('REPLY3')
+        fw_rule_sets._sg_from_nova('SG3', tenants[2].name).AndReturn('REPLY3')
 
         expected = {
             'collection': {
@@ -109,16 +98,30 @@ class RuleSetsTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
 
+    def test_list_for_my_projects(self):
+        tenant = doubles.make(self.mox, doubles.Tenant,
+                              name='t1', id=u'PID1')
+
+        self.fake_client_set.identity_public.tenants.list().AndReturn([tenant])
+
+        tcs1 = mock_client_set(self.mox)
+        fw_rule_sets.client_set_for_tenant(u'PID1', fallback_to_api=True) \
+                .AndReturn(tcs1)
+        tcs1.compute.security_groups.list().AndReturn(['SG1'])
+        fw_rule_sets._sg_from_nova('SG1', tenant.name).AndReturn('REPLY1')
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/fw-rule-sets/?my-projects=true')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data.get('fw-rule-sets'), ['REPLY1'])
+
     def test_get_works(self):
         arg = u'42'
         sg = doubles.make(self.mox, doubles.SecurityGroup,
                           id=u'SGID', name=u'Test SG',
                           description=u'XXX', tenant_id=u'TENANT')
-
         self.fake_client_set.compute.security_groups.get(arg).AndReturn(sg)
-        self.fake_client_set.identity_admin.tenants.get(u'TENANT')\
-                .AndReturn('TENANT')
-        fw_rule_sets._sg_from_nova(sg, 'TENANT').AndReturn('REPLY')
+        fw_rule_sets._sg_from_nova(sg).AndReturn('REPLY')
         self.mox.ReplayAll()
         rv = self.client.get('/v1/fw-rule-sets/%s' % arg)
         data = self.check_and_parse_response(rv)
@@ -175,51 +178,32 @@ class CreateFwRuleSetTestCase(MockedTestCase):
             'name': u'Test SG',
             'description': u'Description'
         }
-        tenant = doubles.make(self.mox, doubles.Tenant,
-                              name='t1', id=u'TENANT')
 
         tcs = mock_client_set(self.mox)
-        self.fake_client_set.identity_admin.tenants\
-                .get(tenant.id).AndReturn(tenant)
-        fw_rule_sets.client_set_for_tenant(tenant.id).AndReturn(tcs)
+        fw_rule_sets.client_set_for_tenant(u'TENANT', fallback_to_api=True,
+                                           eperm_status=404) \
+                .AndReturn(tcs)
         tcs.compute.security_groups.create(
             name=u'Test SG', description=u'Description').AndReturn('SG')
-        fw_rule_sets._sg_from_nova('SG', tenant).AndReturn('REPLY')
+        fw_rule_sets._sg_from_nova('SG').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
         data = self.interact(params)
         self.assertEquals(data, 'REPLY')
 
-    def test_create_bad_project(self):
-        params = {
-            'project': u'TENANT',
-            'name': u'Test SG',
-            'description': u'Description'
-        }
-        self.fake_client_set.identity_admin.tenants\
-                .get(u'TENANT').AndRaise(osc_exc.NotFound('failure'))
-
-        self.mox.ReplayAll()
-
-        data = self.interact(params, 400)
-        self.assertEquals('project', data.get('element-name'))
-
     def test_create_no_description(self):
         params = {
             'project': u'TENANT',
             'name': u'Test SG'
         }
-        tenant = doubles.make(self.mox, doubles.Tenant,
-                              name='t1', id=u'TENANT')
-
         tcs = mock_client_set(self.mox)
-        self.fake_client_set.identity_admin.tenants\
-                .get(tenant.id).AndReturn(tenant)
-        fw_rule_sets.client_set_for_tenant(tenant.id).AndReturn(tcs)
+        fw_rule_sets.client_set_for_tenant(u'TENANT', fallback_to_api=True,
+                                           eperm_status=404) \
+                .AndReturn(tcs)
         tcs.compute.security_groups.create(
             name=u'Test SG', description='').AndReturn('SG')
-        fw_rule_sets._sg_from_nova('SG', tenant).AndReturn('REPLY')
+        fw_rule_sets._sg_from_nova('SG').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
