@@ -86,13 +86,12 @@ def no_auth():
     return None
 
 
-def _client_set(username, password, tenant_name=None, tenant_id=None):
-    """Authorize in keystone and return client set
-
-    Returns None if authentication failed.
-    """
+def _client_set(username=None, password=None, token=None,
+                tenant_name=None, tenant_id=None):
+    """Authorize in keystone and return client set"""
     cs = ClientSet(username=username,
                    password=password,
+                   token=token,
                    tenant_name=tenant_name,
                    tenant_id=tenant_id,
                    auth_uri=app.config['KEYSTONE_URI'])
@@ -111,11 +110,9 @@ def is_authenticated():
 
 def client_set_for_tenant(tenant_id, eperm_status=403, fallback_to_api=False):
     """Returns client set scoped to given tenant"""
-    cs = ClientSet(token=g.client_set.http_client.access['token']['id'],
-                   tenant_id=tenant_id,
-                   auth_uri=app.config['KEYSTONE_URI'])
     try:
-        cs.http_client.authenticate()
+        cs = _client_set(token=g.client_set.http_client.access['token']['id'],
+                         tenant_id=tenant_id)
     except (osc_exc.Unauthorized, osc_exc.Forbidden):
         if fallback_to_api and g.is_admin:
             return api_client_set(tenant_id)

@@ -53,6 +53,7 @@ class AuthClientSetTestCase(MockedTestCase):
                                      password='p@ssw0rd',
                                      auth_uri='test_auth_uri',
                                      tenant_id=None,
+                                     token=None,
                                      tenant_name='test_tenant')
         self.client.http_client = self.mox.CreateMockAnything()
         return self.client.http_client.authenticate()
@@ -71,6 +72,7 @@ class AuthClientSetTestCase(MockedTestCase):
                                      password='p@ssw0rd',
                                      auth_uri='test_auth_uri',
                                      tenant_name=None,
+                                     token=None,
                                      tenant_id='PID')
         self.client.http_client = self.mox.CreateMockAnything()
         self.client.http_client.authenticate()
@@ -358,13 +360,18 @@ class ClientSetForTenantTestCase(MockedTestCase):
         self.mox.StubOutWithMock(auth, 'ClientSet')
         self.mox.StubOutWithMock(auth, 'api_client_set')
 
-    def test_client_set_for_tenant_works(self):
+    def mock_client_set(self):
         access = self.fake_client_set.http_client.access
+        return auth.ClientSet(token=access['token']['id'],
+                              tenant_id='PID',
+                              tenant_name=None,
+                              username=None,
+                              password=None,
+                              auth_uri=self.app.config['KEYSTONE_URI'])
+
+    def test_client_set_for_tenant_works(self):
         tcs = self._fake_client_set_factory()
-        auth.ClientSet(token=access['token']['id'],
-                       tenant_id='PID',
-                       auth_uri=self.app.config['KEYSTONE_URI']) \
-                .AndReturn(tcs)
+        self.mock_client_set().AndReturn(tcs)
         tcs.http_client.authenticate()
 
         self.mox.ReplayAll()
@@ -374,12 +381,8 @@ class ClientSetForTenantTestCase(MockedTestCase):
             self.assertEquals(cs, tcs)
 
     def test_client_set_for_tenant_no_auth(self):
-        access = self.fake_client_set.http_client.access
         tcs = self._fake_client_set_factory()
-        auth.ClientSet(token=access['token']['id'],
-                       tenant_id='PID',
-                       auth_uri=self.app.config['KEYSTONE_URI']) \
-                .AndReturn(tcs)
+        self.mock_client_set().AndReturn(tcs)
         tcs.http_client.authenticate()\
                 .AndRaise(Unauthorized('denied'))
 
@@ -389,12 +392,8 @@ class ClientSetForTenantTestCase(MockedTestCase):
             self.assertAborts(403, auth.client_set_for_tenant, 'PID')
 
     def test_client_set_for_tenant_fallback(self):
-        access = self.fake_client_set.http_client.access
         tcs = self._fake_client_set_factory()
-        auth.ClientSet(token=access['token']['id'],
-                       tenant_id='PID',
-                       auth_uri=self.app.config['KEYSTONE_URI']) \
-                .AndReturn(tcs)
+        self.mock_client_set().AndReturn(tcs)
         tcs.http_client.authenticate()\
                 .AndRaise(Unauthorized('denied'))
         auth.api_client_set('PID').AndReturn('REPLY')
@@ -407,12 +406,8 @@ class ClientSetForTenantTestCase(MockedTestCase):
         self.assertEquals('REPLY', result)
 
     def test_client_set_for_tenant_forbidden(self):
-        access = self.fake_client_set.http_client.access
         tcs = self._fake_client_set_factory()
-        auth.ClientSet(token=access['token']['id'],
-                       tenant_id='PID',
-                       auth_uri=self.app.config['KEYSTONE_URI']) \
-                .AndReturn(tcs)
+        self.mock_client_set().AndReturn(tcs)
         tcs.http_client.authenticate()\
                 .AndRaise(Forbidden('denied'))
 
