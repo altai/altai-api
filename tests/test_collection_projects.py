@@ -155,6 +155,16 @@ class ProjectsHelpersTestCase(MockedTestCase):
             self.install_fake_auth()
             self.assertTrue(projects._project_has_servers('PID'))
 
+    def test_project_has_images(self):
+        self.fake_client_set.image.images.list(
+            filters=dict(is_public=False, tenant_id='PID'),
+            limit=1)\
+                .AndReturn(['IMAGE'])
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            self.assertTrue(projects._project_has_images('PID'))
+
 
 class UserProjectsTestCase(MockedTestCase):
     IS_ADMIN = False
@@ -481,6 +491,7 @@ class DeleteProjectTestCase(MockedTestCase):
         self.tenant = doubles.make(self.mox, doubles.Tenant,
                                    id=self.tenant_id)
         self.mox.StubOutWithMock(projects, '_project_has_servers')
+        self.mox.StubOutWithMock(projects, '_project_has_images')
 
     def interact(self, expected_status_code):
         rv = self.client.delete('/v1/projects/%s' % self.tenant_id)
@@ -499,6 +510,7 @@ class DeleteProjectTestCase(MockedTestCase):
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndReturn(self.tenant)
         projects._project_has_servers(self.tenant_id).AndReturn(False)
+        projects._project_has_images(self.tenant_id).AndReturn(False)
         self.fake_client_set.compute.networks.list().AndReturn([])
 
         self.tenant.delete()
@@ -510,6 +522,7 @@ class DeleteProjectTestCase(MockedTestCase):
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndReturn(self.tenant)
         projects._project_has_servers(self.tenant_id).AndReturn(False)
+        projects._project_has_images(self.tenant_id).AndReturn(False)
         self.fake_client_set.compute.networks.list().AndReturn([])
 
         self.tenant.delete().AndRaise(osc_exc.NotFound('deleted'))
@@ -524,7 +537,17 @@ class DeleteProjectTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         data = self.interact(expected_status_code=400)
-        self.assertTrue('VMs' in data['message'])
+        self.assertTrue('VMs' in data.get('message'))
+
+    def test_project_deletion_with_images_fails(self):
+        self.fake_client_set.identity_admin \
+            .tenants.get(self.tenant_id).AndReturn(self.tenant)
+        projects._project_has_servers(self.tenant_id).AndReturn(False)
+        projects._project_has_images(self.tenant_id).AndReturn(True)
+
+        self.mox.ReplayAll()
+        data = self.interact(expected_status_code=400)
+        self.assertTrue('images' in data.get('message'))
 
     def test_project_deletion_with_networks(self):
         def _net(**kwargs):
@@ -537,6 +560,7 @@ class DeleteProjectTestCase(MockedTestCase):
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndReturn(self.tenant)
         projects._project_has_servers(self.tenant_id).AndReturn(False)
+        projects._project_has_images(self.tenant_id).AndReturn(False)
 
         self.fake_client_set.compute.networks.list().AndReturn(nets)
         self.fake_client_set.compute.networks.disassociate(nets[0])

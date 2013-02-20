@@ -242,6 +242,13 @@ def _project_has_servers(project_id):
     return len(s) > 0
 
 
+def _project_has_images(project_id):
+    image_list = admin_client_set().image.images.list(
+        filters=dict(is_public=False, tenant_id=project_id),
+        limit=1)
+    return len(image_list) > 0
+
+
 @projects.route('/<project_id>', methods=('DELETE',))
 def delete_project(project_id):
     set_audit_resource_id(project_id)
@@ -251,7 +258,13 @@ def delete_project(project_id):
     #   takes a lot of time, so to avoid races we don't delete them here
     if _project_has_servers(project_id):
         raise exc.InvalidRequest("Can't delete project "
-                                 "while there are VMs")
+                                 "while there are VMs in it")
+
+    # NOTE(imelnikov): image deletion would work OK here, but for consistency
+    #   and safety we opt for check instead
+    if _project_has_images(project_id):
+        raise exc.InvalidRequest("Can't delete project "
+                                 "while there are images in it")
 
     # detach all networks
     net_client = admin_client_set().compute.networks
