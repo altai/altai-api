@@ -127,6 +127,27 @@ def _check_request_expectations():
         abort(417)
 
 
+def _check_value(value, key, max_val_len):
+    if isinstance(value, basestring):
+        if len(value) > max_val_len:
+            raise exc.InvalidRequest('Length of request element "%s" '
+                                     'must not exceed %s'
+                                     % (key, max_val_len))
+    elif isinstance(value, list):
+        for v in value:
+            _check_value(v, key, max_val_len)
+
+
+def _json_object_hook(data):
+    max_key_len = current_app.config['MAX_ELEMENT_NAME_LENGTH']
+    max_val_len = current_app.config['MAX_PARAMETER_LENGTH']
+    for key, value in data.iteritems():
+        if isinstance(key, basestring) and len(key) > max_key_len:
+            raise exc.InvalidRequest('Bad element name: %r' % key)
+        _check_value(value, key, max_val_len)
+    return data
+
+
 def parse_request_data(allowed=None, required=None):
     """Parse request body and check satisfies schema
 
@@ -136,11 +157,11 @@ def parse_request_data(allowed=None, required=None):
 
     """
     # NOTE(imelnikov): we don't use request.json because we want
-    # to raise our custom exception
+    # to raise our custom exception and add our custom validation
     try:
-        data = json.loads(request.data)
-    except ValueError:
-        raise exc.InvalidRequest('JSON syntax error')
+        data = json.loads(request.data, object_hook=_json_object_hook)
+    except ValueError, e:
+        raise exc.InvalidRequest('JSON decoding error: %s' % e)
 
     if not isinstance(data, dict):
         raise exc.InvalidRequest('Bad %s request: JSON object expected'

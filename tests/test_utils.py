@@ -116,7 +116,7 @@ class ParseRequestDataTestCase(TestCase):
                               parse_request_data, None, None)
 
     def test_object_required(self):
-        with self.request_context(data=[]):
+        with self.request_context(data='[]'):
             self.assertRaises(exc.InvalidRequest,
                               parse_request_data, None, None)
 
@@ -171,6 +171,25 @@ class ParseRequestDataTestCase(TestCase):
         with self.request_context(params):
             self.assertEquals({'test': timestamp},
                               parse_request_data(schema))
+
+    def test_checks_value_length(self):
+        data = '{"9000 a": "%s"}' % ('A' * 9000)
+        with self.app.test_request_context(data=data):
+            self.assertRaises(exc.InvalidRequest, parse_request_data)
+
+    def test_checks_value_in_list_length(self):
+        data = '{"9000 a": ["%s"]}' % ('A' * 9000)
+        with self.app.test_request_context(data=data):
+            self.assertRaises(exc.InvalidRequest, parse_request_data)
+
+    def test_checks_key_length(self):
+        data = '{"%s": null}' % ('k' * 100)
+        with self.app.test_request_context(data=data):
+            self.assertRaises(exc.InvalidRequest, parse_request_data)
+
+    def test_checks_key_is_string(self):
+        with self.app.test_request_context(data='{5:0}'):
+            self.assertRaises(exc.InvalidRequest, parse_request_data)
 
 
 class IntParseAndCheckTestCase(unittest.TestCase):

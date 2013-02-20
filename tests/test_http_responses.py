@@ -52,14 +52,14 @@ class HttpResponsesTestCase(TestCase):
                               content_type='application/json',
                               data='')
         data = self.check_and_parse_response(rv, status_code=400)
-        self.assertTrue('syntax error' in data.get('message'))
+        self.assertTrue('decoding error' in data.get('message'))
 
     def test_no_whitespace_posts(self):
         rv = self.client.post('/v1/projects/',
                               content_type='application/json',
                               data='     ')
         data = self.check_and_parse_response(rv, status_code=400)
-        self.assertTrue('syntax error' in data.get('message'))
+        self.assertTrue('decoding error' in data.get('message'))
 
     def test_object_required(self):
         rv = self.client.post('/v1/projects/',
