@@ -327,6 +327,13 @@ class StringTestCase(unittest.TestCase):
     def test_from_request_ok(self):
         self.assertEquals('test', self.s.from_request('test'))
 
+    def test_from_request_empty(self):
+        self.assertRaises(exc.IllegalValue, self.s.from_request, '')
+
+    def test_from_request_allow_empty(self):
+        s = st.String('test', allow_empty=True)
+        self.assertEquals('', s.from_request(''))
+
     def test_from_request_fail(self):
         self.assertRaises(exc.IllegalValue, self.s.from_request, 42)
 

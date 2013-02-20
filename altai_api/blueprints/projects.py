@@ -129,7 +129,7 @@ def get_project(project_id):
 _SCHEMA = Schema((
     st.String('id'),
     st.String('name'),
-    st.String('description'),
+    st.String('description', allow_empty=True),
     st.LinkObject('network'),
     st.Int('cpus-limit'),
     st.Int('ram-limit'),

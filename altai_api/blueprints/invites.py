@@ -56,7 +56,7 @@ def get_user_by_code(code):
 
 _ACCEPT_SCHEMA = Schema((
     st.String('name'),
-    st.String('fullname'),
+    st.String('fullname', allow_empty=True),
     st.String('email'),
 ))
 

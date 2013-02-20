@@ -169,7 +169,7 @@ def _add_user_to_projects(user, projects):
 _SCHEMA = Schema((
     st.String('id'),
     st.String('name'),
-    st.String('fullname'),
+    st.String('fullname', allow_empty=True),
     st.String('email'),
     st.Boolean('admin'),
     st.Boolean('completed-registration'),

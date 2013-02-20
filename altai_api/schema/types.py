@@ -169,18 +169,21 @@ class String(ElementType):
         matchers = _matchers_plus(_BASIC_MATCHERS, {
             'startswith': lambda value, pattern: value.startswith(pattern)
         })
+        self.allow_empty = kwargs.pop('allow_empty', False)
         super(String, self).__init__(name=name,
                                      typename='string',
                                      basic_search_matchers=matchers,
                                      **kwargs)
 
-    def from_string(self, string):
-        return string
+    def from_string(self, value):
+        if not (self.allow_empty or value):
+            self._raise(value)
+        return value
 
     def _from_request_impl(self, value):
         if not isinstance(value, basestring):
             self._raise(value)
-        return value
+        return self.from_string(value)
 
 
 class Boolean(ElementType):
