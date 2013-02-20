@@ -82,6 +82,13 @@ def int_from_string(value, min_val=0, max_val=None,
         _raise(value, on_error)
 
 
+def _parse_ipv4(value):
+    assert isinstance(value, basestring)
+    str_octets = value.split('.')
+    assert len(str_octets) == 4
+    return [int_from_string(x, 0, 255) for x in str_octets]
+
+
 def ipv4_from_user(value, on_error=None):
     """Check that string represents IPv4
 
@@ -89,14 +96,24 @@ def ipv4_from_user(value, on_error=None):
 
     """
     try:
-        assert isinstance(value, basestring)
-        str_octets = value.split('.')
-        assert len(str_octets) == 4
-        int_octets = [int_from_string(x, 0, 255)
-                      for x in str_octets]
+        int_octets = _parse_ipv4(value)
         return '.'.join((str(x) for x in int_octets))
     except (ValueError, AssertionError):
         _raise(value, on_error)
+
+
+def _octets_obey_mask(octets, mask):
+    """Check that address has zeroes in lower bits as specified by mask
+
+    Address should be represented as iterable over octets, higher
+    octets first. Mask should be represented as integer.
+
+    """
+    bin_addr = 0
+    for octet in octets:
+        bin_addr = (bin_addr << 8) | octet
+    lower_bits = (1 << 32 - mask) - 1
+    return (bin_addr & lower_bits) == 0
 
 
 def cidr_from_user(value, on_error=None):
@@ -108,8 +125,10 @@ def cidr_from_user(value, on_error=None):
     try:
         assert isinstance(value, basestring)
         addr, net = value.split('/')
-        ret_addr = ipv4_from_user(addr)
+        octets = _parse_ipv4(addr)
+        ret_addr = '.'.join((str(x) for x in octets))
         ret_net = int_from_string(net, min_val=0, max_val=32)
+        assert _octets_obey_mask(octets, ret_net)
         return '%s/%s' % (ret_addr, ret_net)
     except (AssertionError, ValueError):
         _raise(value, on_error)

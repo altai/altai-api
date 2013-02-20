@@ -266,6 +266,10 @@ class IpAndCidrCheckTestCase(unittest.TestCase):
         self.assertRaises(ValueError,
                           cidr_from_user, '192.168.1.0/42')
 
+    def test_cidr_checks_lower_zeroes(self):
+        self.assertRaises(ValueError,
+                          cidr_from_user, '192.168.1.1/24')
+
     def test_cidr_no_leading_zeroes(self):
         self.assertRaises(ValueError,
                           cidr_from_user, '192.168.1.0/023')
