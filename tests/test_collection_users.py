@@ -21,6 +21,7 @@
 
 import flask
 from flask import json
+from mox import IsA
 
 from datetime import datetime
 from openstackclient_base import exceptions as osc_exc
@@ -671,25 +672,42 @@ class DeleteUserTestCase(MockedTestCase):
         super(DeleteUserTestCase, self).setUp()
         self.mox.StubOutWithMock(users, 'user_from_nova')
         self.mox.StubOutWithMock(users, 'member_role_id')
+        self.mox.StubOutWithMock(self.app.logger, 'exception')
 
     def test_delete_user(self):
-        # prepare
+        self.fake_client_set.compute_ext.user_keypairs.list('user-a') \
+                .AndReturn([])
         self.fake_client_set.identity_admin.users.delete('user-a')
         self.mox.ReplayAll()
-        # test
+
         rv = self.client.delete('/v1/users/user-a')
-        # verify
         self.assertEquals(rv.status_code, 204)
 
     def test_delete_user_not_found(self):
-        # prepare
+        self.fake_client_set.compute_ext.user_keypairs.list('user-a') \
+                .AndReturn([])
         self.fake_client_set.identity_admin.users.delete('user-a')\
                 .AndRaise(osc_exc.NotFound('failure'))
         self.mox.ReplayAll()
-        # test
         rv = self.client.delete('/v1/users/user-a')
-        # verify
         self.assertEquals(rv.status_code, 404)
+
+    def test_delete_user_with_keys(self):
+        keys = [doubles.make(self.mox, doubles.Keypair, id='kp1'),
+                doubles.make(self.mox, doubles.Keypair, id='kp2')]
+
+        user_keypairs = self.fake_client_set.compute_ext.user_keypairs
+        user_keypairs.list('user-a') \
+                .AndReturn(keys)
+        user_keypairs.delete('user-a', 'kp1') \
+                .AndRaise(osc_exc.NotFound('gone'))
+        self.app.logger.exception(IsA(basestring), 'kp1', 'user-a')
+        user_keypairs.delete('user-a', 'kp2')
+        self.fake_client_set.identity_admin.users.delete('user-a')
+        self.mox.ReplayAll()
+
+        rv = self.client.delete('/v1/users/user-a')
+        self.assertEquals(rv.status_code, 204)
 
 
 class SendInviteTestCase(MockedTestCase):

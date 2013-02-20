@@ -20,11 +20,11 @@
 # <http://www.gnu.org/licenses/>.
 
 from flask import Blueprint, g, url_for, abort
+from flask import current_app as app
 from flask.exceptions import HTTPException
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
-from altai_api.main import app
 
 from altai_api import auth
 from altai_api.utils import *
@@ -301,6 +301,15 @@ def update_user(user_id):
 @users.route('/<user_id>', methods=('DELETE',))
 def delete_user(user_id):
     set_audit_resource_id(user_id)
+
+    # try to clean up user's SSH keys
+    for key in g.client_set.compute_ext.user_keypairs.list(user_id):
+        try:
+            g.client_set.compute_ext.user_keypairs.delete(user_id, key.id)
+        except osc_exc.HttpException:
+            app.logger.exception('Failed to remove keypair %s for user %s',
+                                 key.id, user_id)
+
     try:
         g.client_set.identity_admin.users.delete(user_id)
     except osc_exc.NotFound:
