@@ -69,13 +69,15 @@ class FwRulesTestCase(MockedTestCase):
     def setUp(self):
         super(FwRulesTestCase, self).setUp()
         self.mox.StubOutWithMock(fw_rules, '_fw_rule_dict_from_nova')
+        self.mox.StubOutWithMock(fw_rules.auth, 'assert_admin_or_project_user')
 
     def test_list_works(self):
         sg = doubles.make(self.mox, doubles.SecurityGroup,
-                          id=u'42', name='Test SG',
+                          id=u'42', name='Test SG', tenant_id='TENANT',
                           rules=['RULE1', 'RULE2'])
 
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
+        fw_rules.auth.assert_admin_or_project_user('TENANT', eperm_status=404)
         fw_rules._fw_rule_dict_from_nova('RULE1').AndReturn('REPLY1')
         fw_rules._fw_rule_dict_from_nova('RULE2').AndReturn('REPLY2')
 
@@ -104,14 +106,16 @@ class FwRulesTestCase(MockedTestCase):
 
     def test_get_works(self):
         ruleid = u'2'
-        rules = [
-            { u'id': 1, u'FAKE': u'fst' },
-            { u'id': 2, u'FAKE': u'snd' },
-            { u'id': 4, u'FAKE': u'lst' } ]
-
+        rules = [{ u'id': 1, u'FAKE': u'fst' },
+                 { u'id': 2, u'FAKE': u'snd' },
+                 { u'id': 4, u'FAKE': u'lst' } ]
         sg = doubles.make(self.mox, doubles.SecurityGroup,
-                          id=u'42', name='Test SG', rules=rules)
+                          id=u'42', name='Test SG',
+                          rules=rules, tenant_id='PID')
+
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
+        fw_rules.auth.assert_admin_or_project_user('PID', eperm_status=404)
+
         fw_rules._fw_rule_dict_from_nova(rules[1]).AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -141,10 +145,12 @@ class FwRulesTestCase(MockedTestCase):
             { u'id': 1, u'FAKE': u'fst' },
             { u'id': 3, u'FAKE': u'snd' },
             { u'id': 4, u'FAKE': u'lst' } ]
-
         sg = doubles.make(self.mox, doubles.SecurityGroup,
-                          id=u'42', name='Test SG', rules=rules)
+                          id=u'42', name='Test SG',
+                          rules=rules, tenant_id='PID')
+
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
+        fw_rules.auth.assert_admin_or_project_user('PID', eperm_status=404)
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/fw-rule-sets/%s/rules/%s' % (sg.id, ruleid))
@@ -155,10 +161,12 @@ class FwRulesTestCase(MockedTestCase):
         rules = [{ u'id': 1, u'FAKE': u'fst' },
                  { u'id': 2, u'FAKE': u'snd' },
                  { u'id': 4, u'FAKE': u'lst' }]
-
         sg = doubles.make(self.mox, doubles.SecurityGroup,
-                          id=u'42', name='Test SG', rules=rules)
+                          id=u'42', name='Test SG',
+                          rules=rules, tenant_id='PID')
+
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
+        fw_rules.auth.assert_admin_or_project_user('PID', eperm_status=404)
         self.fake_client_set.compute.security_group_rules.delete(ruleid)
 
         self.mox.ReplayAll()
@@ -182,10 +190,12 @@ class FwRulesTestCase(MockedTestCase):
             { u'id': 1, u'FAKE': u'fst' },
             { u'id': 3, u'FAKE': u'snd' },
             { u'id': 4, u'FAKE': u'lst' } ]
-
         sg = doubles.make(self.mox, doubles.SecurityGroup,
-                          id=u'42', name='Test SG', rules=rules)
+                          id=u'42', name='Test SG',
+                          rules=rules, tenant_id='PID')
+
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
+        fw_rules.auth.assert_admin_or_project_user('PID', eperm_status=404)
 
         self.mox.ReplayAll()
         rv = self.client.delete('/v1/fw-rule-sets/%s/rules/%s'
@@ -197,10 +207,12 @@ class FwRulesTestCase(MockedTestCase):
         rules = [{ u'id': 1, u'FAKE': u'fst' },
                  { u'id': 2, u'FAKE': u'snd' },
                  { u'id': 4, u'FAKE': u'lst' }]
-
         sg = doubles.make(self.mox, doubles.SecurityGroup,
-                          id=u'42', name='Test SG', rules=rules)
+                          id=u'42', name='Test SG',
+                          rules=rules, tenant_id='PID')
+
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
+        fw_rules.auth.assert_admin_or_project_user('PID', eperm_status=404)
         self.fake_client_set.compute.security_group_rules.delete(ruleid)\
                 .AndRaise(osc_exc.NotFound('failure'))
 
@@ -216,6 +228,12 @@ class CreateRuleTestCase(MockedTestCase):
     def setUp(self):
         super(CreateRuleTestCase, self).setUp()
         self.mox.StubOutWithMock(fw_rules, '_fw_rule_object_from_nova')
+        self.mox.StubOutWithMock(fw_rules, '_get_security_group')
+        self.mox.StubOutWithMock(fw_rules.auth, 'client_set_for_tenant')
+        self.sg = doubles.make(self.mox, doubles.SecurityGroup,
+                               id=self.sgid, name='Test SG',
+                               rules=[], tenant_id='PID')
+        self.tcs = self._fake_client_set_factory()
 
     def interact(self, params, expected_status_code=200):
         rv = self.client.post('/v1/fw-rule-sets/%s/rules/' % self.sgid,
@@ -224,7 +242,11 @@ class CreateRuleTestCase(MockedTestCase):
         return self.check_and_parse_response(rv, expected_status_code)
 
     def test_create_rule_no_ports(self):
-        self.fake_client_set.compute.security_group_rules.create(
+        fw_rules._get_security_group(self.sgid).AndReturn(self.sg)
+        fw_rules.auth.client_set_for_tenant('PID', fallback_to_api=True,
+                                            eperm_status=404) \
+                .AndReturn(self.tcs)
+        self.tcs.compute.security_group_rules.create(
             parent_group_id=self.sgid,
             ip_protocol=u'tcp',
             from_port=-1,
@@ -259,7 +281,11 @@ class CreateRuleTestCase(MockedTestCase):
         self.assertEquals('tcp', data.get('element-value'))
 
     def test_create_rule_one_port(self):
-        self.fake_client_set.compute.security_group_rules.create(
+        fw_rules._get_security_group(self.sgid).AndReturn(self.sg)
+        fw_rules.auth.client_set_for_tenant('PID', fallback_to_api=True,
+                                            eperm_status=404) \
+                .AndReturn(self.tcs)
+        self.tcs.compute.security_group_rules.create(
             parent_group_id=self.sgid,
             ip_protocol=u'tcp',
             from_port=80,
@@ -277,7 +303,11 @@ class CreateRuleTestCase(MockedTestCase):
         self.assertEquals(data, 'REPLY')
 
     def test_create_rule_two_port(self):
-        self.fake_client_set.compute.security_group_rules.create(
+        fw_rules._get_security_group(self.sgid).AndReturn(self.sg)
+        fw_rules.auth.client_set_for_tenant('PID', fallback_to_api=True,
+                                            eperm_status=404) \
+                .AndReturn(self.tcs)
+        self.tcs.compute.security_group_rules.create(
             parent_group_id=self.sgid,
             ip_protocol=u'tcp',
             from_port=42,
@@ -294,4 +324,21 @@ class CreateRuleTestCase(MockedTestCase):
             u'source': u'10.0.0.0/8'
         })
         self.assertEquals(data, 'REPLY')
+
+    def test_create_rule_late_not_found(self):
+        fw_rules._get_security_group(self.sgid).AndReturn(self.sg)
+        fw_rules.auth.client_set_for_tenant('PID', fallback_to_api=True,
+                                            eperm_status=404) \
+                .AndReturn(self.tcs)
+        self.tcs.compute.security_group_rules.create(
+            parent_group_id=self.sgid,
+            ip_protocol=u'tcp',
+            from_port=-1,
+            to_port=-1,
+            cidr='10.0.0.0/8')\
+                .AndRaise(osc_exc.NotFound('gone'))
+
+        self.mox.ReplayAll()
+        self.interact({ u'protocol': u'TCP', u'source': u'10.0.0.0/8' },
+                      expected_status_code=404)
 

@@ -23,8 +23,10 @@ from flask import url_for, g, Blueprint, abort
 from openstackclient_base import exceptions as osc_exc
 from altai_api import exceptions as exc
 
+from altai_api import auth
 from altai_api.utils import *
 from altai_api.utils.parsers import int_from_string
+from altai_api.utils.decorators import user_endpoint
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -69,9 +71,10 @@ def _fw_rule_object_from_nova(rule):
 
 def _get_security_group(sg_id):
     try:
-        sg = g.client_set.compute.security_groups.get(sg_id)
+        sg = auth.admin_client_set().compute.security_groups.get(sg_id)
     except osc_exc.NotFound:
         abort(404)
+    auth.assert_admin_or_project_user(sg.tenant_id, eperm_status=404)
     # TODO(imelnikov): do we need to check if group belongs to systenant?
     return sg
 
@@ -89,6 +92,7 @@ _SCHEMA = Schema((
 
 
 @fw_rules.route('/', methods=('GET',))
+@user_endpoint
 def list_fw_rules(fw_rule_set_id):
     parse_collection_request(_SCHEMA)
     result = [_fw_rule_dict_from_nova(rule)
@@ -102,9 +106,7 @@ def list_fw_rules(fw_rule_set_id):
 def _find_rule(sg_id, rule_id):
     """Find rule record in given security group"""
     # rule ids are (sic!) ints
-    rid = int_from_string(rule_id,
-                          on_error=lambda value_: abort(404))
-
+    rid = int_from_string(rule_id, on_error=lambda value_: abort(404))
     for rule in _get_security_group(sg_id).rules:
         if rule['id'] == rid:
             return rule
@@ -112,30 +114,41 @@ def _find_rule(sg_id, rule_id):
 
 
 @fw_rules.route('/<rule_id>', methods=('GET',))
+@user_endpoint
 def get_fw_rule(fw_rule_set_id, rule_id):
     rule = _find_rule(fw_rule_set_id, rule_id)
     return make_json_response(_fw_rule_dict_from_nova(rule))
 
 
 @fw_rules.route('/', methods=('POST',))
+@user_endpoint
 def create_fw_rule(fw_rule_set_id):
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
     protocol = data['protocol']
     if protocol not in ('TCP', 'UDP', 'ICMP'):
         raise exc.IllegalValue('protocol', 'string', protocol)
+    sg = _get_security_group(fw_rule_set_id)
+
     from_port = data.get('port-range-first', -1)
     to_port = data.get('port-range-last', from_port)
-    rule = g.client_set.compute.security_group_rules.create(
-        parent_group_id=fw_rule_set_id,
-        ip_protocol=protocol.lower(),
-        from_port=from_port,
-        to_port=to_port,
-        cidr=data['source'])
+    client = auth.client_set_for_tenant(sg.tenant_id,
+                                        fallback_to_api=g.is_admin,
+                                        eperm_status=404)
+    try:
+        rule = client.compute.security_group_rules.create(
+            parent_group_id=fw_rule_set_id,
+            ip_protocol=protocol.lower(),
+            from_port=from_port,
+            to_port=to_port,
+            cidr=data['source'])
+    except osc_exc.NotFound:
+        abort(404)
     set_audit_resource_id(rule)
     return make_json_response(_fw_rule_object_from_nova(rule))
 
 
 @fw_rules.route('/<rule_id>', methods=('DELETE',))
+@user_endpoint
 def delete_fw_rule(fw_rule_set_id, rule_id):
     set_audit_resource_id(rule_id)
     # we check that group exists and has given rule by looking for it there
