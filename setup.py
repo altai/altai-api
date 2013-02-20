@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# vim: tabstop=4 shiftwidth=4 softtabstop=4
+# vim: tabstop=8 shiftwidth=4 softtabstop=4 expandtab smarttab autoindent
 
 # Altai API Service
 # Copyright (C) 2012-2013 Grid Dynamics Consulting Services, Inc

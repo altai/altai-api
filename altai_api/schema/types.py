@@ -1,4 +1,10 @@
 
+# vim: tabstop=8 shiftwidth=4 softtabstop=4 expandtab smarttab autoindent
+
+# Altai API Service
+# Copyright (C) 2012-2013 Grid Dynamics Consulting Services, Inc
+# All Rights Reserved
+#
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Lesser General Public
 # License as published by the Free Software Foundation; either
