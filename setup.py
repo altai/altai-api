@@ -2,7 +2,7 @@
 # vim: tabstop=4 shiftwidth=4 softtabstop=4
 
 # Altai API Service
-# Copyright (C) 2012 Grid Dynamics Consulting Services, Inc
+# Copyright (C) 2012-2013 Grid Dynamics Consulting Services, Inc
 # All Rights Reserved
 #
 # This program is free software; you can redistribute it and/or
@@ -46,12 +46,10 @@ setup(name='altai-api',
                         'python-glanceclient',
                         'python-keystoneclient',
                         'python-novaclient',
-                        'nova'
                        ],
       tests_require=['mox'],
       dependency_links=[
           'http://github.com/altai/python-openstackclient-base/zipball/master#egg=python-openstackclient-base',
-          'http://github.com/openstack/nova/zipball/stable/essex#egg=nova'
       ],
       test_suite='tests',
 )
