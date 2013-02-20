@@ -34,31 +34,33 @@ class VmRuleSetsTestCase(MockedTestCase):
         super(VmRuleSetsTestCase, self).setUp()
         self.server = doubles.make(self.mox, doubles.Server,
                                    id=u'VMID', name=u'ExampleVM')
-
         self.sg = doubles.make(self.mox, doubles.SecurityGroup,
-                               id=2, name=u'ExampleSG')
+                               id=2, name=u'ExampleSG', tenant_id='PID')
         self.sg2 = doubles.make(self.mox, doubles.SecurityGroup,
-                               id=142, name=u'AnotherSG')
+                               id=142, name=u'AnotherSG', tenant_id='PID')
         self.sg_id = unicode(self.sg.id)
+        self.mox.StubOutWithMock(vm_fw_rule_sets, 'link_for_security_group')
+        self.mox.StubOutWithMock(vm_fw_rule_sets,
+                                 'assert_admin_or_project_user')
 
     def test_list_works(self):
-        self.mox.StubOutWithMock(vm_fw_rule_sets, 'link_for_security_group')
 
         self.fake_client_set.compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
-            'security_groups').AndReturn([u'SG1', u'SG2', u'SG3'])
+            'security_groups').AndReturn([self.sg, self.sg2])
 
-        vm_fw_rule_sets.link_for_security_group(u'SG1').AndReturn(u'L1')
-        vm_fw_rule_sets.link_for_security_group(u'SG2').AndReturn(u'L2')
-        vm_fw_rule_sets.link_for_security_group(u'SG3').AndReturn(u'L3')
+        vm_fw_rule_sets.assert_admin_or_project_user(
+            'PID', eperm_status=404)
+        vm_fw_rule_sets.link_for_security_group(self.sg).AndReturn(u'L1')
+        vm_fw_rule_sets.link_for_security_group(self.sg2).AndReturn(u'L2')
 
         expected = {
             'collection': {
                 'parent-href': '/v1/vms/%s' % self.server.id,
                 'name': 'fw-rule-sets',
-                'size': 3
+                'size': 2
             },
-            'fw-rule-sets': [u'L1', u'L2', u'L3']
+            'fw-rule-sets': [u'L1', u'L2']
         }
 
         self.mox.ReplayAll()
@@ -93,18 +95,14 @@ class VmRuleSetsTestCase(MockedTestCase):
         self.fake_client_set.compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([self.sg2, self.sg])
-        expected = {
-            u'id': u'2',
-            u'name': u'ExampleSG',
-            u'href': '/v1/fw-rule-sets/2'
-        }
-
+        vm_fw_rule_sets.assert_admin_or_project_user(
+            'PID', eperm_status=404)
+        vm_fw_rule_sets.link_for_security_group(self.sg).AndReturn('REPLY')
         self.mox.ReplayAll()
-
         rv = self.client.get('/v1/vms/%s/fw-rule-sets/%s'
                              % (self.server.id, u'2'))
         data = self.check_and_parse_response(rv)
-        self.assertEquals(data, expected)
+        self.assertEquals(data, 'REPLY')
 
     def test_get_vm_not_found(self):
         self.fake_client_set.compute.security_groups._list(
@@ -124,6 +122,8 @@ class VmRuleSetsTestCase(MockedTestCase):
         compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([self.sg2, self.sg])
+        vm_fw_rule_sets.assert_admin_or_project_user(
+            'PID', eperm_status=404)
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/vms/%s/fw-rule-sets/%s'
@@ -143,8 +143,10 @@ class AddFwRuleSetToVMTestCase(MockedTestCase):
         self.mox.StubOutWithMock(vm_fw_rule_sets, 'client_set_for_tenant')
         self.mox.StubOutWithMock(vm_fw_rule_sets, 'link_for_security_group')
         self.server = doubles.make(self.mox, doubles.Server,
+                                   tenant_id='FWPROJECT',
                                    id=u'VMID', name=u'ExampleVM')
         self.sg = doubles.make(self.mox, doubles.SecurityGroup,
+                               tenant_id='FWPROJECT',
                                id=2, name=u'ExampleSG')
         self.sg_id = unicode(self.sg.id)
 
@@ -161,7 +163,8 @@ class AddFwRuleSetToVMTestCase(MockedTestCase):
 
         compute.servers.get(self.server.id).AndReturn(self.server)
         compute.security_groups.get(self.sg_id).AndReturn(self.sg)
-        vm_fw_rule_sets.client_set_for_tenant(self.server.tenant_id)\
+        vm_fw_rule_sets.client_set_for_tenant(self.server.tenant_id,
+                                              fallback_to_api=True) \
                 .AndReturn(tcs)
         tcs.compute.servers.add_security_group(self.server, self.sg.name)
         vm_fw_rule_sets.link_for_security_group(self.sg).AndReturn('REPLY')
@@ -196,7 +199,8 @@ class AddFwRuleSetToVMTestCase(MockedTestCase):
 
         compute.servers.get(self.server.id).AndReturn(self.server)
         compute.security_groups.get(self.sg_id).AndReturn(self.sg)
-        vm_fw_rule_sets.client_set_for_tenant(self.server.tenant_id)\
+        vm_fw_rule_sets.client_set_for_tenant(self.server.tenant_id,
+                                              fallback_to_api=True) \
                 .AndReturn(tcs)
         tcs.compute.servers.add_security_group(self.server, self.sg.name)\
                 .AndRaise(osc_exc.BadRequest('failure'))
@@ -211,6 +215,8 @@ class RemoveFwRuleSetFromVMTestCase(MockedTestCase):
         super(RemoveFwRuleSetFromVMTestCase, self).setUp()
         self.mox.StubOutWithMock(vm_fw_rule_sets, 'link_for_security_group')
         self.mox.StubOutWithMock(vm_fw_rule_sets, 'client_set_for_tenant')
+        self.mox.StubOutWithMock(vm_fw_rule_sets,
+                                 'assert_admin_or_project_user')
         self.server = doubles.make(self.mox, doubles.Server,
                                    id=u'VMID', name=u'ExampleVM',
                                    tenant_id=u'FWPROJECT')
@@ -233,7 +239,10 @@ class RemoveFwRuleSetFromVMTestCase(MockedTestCase):
         compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([self.sg])
-        vm_fw_rule_sets.client_set_for_tenant(u'FWPROJECT')\
+        vm_fw_rule_sets.assert_admin_or_project_user(
+            u'FWPROJECT', eperm_status=404)
+        vm_fw_rule_sets.client_set_for_tenant(u'FWPROJECT',
+                                              fallback_to_api=True) \
                 .AndReturn(self.tcs)
         self.tcs.compute.servers.remove_security_group(
             self.server, self.sg.name)
@@ -256,6 +265,7 @@ class RemoveFwRuleSetFromVMTestCase(MockedTestCase):
         compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([])
+        compute.servers.get(self.server.id).AndReturn(self.server)
 
         self.mox.ReplayAll()
         self.interact(expected_status_code=404)
@@ -267,7 +277,10 @@ class RemoveFwRuleSetFromVMTestCase(MockedTestCase):
         compute.security_groups._list(
             '/servers/%s/os-security-groups' % self.server.id,
             'security_groups').AndReturn([self.sg])
-        vm_fw_rule_sets.client_set_for_tenant(u'FWPROJECT')\
+        vm_fw_rule_sets.assert_admin_or_project_user(
+            u'FWPROJECT', eperm_status=404)
+        vm_fw_rule_sets.client_set_for_tenant(u'FWPROJECT',
+                                              fallback_to_api=True) \
                 .AndReturn(self.tcs)
         self.tcs.compute.servers.remove_security_group(
             self.server, self.sg.name) \
@@ -278,20 +291,22 @@ class RemoveFwRuleSetFromVMTestCase(MockedTestCase):
 
     def test_remove_other_failure(self):
         compute = self.fake_client_set.compute
+        self.mox.StubOutWithMock(vm_fw_rule_sets, '_find_sg_on_server')
 
         compute.servers.get(self.server.id).AndReturn(self.server)
-        compute.security_groups._list(
-            '/servers/%s/os-security-groups' % self.server.id,
-            'security_groups').AndReturn([self.sg])
-        vm_fw_rule_sets.client_set_for_tenant(u'FWPROJECT')\
+        vm_fw_rule_sets._find_sg_on_server(self.server.id, self.sg_id) \
+                .AndReturn(self.sg)
+        vm_fw_rule_sets.client_set_for_tenant(u'FWPROJECT',
+                                              fallback_to_api=True) \
                 .AndReturn(self.tcs)
         self.tcs.compute.servers.remove_security_group(
             self.server, self.sg.name) \
-                .AndRaise(osc_exc.HttpException('failure'))
-        compute.security_groups._list(
-            '/servers/%s/os-security-groups' % self.server.id,
-            'security_groups').AndReturn([self.sg])
+                .AndRaise(osc_exc.HttpException('something happened'))
+        vm_fw_rule_sets._find_sg_on_server(self.server.id, self.sg_id) \
+                .AndReturn(self.sg)
 
         self.mox.ReplayAll()
-        self.interact(expected_status_code=500)
+        data = self.interact(expected_status_code=500)
+        self.assertTrue('something happened' in data.get('message', ''),
+                        'Unexpected message: %s' % data.get('message'))
 
