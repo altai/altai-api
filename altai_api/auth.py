@@ -257,7 +257,7 @@ def current_user_project_ids():
     try:
         return g.current_user_project_ids
     except AttributeError:
-        tenants = g.client_set.identity_public.tenants.list()
+        tenants = (g.client_set.identity_public.tenants.list()
+                   if is_authenticated() else [])
         g.current_user_project_ids = set((tenant.id for tenant in tenants))
         return g.current_user_project_ids
-

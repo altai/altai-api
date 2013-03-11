@@ -151,16 +151,40 @@ class AuthenticationTestCase(MockedTestCase):
 class CurrentUserIdTestCase(MockedTestCase):
 
     def test_current_user_id(self):
+        self.mox.ReplayAll()
         self.fake_client_set.http_client.access['user'] = { 'id' : 'THE_UID' }
         with self.app.test_request_context():
             self.install_fake_auth()
             self.assertEquals('THE_UID', auth.current_user_id())
 
     def test_current_user_id_aborts(self):
+        self.mox.ReplayAll()
         del self.fake_client_set.http_client.access['user']
         with self.app.test_request_context():
             self.install_fake_auth()
             self.assertAborts(403, auth.current_user_id)
+
+
+class CurrentUserProjectIds(MockedTestCase):
+
+    def test_current_user_project_ids_no_auth(self):
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            # we don't install fake auth, so user is not authenticated
+            ids = auth.current_user_project_ids()
+            self.assertEquals(ids, set())
+
+    def test_current_user_project_ids(self):
+        tenants = [doubles.make(self.mox, doubles.Tenant, id='PID1'),
+                   doubles.make(self.mox, doubles.Tenant, id='PID2')]
+        self.fake_client_set.identity_public.tenants.list() \
+                .AndReturn(tenants)
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            ids = auth.current_user_project_ids()
+            self.assertEquals(ids, set(('PID1', 'PID2')))
 
 
 def make_test_app():
