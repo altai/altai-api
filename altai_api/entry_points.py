@@ -19,43 +19,46 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for
-
-from altai_api.main import app
 from altai_api.utils import make_json_response
 from altai_api.utils.decorators import no_auth_endpoint
 
 
-def _make_v1_info():
-    'Make new dictionary with info on version 1'
-    return {
-        "major": 1,
-        "minor": 0,
-        "href": url_for('get_v1_endpoint')
-    }
+def register_entry_points(app):
+    # NOTE(imelnikov): we can't url_for as there is no app context
+    #   and we can't use app.create_url_adapter because it requires
+    #   setting SERVER_NAME config parameter, which is not reliable
+    url_adapter = app.url_map.bind(
+        app.config['SERVER_NAME'] or 'localhost',
+        script_name=app.config['APPLICATION_ROOT'] or '/',
+        url_scheme=app.config['PREFERRED_URL_SCHEME'])
 
+    def url_for(endpoint):
+        return url_adapter.build(endpoint, {})
 
-@app.route('/', methods=('GET',))
-@no_auth_endpoint
-def get_versions():
-    """REST API entry point."""
-    return make_json_response({
-        'versions': [ _make_v1_info() ]
-    })
-
-
-def _root_endpoints():
+    root_endpoints = {}
     for endpoint, function in app.view_functions.iteritems():
         name = getattr(function, 'altai_api_root_endpoint', None)
         if name:
-            yield name + '-href', url_for(endpoint)
+            root_endpoints[name + '-href'] = url_for(endpoint)
 
+    v1_info = { 'major': 1, 'minor': 0 }
+    versions = { 'versions': [ v1_info ] }
+    v1_root = v1_info.copy()
+    v1_root['links'] = root_endpoints
 
-@app.route('/v1/', methods=('GET',))
-@no_auth_endpoint
-def get_v1_endpoint():
-    """Entry point for API v1"""
-    response = _make_v1_info()
-    response['links'] = dict(_root_endpoints())
-    return make_json_response(response)
+    @app.route('/', methods=('GET',))
+    @no_auth_endpoint
+    def get_versions():
+        """REST API entry point."""
+        return make_json_response(versions)
+
+    @app.route('/v1/', methods=('GET',))
+    @no_auth_endpoint
+    def get_v1_endpoint():
+        """Entry point for API v1"""
+        return make_json_response(v1_root)
+
+    v1_href = url_for('get_v1_endpoint')
+    v1_info['href'] = v1_href
+    v1_root['href'] = v1_href
 

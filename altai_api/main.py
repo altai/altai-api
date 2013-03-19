@@ -39,7 +39,8 @@ app.config.from_object('altai_api.default_settings')
 from altai_api.db import DB
 DB.init_app(app)
 
-from altai_api import entry_points
+from altai_api.entry_points import register_entry_points
+
 from altai_api import stats
 from altai_api import error_handlers
 from altai_api import auth
@@ -89,6 +90,7 @@ _mount_blueprints((
      ('users_ssh_keys', '/v1/users/<user_id>/ssh-keys'),
      ('my_ssh_keys', '/v1/me/ssh-keys')
 ))
+register_entry_points(app)
 
 
 CONFIG_ENV = 'ALTAI_API_SETTINGS'
