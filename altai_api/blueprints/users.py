@@ -165,7 +165,8 @@ def _add_user_to_projects(user, projects):
             g.client_set.identity_admin.roles.add_user_role(
                 user=user, role=role_id, tenant=project)
         except osc_exc.NotFound:
-            raise exc.IllegalValue('projects', 'link object', project)
+            raise exc.InvalidElementValue('projects', 'link object', project,
+                                          'Project does not exist')
 
 
 _SCHEMA = Schema((

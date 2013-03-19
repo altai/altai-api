@@ -130,7 +130,7 @@ class ParseRequestDataTestCase(TestCase):
     def test_required_wrong(self):
         schema = Schema((st.Int('req'),))
         with self.request_context({'req': '42'}):
-            self.assertRaises(exc.IllegalValue,
+            self.assertRaises(exc.InvalidElementValue,
                               parse_request_data, None, schema)
 
     def test_required_ok(self):
@@ -150,7 +150,7 @@ class ParseRequestDataTestCase(TestCase):
     def test_allowed_wrong(self):
         schema = Schema((st.Int('test'),))
         with self.request_context({'test': '42'}):
-            self.assertRaises(exc.IllegalValue,
+            self.assertRaises(exc.InvalidElementValue,
                               parse_request_data, schema)
 
     def test_allowed_ok(self):
@@ -661,6 +661,12 @@ class ParseMyProjectsArgTestCase(TestCase):
             self.assertEquals(flask.g.my_projects, True)
             self.assertEquals(flask.g.unused_args, set())
 
+    def test_value_is_checked(self):
+        with self.app.test_request_context('/?my-projects=42'):
+            self.install_fake_auth()
+            flask.g.unused_args = set(flask.request.args.iterkeys())
+            self.assertRaises(exc.InvalidArgumentValue, parse_my_projects_arg)
+
     def test_non_admin_can_set_true(self):
         with self.app.test_request_context('/?my-projects=true'):
             self.install_fake_auth()
@@ -677,7 +683,7 @@ class ParseMyProjectsArgTestCase(TestCase):
             flask.g.unused_args = set(flask.request.args.iterkeys())
 
             flask.g.is_admin = False
-            self.assertRaises(exc.IllegalValue, parse_my_projects_arg)
+            self.assertRaises(exc.InvalidArgumentValue, parse_my_projects_arg)
 
     def test_admin_can_set_true(self):
         with self.app.test_request_context('/?my-projects=true'):

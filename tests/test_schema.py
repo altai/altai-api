@@ -38,8 +38,8 @@ class ElementTypeTestCase(unittest.TestCase):
 
     def test_from_requests_raise(self):
         t = st.ElementType('test', 'test type', {})
-        self.assertRaises(exc.IllegalValue, t.from_string, None)
-        self.assertRaises(exc.IllegalValue, t.from_request, None)
+        self.assertRaises(exc.InvalidArgumentValue, t.from_argument, None)
+        self.assertRaises(exc.InvalidElementValue, t.from_request, None)
 
     def test_not_implemented_matcher_is_not_implemented(self):
         self.assertRaises(NotImplementedError,
@@ -56,7 +56,7 @@ class LinkObjectTestCase(unittest.TestCase):
         self.assertEquals(self.lo.typename, 'link object')
 
     def test_parses(self):
-        self.assertEquals('42', self.lo.from_string('42'))
+        self.assertEquals('42', self.lo.from_argument('42'))
 
     def test_eq_matcher(self):
         lo_eq = self.lo.get_search_matcher('eq')
@@ -67,7 +67,7 @@ class LinkObjectTestCase(unittest.TestCase):
         self.assertEquals('42', self.lo.from_request('42'))
 
     def test_from_request_fail(self):
-        self.assertRaises(exc.IllegalValue,
+        self.assertRaises(exc.InvalidElementValue,
                           self.lo.from_request, {'id': '42'})
 
     def test_in_matcher(self):
@@ -85,8 +85,8 @@ class LinkObjectListTestCase(unittest.TestCase):
         self.assertEquals(self.ll.typename, 'list<link object>')
 
     def test_parse_raises(self):
-        self.assertRaises(exc.IllegalValue,
-                          self.ll.from_string, '[42]')
+        self.assertRaises(exc.InvalidArgumentValue,
+                          self.ll.from_argument, '[42]')
 
     def test_no_eq_matcher(self):
         self.assertRaises(exc.InvalidRequest,
@@ -101,17 +101,22 @@ class LinkObjectListTestCase(unittest.TestCase):
         self.assertEquals(value, self.ll.from_request(value))
 
     def test_from_request_bad_value(self):
-        self.assertRaises(exc.IllegalValue,
+        self.assertRaises(exc.InvalidElementValue,
                           self.ll.from_request, ['42', 43])
 
     def test_from_request_fail(self):
-        self.assertRaises(exc.IllegalValue,
+        self.assertRaises(exc.InvalidElementValue,
                           self.ll.from_request, '42')
 
     def test_parses_all_argument(self):
         value = '42|43'
         result = self.ll.parse_search_argument('all', value)
         self.assertEquals(['42', '43'], result)
+
+    def test_handles_invalid_values_for_all(self):
+        value = '42\\'
+        self.assertRaises(exc.InvalidArgumentValue,
+                          self.ll.parse_search_argument, 'all', value)
 
     def test_parses_any_argument(self):
         value = '42|43'
@@ -145,16 +150,18 @@ class BooleanTestCase(unittest.TestCase):
         self.assertEquals(self.b.typename, 'boolean')
 
     def test_boolean_parses(self):
-        self.assertEquals(True, self.b.from_string('True'))
+        self.assertEquals(True, self.b.from_argument('True'))
 
     def test_boolean_accepts_lower(self):
-        self.assertEquals(False, self.b.from_string('false'))
+        self.assertEquals(False, self.b.from_argument('false'))
 
     def test_boolean_no_upper(self):
-        self.assertRaises(exc.IllegalValue, self.b.from_string, 'FALSE')
+        self.assertRaises(exc.InvalidArgumentValue,
+                          self.b.from_argument, 'FALSE')
 
     def test_boolean_no_ones(self):
-        self.assertRaises(exc.IllegalValue, self.b.from_string, '1')
+        self.assertRaises(exc.InvalidArgumentValue,
+                          self.b.from_argument, '1')
 
     def test_matcher_eq(self):
         b_eq = self.b.get_search_matcher('eq')
@@ -166,10 +173,10 @@ class BooleanTestCase(unittest.TestCase):
         self.assertEquals(False, self.b.from_request(False))
 
     def test_from_request_fail(self):
-        self.assertRaises(exc.IllegalValue, self.b.from_request, 42)
+        self.assertRaises(exc.InvalidElementValue, self.b.from_request, 42)
 
     def test_list_of_boolean_raises_on_bad_has_argument(self):
-        self.assertRaises(exc.IllegalValue,
+        self.assertRaises(exc.InvalidArgumentValue,
                           st.List(self.b).parse_search_argument,
                           'all', '42')
 
@@ -190,18 +197,18 @@ class TimestampTestCase(unittest.TestCase):
 
     def test_timestamp_parses(self):
         self.assertEquals(
-            self.ts.from_string('2012-09-13T19:46:00Z'), self.d)
+            self.ts.from_argument('2012-09-13T19:46:00Z'), self.d)
 
     def test_timestamp_forces_seconds(self):
-        self.assertRaises(exc.IllegalValue, self.ts.from_string,
+        self.assertRaises(exc.InvalidArgumentValue, self.ts.from_argument,
                           '2012-09-13T19:46Z')
 
     def test_timestamp_forces_T(self):
-        self.assertRaises(exc.IllegalValue, self.ts.from_string,
+        self.assertRaises(exc.InvalidArgumentValue, self.ts.from_argument,
                           '2012-09-13 19:46:00Z')
 
     def test_timestamp_forces_Z(self):
-        self.assertRaises(exc.IllegalValue, self.ts.from_string,
+        self.assertRaises(exc.InvalidArgumentValue, self.ts.from_argument,
                           '2012-09-13T19:46:00')
 
     def test_timestamp_ge_same(self):
@@ -219,7 +226,7 @@ class TimestampTestCase(unittest.TestCase):
             self.ts.from_request('2012-09-13T19:46:00Z'), self.d)
 
     def test_timestamp_from_request_no_none(self):
-        self.assertRaises(exc.IllegalValue,
+        self.assertRaises(exc.InvalidElementValue,
                           self.ts.from_request, None)
 
     def test_timestamp_list_from_request(self):
@@ -242,28 +249,31 @@ class Ipv4TestCase(unittest.TestCase):
         self.assertEquals(self.i.typename, 'ipv4')
 
     def test_ipv4_parses(self):
-        self.assertEquals(self.i.from_string('192.168.1.42'),
+        self.assertEquals(self.i.from_argument('192.168.1.42'),
                           '192.168.1.42')
 
     def test_ipv4_parses_zero(self):
-        self.assertEquals(self.i.from_string('192.0.1.42'),
+        self.assertEquals(self.i.from_argument('192.0.1.42'),
                           '192.0.1.42')
 
     def test_ipv4_no_leading_zeroes(self):
-        self.assertRaises(exc.IllegalValue, self.i.from_string,
+        self.assertRaises(exc.InvalidArgumentValue, self.i.from_argument,
                           '192.168.01.42')
 
     def test_ipv4_check_bounds(self):
-        self.assertRaises(exc.IllegalValue, self.i.from_string, '192.368.1.42')
+        self.assertRaises(exc.InvalidArgumentValue, self.i.from_argument,
+                          '192.368.1.42')
 
     def test_ipv4_all_octets(self):
-        self.assertRaises(exc.IllegalValue, self.i.from_string, '192.168.1.')
+        self.assertRaises(exc.InvalidArgumentValue, self.i.from_argument,
+                          '192.168.1.')
 
     def test_ipv4_all_octets_no_dot(self):
-        self.assertRaises(exc.IllegalValue, self.i.from_string, '192.168.1')
+        self.assertRaises(exc.InvalidArgumentValue, self.i.from_argument,
+                          '192.168.1')
 
     def test_from_request(self):
-        self.assertRaises(exc.IllegalValue, self.i.from_request, 'xxx')
+        self.assertRaises(exc.InvalidElementValue, self.i.from_request, 'xxx')
 
 
 class CidrTestCase(unittest.TestCase):
@@ -276,19 +286,19 @@ class CidrTestCase(unittest.TestCase):
         self.assertEquals(self.c.typename, 'cidr')
 
     def test_cidr_parses(self):
-        self.assertEquals(self.c.from_string('192.168.1.0/24'),
+        self.assertEquals(self.c.from_argument('192.168.1.0/24'),
                           '192.168.1.0/24')
 
     def test_cidr_checks_big_net(self):
-        self.assertRaises(exc.IllegalValue,
-                          self.c.from_string, '192.168.1.0/42')
+        self.assertRaises(exc.InvalidArgumentValue,
+                          self.c.from_argument, '192.168.1.0/42')
 
     def test_cidr_no_leading_zeroes(self):
-        self.assertRaises(exc.IllegalValue,
-                          self.c.from_string, '192.168.1.0/023')
+        self.assertRaises(exc.InvalidArgumentValue,
+                          self.c.from_argument, '192.168.1.0/023')
 
     def test_from_request(self):
-        self.assertRaises(exc.IllegalValue, self.c.from_request, 'xxx')
+        self.assertRaises(exc.InvalidElementValue, self.c.from_request, 'xxx')
 
 
 class StringTestCase(unittest.TestCase):
@@ -303,7 +313,7 @@ class StringTestCase(unittest.TestCase):
         self.assertEquals(self.s.typename, 'string')
 
     def test_from_string_string(self):
-        self.assertEquals('test', self.s.from_string('test'))
+        self.assertEquals('test', self.s.from_argument('test'))
 
     def test_eq(self):
         s_eq = self.s.get_search_matcher('eq')
@@ -328,14 +338,14 @@ class StringTestCase(unittest.TestCase):
         self.assertEquals('test', self.s.from_request('test'))
 
     def test_from_request_empty(self):
-        self.assertRaises(exc.IllegalValue, self.s.from_request, '')
+        self.assertRaises(exc.InvalidElementValue, self.s.from_request, '')
 
     def test_from_request_allow_empty(self):
         s = st.String('test', allow_empty=True)
         self.assertEquals('', s.from_request(''))
 
     def test_from_request_fail(self):
-        self.assertRaises(exc.IllegalValue, self.s.from_request, 42)
+        self.assertRaises(exc.InvalidElementValue, self.s.from_request, 42)
 
 
 class IntTestCase(unittest.TestCase):
@@ -348,31 +358,33 @@ class IntTestCase(unittest.TestCase):
         self.assertEquals(self.u.typename, 'uint')
 
     def test_parses_string(self):
-        self.assertEquals(42, self.u.from_string('42'))
+        self.assertEquals(42, self.u.from_argument('42'))
 
     def test_not_parses_ints(self):
-        self.assertRaises(exc.IllegalValue, self.u.from_string, 42)
+        self.assertRaises(exc.InvalidArgumentValue, self.u.from_argument, 42)
 
     def test_no_leading_zeroes(self):
-        self.assertRaises(exc.IllegalValue, self.u.from_string, '0042')
+        self.assertRaises(exc.InvalidArgumentValue, self.u.from_argument,
+                          '0042')
 
     def test_parses_zero_string(self):
-        self.assertEquals(0, self.u.from_string('0'))
+        self.assertEquals(0, self.u.from_argument('0'))
 
     def test_not_parses_negative(self):
-        self.assertRaises(exc.IllegalValue, self.u.from_string, '-1')
+        self.assertRaises(exc.InvalidArgumentValue, self.u.from_argument, '-1')
 
     def test_not_parses_empty(self):
-        self.assertRaises(exc.IllegalValue, self.u.from_string, '')
+        self.assertRaises(exc.InvalidArgumentValue, self.u.from_argument, '')
 
     def test_not_parses_invalid(self):
-        self.assertRaises(exc.IllegalValue, self.u.from_string, 'a string')
+        self.assertRaises(exc.InvalidArgumentValue, self.u.from_argument,
+                          'a string')
 
     def test_from_request_ok(self):
         self.assertEquals(self.u.from_request(42), 42)
 
     def test_from_request_fail(self):
-        self.assertRaises(exc.IllegalValue, self.u.from_request, '42')
+        self.assertRaises(exc.InvalidElementValue, self.u.from_request, '42')
 
 
 class SchemaTestCase(unittest.TestCase):

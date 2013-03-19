@@ -193,12 +193,15 @@ def parse_my_projects_arg():
     try:
         g.my_projects = boolean_from_string(request.args['my-projects'])
         g.unused_args.discard('my-projects')
-        assert g.my_projects or g.is_admin
     except KeyError:
         g.my_projects = not g.is_admin
-    except (ValueError, AssertionError):
-        raise exc.IllegalValue('my-project', 'boolean',
-                               request.args.get('my-projects'))
+    except ValueError:
+        raise exc.InvalidArgumentValue('my-projects', 'boolean',
+                                       request.args.get('my-projects'))
+    if not g.my_projects and not g.is_admin:
+        raise exc.InvalidArgumentValue('my-projects', 'boolean', False,
+                               'Only administrators are allowed '
+                               'to set my-projects to false')
 
 
 def setup_args_handling():
@@ -219,6 +222,6 @@ def _check_unused_args_empty(response):
         return response
     # exception raised here will not be passed to handlers
     # so, to be consistent, we call handler directly
-    return altai_api.error_handlers.unknown_param_handler(
+    return altai_api.error_handlers.altai_api_exception_handler(
         exc.UnknownArgument(g.unused_args.pop()))
 

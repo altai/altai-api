@@ -165,7 +165,7 @@ def split_with_escape(value, split, esc='\\'):
                 cur.append(char)
                 escape = False
             else:
-                raise ValueError('Invalid matcher string')
+                raise ValueError('Unknown escape sequence: \\%s' % char)
         else:
             if char == esc:
                 escape = True
@@ -175,6 +175,6 @@ def split_with_escape(value, split, esc='\\'):
             else:
                 cur.append(char)
     if escape:
-        raise ValueError('Invalid matcher string')
+        raise ValueError('Escape char at the end of the line')
     yield ''.join(cur)
 

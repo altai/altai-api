@@ -99,7 +99,8 @@ def add_instance_fw_rule_set(instance_id):
     try:
         sg = admin_client_set().compute.security_groups.get(set_id)
     except osc_exc.NotFound:
-        raise exc.IllegalValue(name='id', typename='string', value=set_id)
+        raise exc.InvalidElementValue('id', 'string', set_id,
+                                      'Security group does not exist')
 
     tcs = client_set_for_tenant(server.tenant_id, fallback_to_api=g.is_admin)
     try:

@@ -28,7 +28,8 @@ def _render_link_template(template, code):
     link = template.replace('{{code}}', code)
     if '{{' in link or '{%' in link:
         # any other template construction are not allowed
-        raise exc.IllegalValue('link-template', 'string', template)
+        raise exc.InvalidElementValue('link-template', 'string', template,
+                                      'Unsupported template construction')
     return link
 
 

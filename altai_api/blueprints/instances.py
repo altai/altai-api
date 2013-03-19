@@ -186,7 +186,7 @@ def _security_group_ids_to_names(security_groups_ids, sg_manager):
         try:
             sg = sg_manager.get(sgid)
         except osc_exc.NotFound:
-            raise exc.IllegalValue('fw-rule-sets', 'list', sgid)
+            raise exc.InvalidElementValue('fw-rule-sets', 'list', sgid)
         names.append(sg.name)
     return names
 

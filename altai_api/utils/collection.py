@@ -59,18 +59,6 @@ def make_collection_response(name, elements, parent_href=None):
     return make_json_response(result)
 
 
-def _parse_pagination():
-    try:
-        g.limit = int_from_string(request.args.get('limit'),
-                                  on_error='Invalid limit value',
-                                  allow_none=True)
-        g.offset = int_from_string(request.args.get('offset'),
-                                   on_error='Invalid offset value',
-                                   allow_none=True)
-    except ValueError, e:
-        raise exc.InvalidRequest(str(e))
-
-
 def _apply_pagination(result):
     """Apply previously parsed pagination to given request result."""
     g.unused_args.discard('limit')
@@ -82,9 +70,18 @@ def _apply_pagination(result):
     return result
 
 
+def _parse_int_request_argument(name):
+    value = request.args.get(name)
+    try:
+        return int_from_string(value, allow_none=True)
+    except ValueError:
+        raise exc.InvalidArgumentValue(name, 'int', value)
+
+
 def parse_collection_request(schema):
     """Parse request arguments and save them into flask.g for farther use"""
-    _parse_pagination()
+    g.limit = _parse_int_request_argument('limit')
+    g.offset = _parse_int_request_argument('offset')
     g.collection_schema = schema
     g.sortby = parse_sortby(request.args.get('sortby'), schema.sortby_names)
     g.filters = parse_filters(request.args.iteritems(multi=True), schema)

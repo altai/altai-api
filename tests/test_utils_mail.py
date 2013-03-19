@@ -105,7 +105,7 @@ class MailTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             g.config = self.config
-            self.assertRaises(exc.IllegalValue,
+            self.assertRaises(exc.InvalidElementValue,
                               mail.send_invitation,
                               'uuserovich@example.com',
                               'THE_CODE',
@@ -116,7 +116,7 @@ class MailTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             g.config = self.config
-            self.assertRaises(exc.IllegalValue,
+            self.assertRaises(exc.InvalidElementValue,
                               mail.send_invitation,
                               'uuserovich@example.com',
                               'THE_CODE',

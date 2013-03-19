@@ -36,11 +36,6 @@ from altai_api.utils import make_json_response
 from altai_api.auth import is_authenticated
 
 
-def _exception_to_message(error):
-    lines = traceback.format_exception_only(type(error), error)
-    return '\n'.join(lines).strip()
-
-
 @app.errorhandler(401)
 def authentication_needed_handler(error):
     response = make_json_response(
@@ -54,40 +49,10 @@ def authentication_needed_handler(error):
     return response
 
 
-@app.errorhandler(exc.IllegalValue)
-def illegal_value_handler(error):
-    response = {
-        'path': request.path,
-        'method': request.method,
-        'message': 'Illegal value for resource element.',
-        'element-name': error.name,
-        'element-value': error.value,
-        'element-type': error.typename
-    }
-    return make_json_response(response, status_code=400)
-
-
-@app.errorhandler(exc.UnknownElement)
-@app.errorhandler(exc.MissingElement)
-@app.errorhandler(exc.UnknownArgument)
-def unknown_param_handler(error):
-    response = {
-        'path': request.path,
-        'method': request.method,
-        'message': str(error),
-        'element-name': error.name
-    }
-    return make_json_response(response, status_code=400)
-
-
-@app.errorhandler(exc.InvalidRequest)
-def invalid_request_handler(error):
-    response = {
-        'path': request.path,
-        'method': request.method,
-        'message': _exception_to_message(error),
-    }
-    return make_json_response(response, status_code=400)
+@app.errorhandler(exc.AltaiApiException)
+def altai_api_exception_handler(error):
+    return make_json_response(error.get_response_object(),
+                              status_code=error.status_code)
 
 
 @app.errorhandler(500)
@@ -98,9 +63,14 @@ def exception_handler(error):
     in machine-readable form to error 500 response entity.
     """
     _, exc_value, tb = sys.exc_info()
-    message = _exception_to_message(error)
 
-    response = { 'message': message }
+    lines = traceback.format_exception_only(type(error), error)
+    response = {
+        'message': '\n'.join(lines),
+        'path': request.path,
+        'method': request.method,
+    }
+
     if is_authenticated() and exc_value is error and tb is not None:
         # system exception info is still about our error; let's report it
         response['traceback'] = [

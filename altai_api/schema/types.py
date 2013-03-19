@@ -117,12 +117,15 @@ class ElementType(object):
         else:
             self.sortby_names = (name,)
 
-    def _raise(self, value):
-        raise exc.IllegalValue(self.name, self.typename, value)
+    def _illegal_element(self, value, reason=None):
+        raise exc.InvalidElementValue(self.name, self.typename, value, reason)
 
-    def from_string(self, value):
+    def _illegal_argument(self, value, reason=None):
+        raise exc.InvalidArgumentValue(self.name, self.typename, value, reason)
+
+    def from_argument(self, value):
         """Parse string to this type internal representation"""
-        self._raise(value)
+        self._illegal_argument(value)
 
     def from_request(self, value):
         """Check that value from request is correct for this type"""
@@ -131,13 +134,13 @@ class ElementType(object):
         return self._from_request_impl(value)
 
     def _from_request_impl(self, value):
-        self._raise(value)
+        self._illegal_element(value)
 
     def get_search_matcher(self, filter_type):
         """Get search matcher by name.
 
         Matcher should take a value from result object (in internal
-        representation, as returned by from_string) and a value from
+        representation, as returned by from_argument) and a value from
         match string, and return True or False.
 
         """
@@ -152,14 +155,14 @@ class ElementType(object):
         """Parse search argument of type filter_type"""
         if filter_type == 'in':
             try:
-                return [self.from_string(elem)
+                return [self.from_argument(elem)
                         for elem in split_with_escape(value, '|', '\\')]
-            except ValueError:
-                self._raise(value)
+            except ValueError, e:
+                self._illegal_argument(value, str(e))
         elif filter_type == 'exists':
-            return boolean_from_string(value, self._raise)
+            return boolean_from_string(value, self._illegal_argument)
         else:
-            return self.from_string(value)
+            return self.from_argument(value)
 
 
 class String(ElementType):
@@ -175,15 +178,17 @@ class String(ElementType):
                                      basic_search_matchers=matchers,
                                      **kwargs)
 
-    def from_string(self, value):
+    def from_argument(self, value):
         if not (self.allow_empty or value):
-            self._raise(value)
+            self._illegal_argument(value, 'This argument cannot be empty')
         return value
 
     def _from_request_impl(self, value):
         if not isinstance(value, basestring):
-            self._raise(value)
-        return self.from_string(value)
+            self._illegal_element(value)
+        if not (self.allow_empty or value):
+            self._illegal_element(value, 'This element cannot be empty')
+        return value
 
 
 class Boolean(ElementType):
@@ -194,12 +199,12 @@ class Boolean(ElementType):
                                       basic_search_matchers=_BASIC_MATCHERS,
                                       **kwargs)
 
-    def from_string(self, value):
-        return boolean_from_string(value, self._raise)
+    def from_argument(self, value):
+        return boolean_from_string(value, self._illegal_argument)
 
     def _from_request_impl(self, value):
         if not isinstance(value, bool):
-            self._raise(value)
+            self._illegal_element(value)
         return value
 
 
@@ -213,13 +218,13 @@ class Int(ElementType):
         self.min_val = min_val
         self.max_val = max_val
 
-    def from_string(self, value):
+    def from_argument(self, value):
         return int_from_string(value, self.min_val, self.max_val,
-                               on_error=self._raise)
+                               on_error=self._illegal_argument)
 
     def _from_request_impl(self, value):
         return int_from_user(value, self.min_val, self.max_val,
-                             on_error=self._raise)
+                             on_error=self._illegal_element)
 
 
 class LinkObject(ElementType):
@@ -237,12 +242,12 @@ class LinkObject(ElementType):
             sortby_names=(name + '.id', name + '.name'),
             **kwargs)
 
-    def from_string(self, value):
+    def from_argument(self, value):
         return value
 
     def _from_request_impl(self, value):
         if not isinstance(value, basestring):
-            self._raise(value)
+            self._illegal_element(value)
         return value
 
 
@@ -255,14 +260,18 @@ class Timestamp(ElementType):
             basic_search_matchers=_ORDERED_MATCHERS,
             **kwargs)
 
-    def from_string(self, value):
+    @staticmethod
+    def __check(value, on_error):
         try:
             return datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
         except (ValueError, TypeError):
-            self._raise(value)
+            on_error(value)
+
+    def from_argument(self, value):
+        return self.__check(value, self._illegal_argument)
 
     def _from_request_impl(self, value):
-        return self.from_string(value)
+        return self.__check(value, self._illegal_element)
 
 
 class Ipv4(ElementType):
@@ -273,11 +282,11 @@ class Ipv4(ElementType):
                                    basic_search_matchers=_BASIC_MATCHERS,
                                    **kwargs)
 
-    def from_string(self, value):
-        return ipv4_from_user(value, on_error=self._raise)
+    def from_argument(self, value):
+        return ipv4_from_user(value, on_error=self._illegal_argument)
 
     def _from_request_impl(self, value):
-        return self.from_string(value)
+        return ipv4_from_user(value, on_error=self._illegal_element)
 
 
 class Cidr(ElementType):
@@ -288,11 +297,11 @@ class Cidr(ElementType):
                                    basic_search_matchers=_BASIC_MATCHERS,
                                    **kwargs)
 
-    def from_string(self, value):
-        return cidr_from_user(value, on_error=self._raise)
+    def from_argument(self, value):
+        return cidr_from_user(value, on_error=self._illegal_argument)
 
     def _from_request_impl(self, value):
-        return self.from_string(value)
+        return cidr_from_user(value, on_error=self._illegal_element)
 
 
 class List(ElementType):
@@ -325,12 +334,15 @@ class List(ElementType):
 
     def _from_request_impl(self, value):
         if not isinstance(value, list):
-            self._raise(value)
+            self._illegal_element(value)
         return [self.subtype.from_request(v) for v in value]
 
     def parse_search_argument(self, filter_type, value):
         if filter_type in ('any', 'all'):
-            return [self.subtype.from_string(elem)
-                    for elem in split_with_escape(value, '|', '\\')]
+            try:
+                return [self.subtype.from_argument(elem)
+                        for elem in split_with_escape(value, '|', '\\')]
+            except ValueError, e:
+                self._illegal_argument(value, str(e))
         return super(List, self).parse_search_argument(filter_type, value)
 

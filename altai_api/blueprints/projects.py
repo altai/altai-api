@@ -214,9 +214,9 @@ def create_project():
         assert net.project_id is None
         # TODO(imelnikov): special exception for used networks
     except (KeyError, AssertionError, osc_exc.NotFound):
-        raise exc.IllegalValue(name='network',
-                               typename='link object',
-                               value=data.get('network'))
+        raise exc.InvalidElementValue(name='network',
+                                      typename='link object',
+                                      value=data.get('network'))
     tenant = g.client_set.identity_admin.tenants.create(
         data['name'], data.get('description', ''))
     set_audit_resource_id(tenant)

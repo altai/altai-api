@@ -106,7 +106,7 @@ class CommandsTest(MockedTestCase):
 
     def test_set_var_bad_value(self):
         self.mox.ReplayAll()
-        self.assertRaises(exc.IllegalValue, command.set_var,
+        self.assertRaises(exc.InvalidElementValue, command.set_var,
                           ['test', 'set', 'invitations.enabled', '42'])
 
     def test_set_var_bad_name(self):

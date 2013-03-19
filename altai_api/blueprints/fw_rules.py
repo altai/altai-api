@@ -126,7 +126,9 @@ def create_fw_rule(fw_rule_set_id):
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
     protocol = data['protocol']
     if protocol not in ('TCP', 'UDP', 'ICMP'):
-        raise exc.IllegalValue('protocol', 'string', protocol)
+        raise exc.InvalidElementValue('protocol', 'string', protocol,
+                                      'Protocol must be one of '
+                                      '"TCP", "UDP" or "ICMP"')
     sg = _get_security_group(fw_rule_set_id)
 
     from_port = data.get('port-range-first', -1)

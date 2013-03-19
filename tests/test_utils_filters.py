@@ -66,6 +66,10 @@ class ParseFiltersTestCase(unittest.TestCase):
         self.assertRaises(exc.InvalidRequest,
                           parse_filters, [('name:gg', 'a')], self.schema)
 
+    def test_empty_not_allowed(self):
+        self.assertRaises(exc.InvalidArgumentValue,
+                          parse_filters, [('name:eq', '')], self.schema)
+
     def test_parses_in(self):
         params = { 'size:in': '42|44' }
         expected = { 'size': { 'in': [42, 44] } }
@@ -74,7 +78,7 @@ class ParseFiltersTestCase(unittest.TestCase):
 
     def test_correct_in_error(self):
         params = { 'size:in': '42|44\\' }
-        self.assertRaises(exc.IllegalValue,
+        self.assertRaises(exc.InvalidArgumentValue,
                           parse_filters, params.iteritems(), self.schema)
 
     def test_parses_exists(self):
@@ -85,7 +89,7 @@ class ParseFiltersTestCase(unittest.TestCase):
 
     def test_bad_exists_raises(self):
         params = { 'size:exists': '1' }
-        self.assertRaises(exc.InvalidRequest,
+        self.assertRaises(exc.InvalidArgumentValue,
                           parse_filters, params.iteritems(), self.schema)
 
 

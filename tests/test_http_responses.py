@@ -24,7 +24,6 @@ import flask
 from tests import TestCase
 
 from altai_api import error_handlers
-from altai_api.exceptions import InvalidRequest, IllegalValue, UnknownElement
 
 
 class HttpResponsesTestCase(TestCase):
@@ -72,6 +71,7 @@ class HttpResponsesTestCase(TestCase):
         rv = self.client.get('/v1/instance-types/?limit=limit-no-exist')
         data = self.check_and_parse_response(rv, status_code=400)
         self.assertTrue('limit-no-exist' in data.get('message'))
+        self.assertEquals('InvalidArgumentValue', data['error-type'])
 
     def test_offset_checked(self):
         rv = self.client.get('/v1/instance-types/?offset=bad-offset')
@@ -131,47 +131,8 @@ class HttpResponsesTestCase(TestCase):
 
 
 class ExceptionsTestCase(TestCase):
-
-    def test_illegal_value(self):
-        error = IllegalValue(name='test', typename='uint', value='-42')
-        with self.app.test_request_context('/test/path'):
-            self.install_fake_auth()
-            rv = self.app.make_response(
-                error_handlers.illegal_value_handler(error))
-        data = self.check_and_parse_response(rv, status_code=400)
-        self.assertEquals(data, {
-            u'path': u'/test/path',
-            u'method': u'GET',
-            u'message': u'Illegal value for resource element.',
-            u'element-name': u'test',
-            u'element-value': u'-42',
-            u'element-type': u'uint'
-        })
-
-    def test_unknown_param(self):
-        error = UnknownElement(name='test')
-        with self.app.test_request_context('/test/path'):
-            self.install_fake_auth()
-            rv = self.app.make_response(
-                error_handlers.unknown_param_handler(error))
-        data = self.check_and_parse_response(rv, status_code=400)
-        self.assertEquals(data, {
-            u'path': u'/test/path',
-            u'method': u'GET',
-            u'message': u"Unknown resource element: 'test'",
-            u'element-name': u'test'
-        })
-
-    def test_invalid_request(self):
-        error = InvalidRequest('Test message')
-        with self.app.test_request_context('/test/path'):
-            self.install_fake_auth()
-            rv = self.app.make_response(
-                error_handlers.invalid_request_handler(error))
-        data = self.check_and_parse_response(rv, status_code=400)
-        self.assertEquals(data.get('path'), u'/test/path')
-        self.assertEquals(data.get('method'), u'GET')
-        self.assertTrue('Test message' in data.get('message'))
+    # TODO(imelnikov): test how exceptions are raised and handled
+    pass
 
 
 class ErrorHandlerTestCase(TestCase):
