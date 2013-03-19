@@ -21,6 +21,7 @@
 
 import mox
 
+from flask import g
 from datetime import datetime
 from tests.mocked import MockedTestCase
 from altai_api import exceptions as exc
@@ -33,6 +34,20 @@ class MailTestCase(MockedTestCase):
         super(MailTestCase, self).setUp()
         self.mox.StubOutClassWithMocks(mail.mail, 'Mail')
 
+    CONFIG = {
+        'general': {
+            'installation-name': 'TEST_INSTALLATION_NAME'
+        },
+        'mail': {
+            'footer': 'TEST_FOOTER',
+            'sender-name': 'TEST_SENDER_NAME',
+            'sender-mail': 'TEST_SENDER_MAIL'
+        }
+    }
+
+    def config(self, group, name):
+        return self.CONFIG[group][name]
+
     def test_send_invitation_works(self):
         class IsCorrectMail(mox.Comparator):
             def equals(inner_self, message):
@@ -40,12 +55,16 @@ class MailTestCase(MockedTestCase):
                 self.assertTrue('Dear User Userovich' in message.body)
                 self.assertTrue('https://localhost/invites?code=THE_CODE'
                                 in message.body)
+                self.assertTrue('TEST_INSTALLATION_NAME' in message.body)
+                self.assertTrue(message.body.endswith('TEST_FOOTER'),
+                                'Wrong footer: %r' % message.body)
                 return True
 
         mail.mail.Mail(mail.current_app).send(IsCorrectMail())
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            g.config = self.config
             mail.send_invitation('uuserovich@example.com',
                                  'THE_CODE',
                                  'https://localhost/invites?code={{code}}',
@@ -63,6 +82,7 @@ class MailTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            g.config = self.config
             mail.send_invitation('uuserovich@example.com',
                                  'THE_CODE')
 
@@ -72,6 +92,7 @@ class MailTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            g.config = self.config
             try:
                 mail.send_invitation('uuserovich@example.com',
                                      'THE_CODE')
@@ -83,6 +104,7 @@ class MailTestCase(MockedTestCase):
     def test_send_invitation_bad_link(self):
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            g.config = self.config
             self.assertRaises(exc.IllegalValue,
                               mail.send_invitation,
                               'uuserovich@example.com',
@@ -93,6 +115,7 @@ class MailTestCase(MockedTestCase):
     def test_send_invitation_other_bad_link(self):
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            g.config = self.config
             self.assertRaises(exc.IllegalValue,
                               mail.send_invitation,
                               'uuserovich@example.com',
@@ -114,6 +137,7 @@ class MailTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
+            g.config = self.config
             mail.send_reset_password(
                 'uuserovich@example.com', 'THE_CODE', 'THE_USERNAME',
                 link_template='https://localhost/?code={{code}}',
@@ -130,6 +154,7 @@ class MailTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
+            g.config = self.config
             mail.send_vm_reminder('uuserovich@example.com',
                                   'VM_NAME', 'VM_ID',
                                   datetime(2013, 1, 18, 17, 16, 15, 14))
@@ -145,6 +170,7 @@ class MailTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
+            g.config = self.config
             mail.send_vm_reminder('uuserovich@example.com',
                                   'VM_NAME', 'VM_ID')
 

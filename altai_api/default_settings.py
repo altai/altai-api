@@ -50,20 +50,12 @@ DEFAULT_TENANT = 'systenant'
 # 2: write everything to audit log
 AUDIT_VERBOSITY = 1
 
-# name of Altai installation
-DEFAULT_INSTALLATION_NAME = 'Altai Private Cloud for Developers'
-
 # mail configuration
 MAIL_SERVER = 'smtp.gmail.com'
 MAIL_PORT = 587
-MAIL_USERNAME = 'guess-who@griddynamics.com'
+MAIL_USERNAME = 'altai-mailbot@example.com'
 MAIL_PASSWORD = ''
 MAIL_USE_TLS = True
-DEFAULT_MAIL_SENDER = ('Altai MailBot', MAIL_USERNAME)
-DEFAULT_MAIL_FOOTER = """--
-With best regards,
-Altai MailBot
-"""
 
 # file to write logs to; None means write to stderr
 LOG_FILE_NAME = None

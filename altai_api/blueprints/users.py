@@ -156,6 +156,8 @@ def _revoke_admin(user_id):
 
 
 def _add_user_to_projects(user, projects):
+    if not projects:
+        return
     auth.assert_admin()
     role_id = member_role_id()
     for project in projects:
@@ -213,12 +215,18 @@ def get_user(user_id):
 def create_user():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
-    name = data.get('name')
-    if name is None:
-        name = data.get('email').split('@', 1)[0]
+    email_name, email_domain = data['email'].rsplit('@', 1)
+    name = data.get('name', email_name)
 
     invite = data.get('invite')
-    if not invite:
+    if invite:
+        if not g.config('invitations', 'enabled'):
+            # TODO(imelnikov): consider if this is error 403, not 400
+            raise exc.InvalidRequest('Invitations disabled')
+        domains_allowed = g.config('invitations', 'domains-allowed')
+        if domains_allowed and email_domain not in domains_allowed:
+            abort(403)
+    else:
         if 'password' not in data:
             raise exc.MissingElement('password')
         if 'send-invite-mail' in data:
@@ -239,22 +247,27 @@ def create_user():
             user_mgr.update(new_user, fullname=data['fullname'])
         if data.get('admin'):
             _grant_admin(new_user.id)
-        if 'projects' in data:
-            _add_user_to_projects(new_user, data['projects'])
+        _add_user_to_projects(new_user, data.get('projects'))
     except osc_exc.BadRequest, e:
         raise exc.InvalidRequest(str(e))
 
     if invite:
-        inv = InvitesDAO.create(new_user.id, new_user.email)
-        send_mail = data.get('send-invite-mail', True)
-        if send_mail:
-            send_invitation(new_user.email, inv.code,
-                            data.get('link-template'),
-                            greeting=data.get('fullname'))
-        result = user_from_nova(new_user, inv, send_code=not send_mail)
+        result = _invite_user(new_user, data)
     else:
         result = user_from_nova(new_user)
     return make_json_response(result)
+
+
+def _invite_user(user, data):
+    inv = InvitesDAO.create(user.id, user.email)
+    send_mail = data.get('send-invite-mail', True)
+    if send_mail:
+        send_invitation(user.email, inv.code,
+                        data.get('link-template'),
+                        greeting=getattr(user, 'fullname', ''))
+    else:
+        auth.assert_admin()
+    return user_from_nova(user, inv, send_code=not send_mail)
 
 
 def update_user_data(user, data):
@@ -326,21 +339,17 @@ _SEND_INVITE_SCHEMA = Schema((
 
 @users.route('/<user_id>/send-invite', methods=('POST',))
 def send_invite_for_user(user_id):
+    if not g.config('invitations', 'enabled'):
+        # TODO(imelnikov): consider if this is error 403, not 400
+        raise exc.InvalidRequest('Invitations disabled')
+
     data = parse_request_data(_SEND_INVITE_SCHEMA)
     user = fetch_user(user_id, g.is_admin)
 
-    send_mail = data.get('send-invite-mail', True)
-    disable_user = data.get('disable-user', False)
-    if not send_mail or disable_user:
+    if data.get('disable-user', False):
         auth.assert_admin()
-
-    inv = InvitesDAO.create(user.id, user.email)
-    if disable_user:
         update_user_data(user, {'enabled': False, 'password': None})
-    if send_mail:
-        send_invitation(user.email, inv.code,
-                        data.get('link-template'),
-                        greeting=getattr(user, 'fullname', ''))
-    return make_json_response(user_from_nova(user, inv,
-                                             send_code=not send_mail))
+
+    result = _invite_user(user, data)
+    return make_json_response(result)
 

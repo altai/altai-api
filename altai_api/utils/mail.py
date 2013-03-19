@@ -19,7 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import current_app, render_template, request
+from flask import g, current_app, render_template, request
 from flask.ext import mail
 from altai_api import exceptions as exc
 
@@ -34,16 +34,18 @@ def _render_link_template(template, code):
 
 def _send_mail(email, link_template, subject, template, args):
     args = args.copy()
-    args['installation_name'] = current_app.config['DEFAULT_INSTALLATION_NAME']
-    args['footer'] = current_app.config.get('DEFAULT_MAIL_FOOTER')
+    args['installation_name'] = g.config('general', 'installation-name')
+    args['footer'] = g.config('mail', 'footer')
     if link_template:
         args['link'] = _render_link_template(link_template, args['code'])
     if not args['greeting']:
         # empty string and None should mean 'no greeting'
         del args['greeting']
 
-    msg = mail.Message(subject % args, recipients=[email])
-    msg.body = render_template(template, **args)
+    msg = mail.Message(subject % args, recipients=[email],
+                       sender=(g.config('mail', 'sender-name'),
+                               g.config('mail', 'sender-mail')),
+                       body=render_template(template, **args))
     try:
         mail.Mail(current_app).send(msg)
     except IOError, e:

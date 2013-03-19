@@ -31,6 +31,7 @@ from altai_api.blueprints import users
 from tests.mocked import MockedTestCase
 from tests import doubles
 from altai_api.db.tokens import Token
+from altai_api.db.config import ConfigDAO
 
 
 class UserFromNovaTestCase(MockedTestCase):
@@ -249,6 +250,7 @@ class CreateUserTestCase(MockedTestCase):
         super(CreateUserTestCase, self).setUp()
         self.mox.StubOutWithMock(users, 'user_from_nova')
         self.mox.StubOutWithMock(users, 'member_role_id')
+        self.mox.StubOutWithMock(ConfigDAO, 'get')
 
     def test_create_user(self):
         client = self.fake_client_set
@@ -385,21 +387,43 @@ class CreateUserTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv, 400)
         self.assertEquals('send-invite-mail', data.get('element-name'))
 
+    def test_invites_disabled(self):
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        link_template = 'http://altai.example.com/invite?code={{code}}'
+        ConfigDAO.get('invitations', 'enabled').AndReturn(False)
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "admin": False,
+            "invite": True,
+            "link-template": link_template
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        self.check_and_parse_response(rv, status_code=400)
+
     def test_invite_user(self):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         link_template = 'http://altai.example.com/invite?code={{code}}'
         user = doubles.make(self.mox, doubles.User,
-                            id='UID', name=name, email=email)
+                            id='UID', name=name, email=email, fullname='')
         invite = Token(user_id=user.id, code='THE_CODE', complete=False)
         self.mox.StubOutWithMock(users, 'send_invitation')
         self.mox.StubOutWithMock(users, 'InvitesDAO')
 
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
+        ConfigDAO.get('invitations', 'domains-allowed').AndReturn([])
         self.fake_client_set.identity_admin.users.create(
             name=name, password=passw, email=email,
             enabled=False).AndReturn(user)
         users.InvitesDAO.create(user.id, email).AndReturn(invite)
         users.send_invitation(email, 'THE_CODE',
-                              link_template, greeting=None)
+                              link_template, greeting='')
         users.user_from_nova(user, invite, send_code=False)\
                 .AndReturn('new-user-dict')
 
@@ -420,6 +444,68 @@ class CreateUserTestCase(MockedTestCase):
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'new-user-dict')
 
+    def test_invite_user_from_allowed_domain(self):
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        link_template = 'http://altai.example.com/invite?code={{code}}'
+        user = doubles.make(self.mox, doubles.User,
+                            id='UID', name=name, email=email, fullname='')
+        invite = Token(user_id=user.id, code='THE_CODE', complete=False)
+        self.mox.StubOutWithMock(users, 'send_invitation')
+        self.mox.StubOutWithMock(users, 'InvitesDAO')
+
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
+        ConfigDAO.get('invitations', 'domains-allowed')\
+                .AndReturn(['example.net', 'example.com'])
+        self.fake_client_set.identity_admin.users.create(
+            name=name, password=passw, email=email,
+            enabled=False).AndReturn(user)
+        users.InvitesDAO.create(user.id, email).AndReturn(invite)
+        users.send_invitation(email, 'THE_CODE',
+                              link_template, greeting='')
+        users.user_from_nova(user, invite, send_code=False)\
+                .AndReturn('new-user-dict')
+
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "admin": False,
+            "invite": True,
+            "link-template": link_template
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, 'new-user-dict')
+
+    def test_invite_user_from_bad_domain(self):
+        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+        link_template = 'http://altai.example.com/invite?code={{code}}'
+
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
+        ConfigDAO.get('invitations', 'domains-allowed')\
+                .AndReturn(['example.net', 'griddynamics.net'])
+
+        self.mox.ReplayAll()
+
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "admin": False,
+            "invite": True,
+            "link-template": link_template
+        }
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(post_params),
+                              content_type='application/json')
+
+        self.check_and_parse_response(rv, status_code=403)
+
     def test_invite_user_no_mail(self):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         user = doubles.make(self.mox, doubles.User,
@@ -428,6 +514,8 @@ class CreateUserTestCase(MockedTestCase):
         self.mox.StubOutWithMock(users, 'send_invitation')
         self.mox.StubOutWithMock(users, 'InvitesDAO')
 
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
+        ConfigDAO.get('invitations', 'domains-allowed').AndReturn([])
         self.fake_client_set.identity_admin.users.create(
             name=name, password=passw, email=email,
             enabled=False).AndReturn(user)
@@ -719,6 +807,7 @@ class SendInviteTestCase(MockedTestCase):
         self.mox.StubOutWithMock(users, 'InvitesDAO')
         self.mox.StubOutWithMock(users, 'update_user_data')
         self.mox.StubOutWithMock(users.auth, 'assert_admin')
+        self.mox.StubOutWithMock(ConfigDAO, 'get')
 
         self.uid = 'UID'
         self.user = doubles.make(self.mox, doubles.User,
@@ -734,7 +823,14 @@ class SendInviteTestCase(MockedTestCase):
         return self.check_and_parse_response(
             rv, status_code=expected_status_code)
 
+    def test_resend_with_invites_disabled(self):
+        ConfigDAO.get('invitations', 'enabled').AndReturn(False)
+
+        self.mox.ReplayAll()
+        self.interact({}, expected_status_code=400)
+
     def test_resend_works(self):
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
         self.fake_client_set.identity_admin.users.get(self.uid)\
                 .AndReturn(self.user)
         users.InvitesDAO.create(self.uid, self.user.email)\
@@ -749,12 +845,14 @@ class SendInviteTestCase(MockedTestCase):
         self.assertEquals(data, 'REPLY')
 
     def test_resend_user_not_found(self):
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
         self.fake_client_set.identity_admin.users.get(self.uid)\
                 .AndRaise(osc_exc.NotFound('failure'))
         self.mox.ReplayAll()
         self.interact({}, expected_status_code=404)
 
     def test_resend_disable_user(self):
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
         self.fake_client_set.identity_admin.users.get(self.uid)\
                 .AndReturn(self.user)
         users.InvitesDAO.create(self.uid, self.user.email)\
@@ -774,6 +872,7 @@ class SendInviteTestCase(MockedTestCase):
         self.assertEquals(data, 'REPLY')
 
     def test_resend_no_mail(self):
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
         self.fake_client_set.identity_admin.users.get(self.uid)\
                 .AndReturn(self.user)
         users.InvitesDAO.create(self.uid, self.user.email)\
