@@ -32,7 +32,7 @@ from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 
-fw_rules = Blueprint('fw_rules', __name__)
+BP = Blueprint('fw_rules', __name__)
 
 
 def _fw_rule_dict_from_nova(rule):
@@ -91,7 +91,7 @@ _SCHEMA = Schema((
 )
 
 
-@fw_rules.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @user_endpoint
 def list_fw_rules(fw_rule_set_id):
     parse_collection_request(_SCHEMA)
@@ -113,14 +113,14 @@ def _find_rule(sg_id, rule_id):
     abort(404)
 
 
-@fw_rules.route('/<rule_id>', methods=('GET',))
+@BP.route('/<rule_id>', methods=('GET',))
 @user_endpoint
 def get_fw_rule(fw_rule_set_id, rule_id):
     rule = _find_rule(fw_rule_set_id, rule_id)
     return make_json_response(_fw_rule_dict_from_nova(rule))
 
 
-@fw_rules.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 @user_endpoint
 def create_fw_rule(fw_rule_set_id):
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
@@ -147,7 +147,7 @@ def create_fw_rule(fw_rule_set_id):
     return make_json_response(_fw_rule_object_from_nova(rule))
 
 
-@fw_rules.route('/<rule_id>', methods=('DELETE',))
+@BP.route('/<rule_id>', methods=('DELETE',))
 @user_endpoint
 def delete_fw_rule(fw_rule_set_id, rule_id):
     set_audit_resource_id(rule_id)

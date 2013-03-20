@@ -30,7 +30,7 @@ from altai_api.utils.decorators import root_endpoint, user_endpoint
 from altai_api.db.config import ConfigDAO
 
 
-config = Blueprint('config', __name__)
+BP = Blueprint('config', __name__)
 
 SCHEMAS = {
     'general': Schema((
@@ -69,7 +69,7 @@ def _update_general(general):
     general['openstack-endpoint'] = current_app.config['KEYSTONE_URI']
 
 
-@config.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('config')
 @user_endpoint
 def list_config():
@@ -90,7 +90,7 @@ def list_config():
     return make_collection_response('config', result.values())
 
 
-@config.route('/<name>', methods=('GET',))
+@BP.route('/<name>', methods=('GET',))
 @user_endpoint
 def get_config(name):
     groups = SCHEMAS if g.is_admin else _USER_VISIBLE_GROUPS
@@ -108,7 +108,7 @@ def get_config(name):
     return make_json_response(result)
 
 
-@config.route('/<name>', methods=('PUT',))
+@BP.route('/<name>', methods=('PUT',))
 def update_config(name):
     if name not in SCHEMAS:
         abort(404)

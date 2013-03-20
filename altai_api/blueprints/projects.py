@@ -35,7 +35,7 @@ from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
 from altai_api.auth import admin_client_set, client_set_for_tenant
 
 
-projects = Blueprint('projects', __name__)
+BP = Blueprint('projects', __name__)
 
 
 def link_for_project(project_id, project_name=None):
@@ -115,7 +115,7 @@ def get_tenant(project_id):
     return tenant
 
 
-@projects.route('/<project_id>', methods=('GET',))
+@BP.route('/<project_id>', methods=('GET',))
 @user_endpoint
 def get_project(project_id):
     tenant = get_tenant(project_id)  # checks permissions
@@ -143,7 +143,7 @@ _SCHEMA = Schema((
 )
 
 
-@projects.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('projects')
 @user_endpoint
 def list_projects():
@@ -165,7 +165,7 @@ def list_projects():
     return make_collection_response(u'projects', result)
 
 
-@projects.route('/<project_id>/stats', methods=('GET',))
+@BP.route('/<project_id>/stats', methods=('GET',))
 @user_endpoint
 def get_project_stats(project_id):
     tenant = get_tenant(project_id)
@@ -203,7 +203,7 @@ def _set_quota(tenant_id, data):
         g.client_set.compute.quotas.update(tenant_id, **kwargs)
 
 
-@projects.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 def create_project():
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.create_required)
 
@@ -249,7 +249,7 @@ def _project_has_images(project_id):
     return len(image_list) > 0
 
 
-@projects.route('/<project_id>', methods=('DELETE',))
+@BP.route('/<project_id>', methods=('DELETE',))
 def delete_project(project_id):
     set_audit_resource_id(project_id)
     tenant = get_tenant(project_id)
@@ -279,7 +279,7 @@ def delete_project(project_id):
     return make_json_response(None, 204)
 
 
-@projects.route('/<project_id>', methods=('PUT',))
+@BP.route('/<project_id>', methods=('PUT',))
 def update_project(project_id):
     data = parse_request_data(_SCHEMA.allowed)
     set_audit_resource_id(project_id)

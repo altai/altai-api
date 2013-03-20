@@ -35,7 +35,7 @@ from altai_api.auth import (client_set_for_tenant, admin_client_set,
 from altai_api.blueprints.projects import link_for_project
 
 
-fw_rule_sets = Blueprint('fw_rule_sets', __name__)
+BP = Blueprint('fw_rule_sets', __name__)
 
 
 def link_for_security_group(secgroup):
@@ -68,7 +68,7 @@ _SCHEMA = Schema((
 )
 
 
-@fw_rule_sets.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('fw-rule-sets')
 @user_endpoint
 def list_fw_rule_sets():
@@ -87,7 +87,7 @@ def list_fw_rule_sets():
     return make_collection_response(u'fw-rule-sets', result)
 
 
-@fw_rule_sets.route('/<fw_rule_set_id>', methods=('GET',))
+@BP.route('/<fw_rule_set_id>', methods=('GET',))
 @user_endpoint
 def get_fw_rule_set(fw_rule_set_id):
     try:
@@ -98,7 +98,7 @@ def get_fw_rule_set(fw_rule_set_id):
     return make_json_response(_sg_from_nova(sg))
 
 
-@fw_rule_sets.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 @user_endpoint
 def create_fw_rule_set():
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
@@ -110,7 +110,7 @@ def create_fw_rule_set():
     return make_json_response(_sg_from_nova(sg))
 
 
-@fw_rule_sets.route('/<fw_rule_set_id>', methods=('DELETE',))
+@BP.route('/<fw_rule_set_id>', methods=('DELETE',))
 @user_endpoint
 def delete_fw_rule_set(fw_rule_set_id):
     try:

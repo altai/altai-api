@@ -37,7 +37,7 @@ from altai_api.blueprints.vms import fetch_vm
 from altai_api.blueprints.fw_rule_sets import link_for_security_group
 
 
-vm_fw_rule_sets = Blueprint('vm_fw_rule_sets', __name__)
+BP = Blueprint('vm_fw_rule_sets', __name__)
 
 
 def _security_groups_for_server(vm_id):
@@ -72,7 +72,7 @@ _SCHEMA = Schema((
 )
 
 
-@vm_fw_rule_sets.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @user_endpoint
 def list_vm_fw_rule_sets(vm_id):
     parse_collection_request(_SCHEMA)
@@ -83,14 +83,14 @@ def list_vm_fw_rule_sets(vm_id):
                                     parent_href=parent_href)
 
 
-@vm_fw_rule_sets.route('/<set_id>', methods=('GET',))
+@BP.route('/<set_id>', methods=('GET',))
 @user_endpoint
 def get_vm_fw_rule_set(vm_id, set_id):
     sg = _find_sg_on_server(vm_id, set_id)
     return make_json_response(link_for_security_group(sg))
 
 
-@vm_fw_rule_sets.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 @user_endpoint
 def add_vm_fw_rule_set(vm_id):
     server = fetch_vm(vm_id)
@@ -109,7 +109,7 @@ def add_vm_fw_rule_set(vm_id):
     return make_json_response(link_for_security_group(sg))
 
 
-@vm_fw_rule_sets.route('/<set_id>', methods=('DELETE',))
+@BP.route('/<set_id>', methods=('DELETE',))
 @user_endpoint
 def remove_vm_fw_rule_set(vm_id, set_id):
     server = fetch_vm(vm_id)

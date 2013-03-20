@@ -36,11 +36,11 @@ from altai_api.blueprints.users import get_user, fetch_user, update_user_data
 from altai_api.db.tokens import TokensDAO
 
 
-me = Blueprint('me', __name__)
+BP = Blueprint('me', __name__)
 ResetTokensDAO = TokensDAO('password-reset')
 
 
-@me.route('')
+@BP.route('')
 @user_endpoint
 def get_current_user():
     """Current user resource shortcut"""
@@ -73,7 +73,7 @@ _RESET_SCHEMA = Schema((
 ))
 
 
-@me.route('/reset-password', methods=('POST',))
+@BP.route('/reset-password', methods=('POST',))
 @no_auth_endpoint
 def reset_password():
     if not g.config('password-reset', 'enabled'):
@@ -94,7 +94,7 @@ _APPLY_SCHEMA = Schema((
 ))
 
 
-@me.route('/reset-password/<code>', methods=('POST',))
+@BP.route('/reset-password/<code>', methods=('POST',))
 @no_auth_endpoint
 def apply_password_reset(code):
     if not g.config('password-reset', 'enabled'):

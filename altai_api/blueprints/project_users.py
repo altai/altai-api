@@ -37,7 +37,7 @@ from altai_api.blueprints.projects import get_tenant
 from altai_api.blueprints.users import link_for_user, member_role_id
 
 
-project_users = Blueprint('project_users', __name__)
+BP = Blueprint('project_users', __name__)
 
 
 _SCHEMA = Schema((
@@ -58,7 +58,7 @@ def _project_users_list(project_id):
         abort(404)
 
 
-@project_users.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @user_endpoint
 def list_project_users(project_id):
     parse_collection_request(_SCHEMA)
@@ -67,7 +67,7 @@ def list_project_users(project_id):
     return make_collection_response(u'users', result, parent_href=parent_href)
 
 
-@project_users.route('/<user_id>', methods=('GET',))
+@BP.route('/<user_id>', methods=('GET',))
 @user_endpoint
 def get_project_user(project_id, user_id):
     for user in _project_users_list(project_id):
@@ -83,7 +83,7 @@ def _get_user(user_id):
         raise exc.InvalidRequest('User with id %s does not exist' % user_id)
 
 
-@project_users.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 def add_project_user(project_id):
     user_id = parse_request_data(required=_SCHEMA.required)['id']
     tenant = get_tenant(project_id)
@@ -99,7 +99,7 @@ def add_project_user(project_id):
     return make_json_response(link_for_user(user))
 
 
-@project_users.route('/<user_id>', methods=('DELETE',))
+@BP.route('/<user_id>', methods=('DELETE',))
 @user_endpoint
 def remove_project_user(project_id, user_id):
     tenant = get_tenant(project_id)

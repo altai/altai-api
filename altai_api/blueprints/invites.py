@@ -33,7 +33,7 @@ from altai_api.utils import make_json_response, parse_request_data
 from altai_api.utils.decorators import no_auth_endpoint
 
 
-invites = Blueprint('invites', __name__)
+BP = Blueprint('invites', __name__)
 
 
 def _invite_and_user(code):
@@ -48,7 +48,7 @@ def _invite_and_user(code):
     return invite, user
 
 
-@invites.route('/<code>', methods=('GET',))
+@BP.route('/<code>', methods=('GET',))
 @no_auth_endpoint
 def get_user_by_code(code):
     invite, user = _invite_and_user(code)
@@ -66,7 +66,7 @@ _ACCEPT_REQUIRES = Schema((
 ))
 
 
-@invites.route('/<code>', methods=('PUT',))
+@BP.route('/<code>', methods=('PUT',))
 @no_auth_endpoint
 def accept_invite(code):
     data = parse_request_data(_ACCEPT_SCHEMA, _ACCEPT_REQUIRES)

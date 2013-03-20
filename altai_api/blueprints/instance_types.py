@@ -36,7 +36,7 @@ from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 
-instance_types = Blueprint('instance_types', __name__)
+BP = Blueprint('instance_types', __name__)
 
 
 def _instance_type_from_nova(flavor):
@@ -74,7 +74,7 @@ _SCHEMA = Schema((
 )
 
 
-@instance_types.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('instance-types')
 @user_endpoint
 def list_instance_types():
@@ -85,7 +85,7 @@ def list_instance_types():
     return make_collection_response(u'instance-types', result)
 
 
-@instance_types.route('/<instance_type_id>', methods=('GET',))
+@BP.route('/<instance_type_id>', methods=('GET',))
 @user_endpoint
 def get_instance_type(instance_type_id):
     # the following great code returns deleted flavors...
@@ -101,7 +101,7 @@ def get_instance_type(instance_type_id):
     abort(404)
 
 
-@instance_types.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 def create_instance_type():
     data = parse_request_data(required=_SCHEMA.required)
     args = _instance_type_for_nova(data)
@@ -114,7 +114,7 @@ def create_instance_type():
     return make_json_response(_instance_type_from_nova(flavor))
 
 
-@instance_types.route('/<instance_type_id>', methods=('DELETE',))
+@BP.route('/<instance_type_id>', methods=('DELETE',))
 def delete_instance_type(instance_type_id):
     set_audit_resource_id(instance_type_id)
     try:

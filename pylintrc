@@ -156,8 +156,8 @@ module-rgx=(([a-z_][a-z0-9_]*)|([A-Z][a-zA-Z0-9]+))$
 
 # Regular expression which should only match correct module level names
 # const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
-# our blueprints and app
-const-rgx=[a-zA-Z_][a-zA-Z0-9_]{1,30}$
+# Our TokenDAOs are treated like constants, so we add special case for them
+const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__)|([A-Z][a-zA-Z]+DAO))$
 
 # Regular expression which should only match correct class names
 class-rgx=[A-Z_][a-zA-Z0-9]+$

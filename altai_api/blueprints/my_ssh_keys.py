@@ -30,7 +30,7 @@ from altai_api.schema import types as st
 from altai_api import exceptions as exc
 from openstackclient_base import exceptions as osc_exc
 
-my_ssh_keys = Blueprint('my_ssh_keys', __name__)
+BP = Blueprint('my_ssh_keys', __name__)
 
 
 def keypair_from_nova(keypair):
@@ -53,7 +53,7 @@ _SCHEMA = Schema((
 )
 
 
-@my_ssh_keys.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @user_endpoint
 def list_my_ssh_keys():
     parse_collection_request(_SCHEMA)
@@ -65,7 +65,7 @@ def list_my_ssh_keys():
                                     parent_href=url_for('me.get_current_user'))
 
 
-@my_ssh_keys.route('/<key_name>', methods=('GET',))
+@BP.route('/<key_name>', methods=('GET',))
 @user_endpoint
 def get_my_ssh_key(key_name):
     try:
@@ -75,7 +75,7 @@ def get_my_ssh_key(key_name):
     return make_json_response(keypair_from_nova(keypair))
 
 
-@my_ssh_keys.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 @user_endpoint
 def create_my_ssh_key():
     data = parse_request_data(_SCHEMA.allowed, _SCHEMA.required)
@@ -92,7 +92,7 @@ def create_my_ssh_key():
     return make_json_response(result)
 
 
-@my_ssh_keys.route('/<key_name>', methods=('DELETE',))
+@BP.route('/<key_name>', methods=('DELETE',))
 @user_endpoint
 def delete_my_ssh_key(key_name):
     try:

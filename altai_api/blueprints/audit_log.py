@@ -36,7 +36,7 @@ from altai_api.blueprints.projects import link_for_project
 from altai_api.db.audit import AuditDAO
 
 
-audit_log = Blueprint('audit_log', __name__)
+BP = Blueprint('audit_log', __name__)
 
 
 def _record_to_dict(record, user_name, project_name):
@@ -95,7 +95,7 @@ _SCHEMA = Schema((
 ))
 
 
-@audit_log.route('/')
+@BP.route('/')
 @root_endpoint('audit-log')
 def list_all_records():
     parse_collection_request(_SCHEMA)
@@ -104,7 +104,7 @@ def list_all_records():
     return make_collection_response(u'audit-log', result)
 
 
-@audit_log.route('/<record_id>')
+@BP.route('/<record_id>')
 def get_log_record(record_id):
     result = record_from_database(AuditDAO.get(record_id))
     return make_json_response(result)

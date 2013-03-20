@@ -39,7 +39,7 @@ from altai_api.db.tokens import TokensDAO
 from altai_api.utils.mail import send_invitation
 
 
-users = Blueprint('users', __name__)
+BP = Blueprint('users', __name__)
 
 # NOTE(imelnikov): we put it here instead of invites.py in hope
 # to avoid circular dependencies
@@ -192,7 +192,7 @@ _SCHEMA = Schema((
 )
 
 
-@users.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('users')
 @user_endpoint
 def list_users():
@@ -204,14 +204,14 @@ def list_users():
                    if _user_is_visible(user, not g.my_projects)])
 
 
-@users.route('/<user_id>', methods=('GET',))
+@BP.route('/<user_id>', methods=('GET',))
 @user_endpoint
 def get_user(user_id):
     user = fetch_user(user_id, not g.my_projects)
     return make_json_response(user_from_nova(user))
 
 
-@users.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 def create_user():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
@@ -286,7 +286,7 @@ def update_user_data(user, data):
         abort(404)
 
 
-@users.route('/<user_id>', methods=('PUT',))
+@BP.route('/<user_id>', methods=('PUT',))
 @user_endpoint
 def update_user(user_id):
     param = parse_request_data(_SCHEMA.updatable)
@@ -309,7 +309,7 @@ def update_user(user_id):
     return make_json_response(user_from_nova(user))
 
 
-@users.route('/<user_id>', methods=('DELETE',))
+@BP.route('/<user_id>', methods=('DELETE',))
 def delete_user(user_id):
     set_audit_resource_id(user_id)
 
@@ -335,7 +335,7 @@ _SEND_INVITE_SCHEMA = Schema((
 ))
 
 
-@users.route('/<user_id>/send-invite', methods=('POST',))
+@BP.route('/<user_id>/send-invite', methods=('POST',))
 def send_invite_for_user(user_id):
     if not g.config('invitations', 'enabled'):
         # TODO(imelnikov): consider if this is error 403, not 400

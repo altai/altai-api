@@ -33,7 +33,7 @@ from openstackclient_base import exceptions as osc_exc
 
 from altai_api.blueprints.projects import link_for_project
 
-networks = flask.Blueprint('networks', __name__)
+BP = flask.Blueprint('networks', __name__)
 
 
 def _net_to_dict(net):
@@ -66,7 +66,7 @@ _SCHEMA = Schema((
 )
 
 
-@networks.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('networks')
 @user_endpoint
 def list_networks():
@@ -76,7 +76,7 @@ def list_networks():
                                     [_net_to_dict(net) for net in nets])
 
 
-@networks.route('/<net_id>', methods=('GET',))
+@BP.route('/<net_id>', methods=('GET',))
 @user_endpoint
 def get_network(net_id):
     try:
@@ -87,7 +87,7 @@ def get_network(net_id):
     return make_json_response(_net_to_dict(net))
 
 
-@networks.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 def create_network():
     param = parse_request_data(_SCHEMA.required)
     client = flask.g.client_set
@@ -109,7 +109,7 @@ def create_network():
     return make_json_response(_net_to_dict(new_net))
 
 
-@networks.route('/<net_id>', methods=('DELETE',))
+@BP.route('/<net_id>', methods=('DELETE',))
 def delete_network(net_id):
     set_audit_resource_id(net_id)
     client = flask.g.client_set

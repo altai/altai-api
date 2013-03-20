@@ -32,7 +32,7 @@ from altai_api.schema import types as st
 from altai_api.blueprints.my_ssh_keys import keypair_from_nova
 from altai_api.blueprints.users import fetch_user
 
-users_ssh_keys = Blueprint('users_ssh_keys', __name__)
+BP = Blueprint('users_ssh_keys', __name__)
 
 
 _SCHEMA = Schema((
@@ -44,7 +44,7 @@ _SCHEMA = Schema((
 )
 
 
-@users_ssh_keys.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @user_endpoint
 def list_users_ssh_keys(user_id):
     parse_collection_request(_SCHEMA)
@@ -58,7 +58,7 @@ def list_users_ssh_keys(user_id):
                                     parent_href=parent_href)
 
 
-@users_ssh_keys.route('/<key_name>', methods=('GET',))
+@BP.route('/<key_name>', methods=('GET',))
 @user_endpoint
 def get_users_ssh_key(user_id, key_name):
     if not g.is_admin:
@@ -71,7 +71,7 @@ def get_users_ssh_key(user_id, key_name):
     return make_json_response(keypair_from_nova(keypair))
 
 
-@users_ssh_keys.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 @user_endpoint
 def create_users_ssh_key(user_id):
     data = parse_request_data(required=_SCHEMA.required)
@@ -89,7 +89,7 @@ def create_users_ssh_key(user_id):
     return make_json_response(keypair_from_nova(kp))
 
 
-@users_ssh_keys.route('/<key_name>', methods=('DELETE',))
+@BP.route('/<key_name>', methods=('DELETE',))
 def delete_users_ssh_key(user_id, key_name):
     if user_id != auth.current_user_id():
         auth.assert_admin()

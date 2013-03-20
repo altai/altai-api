@@ -67,9 +67,8 @@ def _mount_blueprints(iterable):
     """Import blueprints and register them"""
     for name, path in iterable:
         module = __import__('altai_api.blueprints.%s' % name,
-                            level=0, fromlist=[name])
-        blueprint = getattr(module, name)
-        app.register_blueprint(blueprint, url_prefix=path)
+                            level=0, fromlist=['BP'])
+        app.register_blueprint(module.BP, url_prefix=path)
 
 
 _mount_blueprints((

@@ -39,7 +39,7 @@ from openstackclient_base import exceptions as osc_exc
 from altai_api.blueprints.projects import link_for_project
 
 
-images = Blueprint('images', __name__)
+BP = Blueprint('images', __name__)
 
 
 def _fetch_image(image_id, to_modify):
@@ -173,7 +173,7 @@ def _project_argument():
     return None, None
 
 
-@images.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('images')
 @user_endpoint
 def list_images():
@@ -188,14 +188,14 @@ def list_images():
     return make_collection_response(u'images', result)
 
 
-@images.route('/<image_id>', methods=('GET',))
+@BP.route('/<image_id>', methods=('GET',))
 @user_endpoint
 def get_image(image_id):
     image = _fetch_image(image_id, to_modify=False)
     return make_json_response(_image_from_nova(image))
 
 
-@images.route('/<image_id>', methods=('PUT',))
+@BP.route('/<image_id>', methods=('PUT',))
 @user_endpoint
 def update_image(image_id):
     data = parse_request_data(_SCHEMA.updatable)
@@ -217,7 +217,7 @@ def _assert_param_absent(name, data):
         raise exc.UnknownElement(name)
 
 
-@images.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 @user_endpoint
 def create_image():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
@@ -253,7 +253,7 @@ def create_image():
     return make_json_response(_image_from_nova(image))
 
 
-@images.route('/<image_id>', methods=('DELETE',))
+@BP.route('/<image_id>', methods=('DELETE',))
 @user_endpoint
 def remove_image(image_id):
     set_audit_resource_id(image_id)
@@ -262,7 +262,7 @@ def remove_image(image_id):
     return make_json_response(None, status_code=204)
 
 
-@images.route('/<image_id>/data', methods=('PUT',))
+@BP.route('/<image_id>/data', methods=('PUT',))
 @data_handler
 @user_endpoint
 def upload_image_data(image_id):

@@ -47,7 +47,7 @@ from altai_api.db.vm_data import VmDataDAO
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 
 
-vms = Blueprint('vms', __name__)
+BP = Blueprint('vms', __name__)
 
 
 def link_for_server(server):
@@ -150,7 +150,7 @@ def _servers_for_user():
     return result
 
 
-@vms.route('/', methods=('GET',))
+@BP.route('/', methods=('GET',))
 @root_endpoint('vms')
 @user_endpoint
 def list_vms():
@@ -164,7 +164,7 @@ def list_vms():
                                               for vm in servers])
 
 
-@vms.route('/<vm_id>', methods=('GET',))
+@BP.route('/<vm_id>', methods=('GET',))
 @user_endpoint
 def get_vm(vm_id):
     return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
@@ -189,7 +189,7 @@ def _security_group_ids_to_names(security_groups_ids, sg_manager):
     return names
 
 
-@vms.route('/', methods=('POST',))
+@BP.route('/', methods=('POST',))
 @user_endpoint
 def create_vm():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
@@ -220,7 +220,7 @@ def create_vm():
     return make_json_response(_vm_from_nova(server))
 
 
-@vms.route('/<vm_id>', methods=('PUT',))
+@BP.route('/<vm_id>', methods=('PUT',))
 @user_endpoint
 def update_vm(vm_id):
     data = parse_request_data(_SCHEMA.updatable)
@@ -257,7 +257,7 @@ def _do_remove_vm(vm_id):
         return None
 
 
-@vms.route('/<vm_id>/remove', methods=('POST',))
+@BP.route('/<vm_id>/remove', methods=('POST',))
 @user_endpoint
 def remove_vm(vm_id):
     parse_request_data()
@@ -269,7 +269,7 @@ def remove_vm(vm_id):
         return make_json_response(None, status_code=204)
 
 
-@vms.route('/<vm_id>', methods=('DELETE',))
+@BP.route('/<vm_id>', methods=('DELETE',))
 @user_endpoint
 def delete_vm(vm_id):
     set_audit_resource_id(vm_id)
@@ -299,19 +299,19 @@ def _do_reboot_vm(vm_id, method):
     return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
 
 
-@vms.route('/<vm_id>/reboot', methods=('POST',))
+@BP.route('/<vm_id>/reboot', methods=('POST',))
 @user_endpoint
 def reboot_vm(vm_id):
     return _do_reboot_vm(vm_id, REBOOT_SOFT)
 
 
-@vms.route('/<vm_id>/reset', methods=('POST',))
+@BP.route('/<vm_id>/reset', methods=('POST',))
 @user_endpoint
 def reset_vm(vm_id):
     return _do_reboot_vm(vm_id, REBOOT_HARD)
 
 
-@vms.route('/<vm_id>/console-output', methods=('POST',))
+@BP.route('/<vm_id>/console-output', methods=('POST',))
 @user_endpoint
 def vm_console_output(vm_id):
     set_audit_resource_id(vm_id)
@@ -330,7 +330,7 @@ def vm_console_output(vm_id):
     })
 
 
-@vms.route('/<vm_id>/vnc', methods=('POST',))
+@BP.route('/<vm_id>/vnc', methods=('POST',))
 @user_endpoint
 def vm_vnc_console(vm_id):
     set_audit_resource_id(vm_id)
