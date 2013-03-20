@@ -28,192 +28,203 @@ from openstackclient_base import exceptions as osc_exc
 from tests import doubles
 from tests.mocked import MockedTestCase
 
-from altai_api.jobs import vms
-from altai_api.db.vm_data import VmData
+from altai_api.jobs import instances
+from altai_api.db.instance_data import InstanceData
 
 
-class VmsJobsTestCase(MockedTestCase):
+class InstancesJobsTestCase(MockedTestCase):
     FAKE_AUTH = False
 
     def setUp(self):
-        super(VmsJobsTestCase, self).setUp()
-        self.mox.StubOutWithMock(vms, 'VmDataDAO')
-        self.mox.StubOutWithMock(vms, 'AuditDAO')
-        self.mox.StubOutWithMock(vms, 'admin_client_set')
-        self.mox.StubOutWithMock(vms, 'datetime')
-        self.mox.StubOutWithMock(vms, 'send_vm_reminder')
+        super(InstancesJobsTestCase, self).setUp()
+        self.mox.StubOutWithMock(instances, 'InstanceDataDAO')
+        self.mox.StubOutWithMock(instances, 'AuditDAO')
+        self.mox.StubOutWithMock(instances, 'admin_client_set')
+        self.mox.StubOutWithMock(instances, 'datetime')
+        self.mox.StubOutWithMock(instances, 'send_instance_reminder')
         self.mox.StubOutWithMock(self.app.logger, 'exception')
         self.fake_client_set = self._fake_client_set_factory()
 
-    def test_vm_data_gc_works(self):
+    def test_instance_data_gc_works(self):
         server_mgr = self.fake_client_set.compute.servers
 
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.VmDataDAO.list_all()\
-                .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.InstanceDataDAO.list_all()\
+                .AndReturn([InstanceData(instance_id='v1'),
+                            InstanceData(instance_id='v2')])
         server_mgr.get('v1').AndRaise(osc_exc.NotFound('deleted'))
-        vms.VmDataDAO.delete('v1')
+        instances.InstanceDataDAO.delete('v1')
         server_mgr.get('v2')
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.vm_data_gc()
+            instances.instance_data_gc()
 
-    def test_vm_data_gc_other_exception(self):
+    def test_instance_data_gc_other_exception(self):
         server_mgr = self.fake_client_set.compute.servers
 
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.VmDataDAO.list_all()\
-                .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.InstanceDataDAO.list_all()\
+                .AndReturn([InstanceData(instance_id='v1'),
+                            InstanceData(instance_id='v2')])
         server_mgr.get('v1').AndRaise(RuntimeError('log me'))
         self.app.logger.exception(mox.IsA(basestring))
         server_mgr.get('v2')
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.vm_data_gc()
+            instances.instance_data_gc()
 
-    def test_rip_expired_vms(self):
+    def test_rip_expired_instances(self):
         server_mgr = self.fake_client_set.compute.servers
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.datetime.utcnow().AndReturn('UTCNOW')
-        vms.VmDataDAO.expired_list('UTCNOW')\
-                .AndReturn([VmData(vm_id='v1')])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.datetime.utcnow().AndReturn('UTCNOW')
+        instances.InstanceDataDAO.expired_list('UTCNOW')\
+                .AndReturn([InstanceData(instance_id='v1')])
         server_mgr.delete('v1')
-        vms.AuditDAO.create_record({
-            'resource': '/v1/vms/v1',
+        instances.AuditDAO.create_record({
+            'resource': '/v1/instances/v1',
             'method': 'DELETE',
             'response_status': 200,
-            'message': 'Automatically deleted expired VM'
+            'message': 'Automatically deleted expired instance'
         })
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.rip_expired_vms()
+            instances.rip_expired_instances()
 
-    def test_rip_expired_vms_not_found(self):
+    def test_rip_expired_instances_not_found(self):
         server_mgr = self.fake_client_set.compute.servers
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.datetime.utcnow().AndReturn('UTCNOW')
-        vms.VmDataDAO.expired_list('UTCNOW')\
-                .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.datetime.utcnow().AndReturn('UTCNOW')
+        instances.InstanceDataDAO.expired_list('UTCNOW')\
+                .AndReturn([InstanceData(instance_id='v1'),
+                            InstanceData(instance_id='v2')])
         server_mgr.delete('v1').AndRaise(osc_exc.NotFound('deleted'))
-        vms.VmDataDAO.delete('v1')
+        instances.InstanceDataDAO.delete('v1')
 
         # check we continued to iterate after exception
         server_mgr.delete('v2')
-        vms.AuditDAO.create_record(mox.IsA(dict))
+        instances.AuditDAO.create_record(mox.IsA(dict))
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.rip_expired_vms()
+            instances.rip_expired_instances()
 
-    def test_rip_expired_vms_other_exception(self):
+    def test_rip_expired_instances_other_exception(self):
         server_mgr = self.fake_client_set.compute.servers
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.datetime.utcnow().AndReturn('UTCNOW')
-        vms.VmDataDAO.expired_list('UTCNOW')\
-                .AndReturn([VmData(vm_id='v1'), VmData(vm_id='v2')])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.datetime.utcnow().AndReturn('UTCNOW')
+        instances.InstanceDataDAO.expired_list('UTCNOW')\
+                .AndReturn([InstanceData(instance_id='v1'),
+                            InstanceData(instance_id='v2')])
         server_mgr.delete('v1').AndRaise(RuntimeError('log me'))
         self.app.logger.exception(mox.IsA(basestring))
 
         # check we continued to iterate after exception
         server_mgr.delete('v2')
-        vms.AuditDAO.create_record(mox.IsA(dict))
+        instances.AuditDAO.create_record(mox.IsA(dict))
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.rip_expired_vms()
+            instances.rip_expired_instances()
 
     def test_remind_reminds(self):
         server_mgr = self.fake_client_set.compute.servers
-        vms.admin_client_set().AndReturn(self.fake_client_set)
+        instances.admin_client_set().AndReturn(self.fake_client_set)
         user_mgr = self.fake_client_set.identity_admin.users
         server = doubles.make(self.mox, doubles.Server,
-                              id='v2', name='vm-2', user_id='UID')
+                              id='v2', name='instance-2', user_id='UID')
         user = doubles.make(self.mox, doubles.User,
                             id='UID', name='user', email='user@example.com',
                             fullname='The Test User Fullname')
         expires = datetime(2013, 1, 19, 11, 12, 13)
 
-        vms.datetime.utcnow().AndReturn('UTCNOW')
-        vms.VmDataDAO.remind_list('UTCNOW')\
-                .AndReturn([VmData(vm_id='v2', expires_at=expires)])
+        instances.datetime.utcnow().AndReturn('UTCNOW')
+        instances.InstanceDataDAO.remind_list('UTCNOW')\
+                .AndReturn([InstanceData(instance_id='v2',
+                                         expires_at=expires)])
 
         server_mgr.get('v2').AndReturn(server)
         user_mgr.get('UID').AndReturn(user)
-        vms.send_vm_reminder(user.email, 'vm-2', 'v2', expires,
-                             greeting=user.fullname)
-        vms.VmDataDAO.update('v2', remind_at=None)
+        instances.send_instance_reminder(user.email, 'instance-2', 'v2',
+                                         expires, greeting=user.fullname)
+        instances.InstanceDataDAO.update('v2', remind_at=None)
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.remind_about_vms()
+            instances.remind_about_instances()
 
     def test_remind_server_not_found(self):
         server_mgr = self.fake_client_set.compute.servers
         expires = datetime(2013, 1, 19, 11, 12, 13)
 
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.datetime.utcnow().AndReturn('UTCNOW')
-        vms.VmDataDAO.remind_list('UTCNOW')\
-                .AndReturn([VmData(vm_id='v1', expires_at=expires)])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.datetime.utcnow().AndReturn('UTCNOW')
+        instances.InstanceDataDAO.remind_list('UTCNOW')\
+                .AndReturn([InstanceData(instance_id='v1',
+                                         expires_at=expires)])
         server_mgr.get('v1').AndRaise(osc_exc.NotFound('deleted'))
-        vms.VmDataDAO.delete('v1')
+        instances.InstanceDataDAO.delete('v1')
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.remind_about_vms()
+            instances.remind_about_instances()
 
     def test_remind_user_not_found(self):
         server_mgr = self.fake_client_set.compute.servers
         user_mgr = self.fake_client_set.identity_admin.users
         server = doubles.make(self.mox, doubles.Server,
-                              id='v2', name='vm-2', user_id='UID')
+                              id='v2', name='instance-2', user_id='UID')
         expires = datetime(2013, 1, 19, 11, 12, 13)
 
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.datetime.utcnow().AndReturn('UTCNOW')
-        vms.VmDataDAO.remind_list('UTCNOW')\
-                .AndReturn([VmData(vm_id='v2', expires_at=expires)])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.datetime.utcnow().AndReturn('UTCNOW')
+        instances.InstanceDataDAO.remind_list('UTCNOW')\
+                .AndReturn([InstanceData(instance_id='v2',
+                                         expires_at=expires)])
 
         server_mgr.get('v2').AndReturn(server)
         user_mgr.get('UID').AndRaise(osc_exc.NotFound('deleted'))
-        vms.VmDataDAO.update('v2', remind_at=None)
+        instances.InstanceDataDAO.update('v2', remind_at=None)
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.remind_about_vms()
+            instances.remind_about_instances()
 
     def test_remind_other_exception(self):
         server_mgr = self.fake_client_set.compute.servers
         expires = datetime(2013, 1, 19, 11, 12, 13)
 
-        vms.admin_client_set().AndReturn(self.fake_client_set)
-        vms.datetime.utcnow().AndReturn('UTCNOW')
-        vms.VmDataDAO.remind_list('UTCNOW')\
-                .AndReturn([VmData(vm_id='v1', expires_at=expires)])
+        instances.admin_client_set().AndReturn(self.fake_client_set)
+        instances.datetime.utcnow().AndReturn('UTCNOW')
+        instances.InstanceDataDAO.remind_list('UTCNOW')\
+                .AndReturn([InstanceData(instance_id='v1',
+                                         expires_at=expires)])
         server_mgr.get('v1').AndRaise(RuntimeError('log me'))
         self.app.logger.exception(mox.IsA(basestring))
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            vms.remind_about_vms()
+            instances.remind_about_instances()
 
 
 class TestFactoryTestCase(MockedTestCase):
 
     def test_factory_works(self):
-        self.mox.StubOutWithMock(vms, 'PeriodicAdministrativeJob')
+        self.mox.StubOutWithMock(instances, 'PeriodicAdministrativeJob')
 
-        vms.PeriodicAdministrativeJob(self.app, 10.0, vms.rip_expired_vms)\
+        instances.PeriodicAdministrativeJob(self.app, 10.0,
+                                            instances.rip_expired_instances)\
                 .AndReturn('T1')
-        vms.PeriodicAdministrativeJob(self.app, 60.0, vms.remind_about_vms)\
+        instances.PeriodicAdministrativeJob(self.app, 60.0,
+                                            instances.remind_about_instances)\
                 .AndReturn('T2')
-        vms.PeriodicAdministrativeJob(self.app, 2400.0, vms.vm_data_gc)\
+        instances.PeriodicAdministrativeJob(self.app, 2400.0,
+                                            instances.instance_data_gc)\
                 .AndReturn('T3')
 
         self.mox.ReplayAll()
-        result = vms.jobs_factory(self.app)
+        result = instances.jobs_factory(self.app)
         self.assertEquals(result, ['T1', 'T2', 'T3'])
 

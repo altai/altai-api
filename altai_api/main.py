@@ -47,7 +47,7 @@ from altai_api import auth
 from altai_api.utils import audit
 from altai_api.utils import communication
 
-from altai_api.jobs import vms as vms_jobs
+from altai_api.jobs import instances as instances_jobs
 
 from altai_api.db.config import ConfigDAO
 
@@ -79,8 +79,8 @@ _mount_blueprints((
      ('fw_rule_sets', '/v1/fw-rule-sets'),
      ('fw_rules', '/v1/fw-rule-sets/<fw_rule_set_id>/rules'),
      ('users', '/v1/users'),
-     ('vms', '/v1/vms'),
-     ('vm_fw_rule_sets', '/v1/vms/<vm_id>/fw-rule-sets'),
+     ('instances', '/v1/instances'),
+     ('instance_fw_rule_sets', '/v1/instances/<instance_id>/fw-rule-sets'),
      ('images', '/v1/images'),
      ('invites', '/v1/invites'),
      ('config', '/v1/config'),
@@ -138,7 +138,7 @@ def main():
     periodic_jobs = []
     if not app.config['USE_RELOADER'] \
        or os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
-        periodic_jobs.extend(vms_jobs.jobs_factory(app))
+        periodic_jobs.extend(instances_jobs.jobs_factory(app))
     try:
         app.run(use_reloader=app.config['USE_RELOADER'],
                 host=app.config['HOST'],

@@ -24,42 +24,43 @@ from datetime import datetime
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.auth import admin_client_set
-from altai_api.db.vm_data import VmDataDAO
+from altai_api.db.instance_data import InstanceDataDAO
 from altai_api.db.audit import AuditDAO
-from altai_api.utils.mail import send_vm_reminder
+from altai_api.utils.mail import send_instance_reminder
 from altai_api.utils.periodic_job import PeriodicAdministrativeJob
 
 
-def rip_expired_vms():
-    """Run periodically to remove expired vms"""
+def rip_expired_instances():
+    """Run periodically to remove expired instances"""
     server_mgr = admin_client_set().compute.servers
-    for vmdata in VmDataDAO.expired_list(datetime.utcnow()):
+    for instance_data in InstanceDataDAO.expired_list(datetime.utcnow()):
         try:
-            server_mgr.delete(vmdata.vm_id)
+            server_mgr.delete(instance_data.instance_id)
             AuditDAO.create_record(dict(
-                resource=url_for('vms.delete_vm', vm_id=vmdata.vm_id),
+                resource=url_for('instances.delete_instance',
+                                 instance_id=instance_data.instance_id),
                 method='DELETE',
                 response_status=200,
-                message='Automatically deleted expired VM',
+                message='Automatically deleted expired instance',
             ))
         except osc_exc.NotFound:
-            VmDataDAO.delete(vmdata.vm_id)
+            InstanceDataDAO.delete(instance_data.instance_id)
         except Exception:
-            current_app.logger.exception('Failed to delete expired vm %r'
-                                         % vmdata.vm_id)
+            current_app.logger.exception('Failed to delete expired instance %r'
+                                         % instance_data.instance_id)
 
 
-def remind_about_vms():
+def remind_about_instances():
     """Run periodically to send reminding emails"""
     cs = admin_client_set()
     server_mgr = cs.compute.servers
     user_mgr = cs.identity_admin.users
-    for vmdata in VmDataDAO.remind_list(datetime.utcnow()):
+    for instance_data in InstanceDataDAO.remind_list(datetime.utcnow()):
         try:
             try:
-                server = server_mgr.get(vmdata.vm_id)
+                server = server_mgr.get(instance_data.instance_id)
             except osc_exc.NotFound:
-                VmDataDAO.delete(vmdata.vm_id)
+                InstanceDataDAO.delete(instance_data.instance_id)
                 continue
 
             try:
@@ -67,35 +68,36 @@ def remind_about_vms():
             except osc_exc.NotFound:
                 pass
             else:
-                send_vm_reminder(user.email, server.name,
-                                 server.id, vmdata.expires_at,
+                send_instance_reminder(user.email, server.name,
+                                 server.id, instance_data.expires_at,
                                  greeting=getattr(user, 'fullname', ''))
-            VmDataDAO.update(vmdata.vm_id, remind_at=None)
+            InstanceDataDAO.update(instance_data.instance_id, remind_at=None)
         except Exception:
-            current_app.logger.exception('Failed to send reminder email '
-                                         'about vm %r' % vmdata.vm_id)
+            current_app.logger.exception(
+                'Failed to send reminder email about instance %r'
+                % instance_data.instance_id)
 
 
-def vm_data_gc():
-    """Remove vm data for already deleted servers"""
+def instance_data_gc():
+    """Remove instance data for already deleted servers"""
     server_mgr = admin_client_set().compute.servers
-    for vmdata in VmDataDAO.list_all():
+    for instance_data in InstanceDataDAO.list_all():
         try:
-            server_mgr.get(vmdata.vm_id)
+            server_mgr.get(instance_data.instance_id)
         except osc_exc.NotFound:
-            VmDataDAO.delete(vmdata.vm_id)
+            InstanceDataDAO.delete(instance_data.instance_id)
         except Exception:
             current_app.logger.exception('Failed to delete data '
-                                         'for non-existing vm %r'
-                                         % vmdata.vm_id)
+                                         'for non-existing instance %r'
+                                         % instance_data.instance_id)
 
 
 def jobs_factory(app):
     result = []
     for job, interval_param in (
-            (rip_expired_vms, 'RIP_EXPIRED_VMS_TASK_INTERVAL'),
-            (remind_about_vms, 'VMS_REMINDER_TASK_INTERVAL'),
-            (vm_data_gc, 'VM_DATA_GC_TASK_INTERVAL')):
+            (rip_expired_instances, 'RIP_EXPIRED_INSTANCES_TASK_INTERVAL'),
+            (remind_about_instances, 'INSTANCES_REMINDER_TASK_INTERVAL'),
+            (instance_data_gc, 'INSTANCE_DATA_GC_TASK_INTERVAL')):
         result.append(PeriodicAdministrativeJob(
             app, app.config[interval_param], job))
     return result

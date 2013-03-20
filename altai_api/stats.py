@@ -43,7 +43,7 @@ def altai_stats():
 
     return make_json_response({
         'projects': len(tenants) - 1,  # not counting systenant
-        'vms': len(servers),
+        'instances': len(servers),
         'users': len(users),
         'total-images': len(images),
         'global-images': len(global_images)

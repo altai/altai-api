@@ -71,9 +71,9 @@ LOG_FORMAT = '%(asctime)s %(levelname)8s: %(message)s'
 LOG_DATE_FORMAT = '%Y-%m-%d %H:%M:%S'
 
 # periodic job intervals, in seconds, may be floating point number
-RIP_EXPIRED_VMS_TASK_INTERVAL = 10.0
-VMS_REMINDER_TASK_INTERVAL = 60.0
-VM_DATA_GC_TASK_INTERVAL = 40 * 60.0
+RIP_EXPIRED_INSTANCES_TASK_INTERVAL = 10.0
+INSTANCES_REMINDER_TASK_INTERVAL = 60.0
+INSTANCE_DATA_GC_TASK_INTERVAL = 40 * 60.0
 
 # request sanity check parameters
 MAX_ELEMENT_NAME_LENGTH = 64

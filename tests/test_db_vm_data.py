@@ -22,79 +22,80 @@
 from datetime import datetime, timedelta
 
 from tests.db import ContextWrappedDBTestCase
-from altai_api.db.vm_data import VmDataDAO
+from altai_api.db.instance_data import InstanceDataDAO
 
 
-class VmDataDAOTestCase(ContextWrappedDBTestCase):
+class InstanceDataDAOTestCase(ContextWrappedDBTestCase):
 
     def setUp(self):
-        super(VmDataDAOTestCase, self).setUp()
-        self.vm_id = 'VMID'
+        super(InstanceDataDAOTestCase, self).setUp()
+        self.instance_id = 'VMID'
         self.expires_at = datetime(2012, 10, 11, 12, 13, 14)
         self.remind_at = datetime(2012, 10, 11, 9, 8, 7)
-        VmDataDAO.create(self.vm_id, self.expires_at, self.remind_at)
+        InstanceDataDAO.create(self.instance_id,
+                               self.expires_at, self.remind_at)
 
     def test_get(self):
-        vmdata = VmDataDAO.get(self.vm_id)
-        self.assertEquals(self.vm_id, vmdata.vm_id)
-        self.assertEquals(self.expires_at, vmdata.expires_at)
-        self.assertEquals(self.remind_at, vmdata.remind_at)
+        instancedata = InstanceDataDAO.get(self.instance_id)
+        self.assertEquals(self.instance_id, instancedata.instance_id)
+        self.assertEquals(self.expires_at, instancedata.expires_at)
+        self.assertEquals(self.remind_at, instancedata.remind_at)
 
     def test_get_none(self):
-        vmdata = VmDataDAO.get('non-existing id')
-        self.assertEquals(vmdata, None)
+        instancedata = InstanceDataDAO.get('non-existing id')
+        self.assertEquals(instancedata, None)
 
     def test_update_expires_at(self):
         new_expires_at = self.expires_at + timedelta(days=30)
-        VmDataDAO.update(self.vm_id, expires_at=new_expires_at)
+        InstanceDataDAO.update(self.instance_id, expires_at=new_expires_at)
         self.assertEquals(new_expires_at,
-                          VmDataDAO.get(self.vm_id).expires_at)
+                          InstanceDataDAO.get(self.instance_id).expires_at)
 
     def test_update_expires_not_found(self):
-        vm_id = 'OTHER_TEST_VMID'
-        VmDataDAO.update(vm_id, expires_at=self.expires_at)
+        instance_id = 'OTHER_TEST_VMID'
+        InstanceDataDAO.update(instance_id, expires_at=self.expires_at)
         self.assertEquals(self.expires_at,
-                          VmDataDAO.get(vm_id).expires_at)
+                          InstanceDataDAO.get(instance_id).expires_at)
 
     def test_update_expires_at_to_none(self):
-        VmDataDAO.update(self.vm_id, expires_at=None)
+        InstanceDataDAO.update(self.instance_id, expires_at=None)
         self.assertEquals(None,
-                          VmDataDAO.get(self.vm_id).expires_at)
+                          InstanceDataDAO.get(self.instance_id).expires_at)
 
     def test_update_remind_at(self):
         new_remind_at = self.remind_at + timedelta(days=30)
-        VmDataDAO.update(self.vm_id, remind_at=new_remind_at)
+        InstanceDataDAO.update(self.instance_id, remind_at=new_remind_at)
         self.assertEquals(new_remind_at,
-                          VmDataDAO.get(self.vm_id).remind_at)
+                          InstanceDataDAO.get(self.instance_id).remind_at)
 
     def test_update_remind_at_to_none(self):
-        VmDataDAO.update(self.vm_id, remind_at=None)
+        InstanceDataDAO.update(self.instance_id, remind_at=None)
         self.assertEquals(None,
-                          VmDataDAO.get(self.vm_id).remind_at)
+                          InstanceDataDAO.get(self.instance_id).remind_at)
 
     def test_list_all(self):
-        l = list(VmDataDAO.list_all())
-        self.assertEquals(l, [VmDataDAO.get(self.vm_id)])
+        l = list(InstanceDataDAO.list_all())
+        self.assertEquals(l, [InstanceDataDAO.get(self.instance_id)])
 
     def test_expired_list(self):
-        l = list(VmDataDAO.expired_list(self.expires_at))
-        self.assertEquals(l, [VmDataDAO.get(self.vm_id)])
+        l = list(InstanceDataDAO.expired_list(self.expires_at))
+        self.assertEquals(l, [InstanceDataDAO.get(self.instance_id)])
 
     def test_expired_list_empty(self):
         one_day_before = self.expires_at - timedelta(days=1)
-        l = list(VmDataDAO.expired_list(one_day_before))
+        l = list(InstanceDataDAO.expired_list(one_day_before))
         self.assertEquals(l, [])
 
     def test_remind_list(self):
-        l = list(VmDataDAO.remind_list(self.remind_at))
-        self.assertEquals(l, [VmDataDAO.get(self.vm_id)])
+        l = list(InstanceDataDAO.remind_list(self.remind_at))
+        self.assertEquals(l, [InstanceDataDAO.get(self.instance_id)])
 
     def test_remind_list_empty(self):
         one_day_before = self.remind_at - timedelta(days=1)
-        l = list(VmDataDAO.remind_list(one_day_before))
+        l = list(InstanceDataDAO.remind_list(one_day_before))
         self.assertEquals(l, [])
 
     def test_delete_deletes(self):
-        self.assertTrue(VmDataDAO.delete(self.vm_id))
-        self.assertEquals(None, VmDataDAO.get(self.vm_id))
+        self.assertTrue(InstanceDataDAO.delete(self.instance_id))
+        self.assertEquals(None, InstanceDataDAO.get(self.instance_id))
 

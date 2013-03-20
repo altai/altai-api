@@ -1,7 +1,7 @@
 {% if greeting %}
 Dear {{greeting}}:
 {% endif %}
-We would like to remind you about a VM running at {{installation_name}}.
+We would like to remind you about a instance running at {{installation_name}}.
 
 name: {{name}}
 id: {{id}}

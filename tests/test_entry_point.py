@@ -51,7 +51,7 @@ class EntryPointTestCase(TestCase):
                 'networks-href': '/v1/networks/',
                 'fw-rule-sets-href': '/v1/fw-rule-sets/',
                 'users-href': '/v1/users/',
-                'vms-href': '/v1/vms/',
+                'instances-href': '/v1/instances/',
                 'instance-types-href': '/v1/instance-types/',
                 'stats-href': '/v1/stats',
                 'images-href': '/v1/images/',

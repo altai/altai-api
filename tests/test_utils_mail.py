@@ -143,10 +143,11 @@ class MailTestCase(MockedTestCase):
                 link_template='https://localhost/?code={{code}}',
                 greeting='User Userowich')
 
-    def test_send_vm_reminder_works(self):
+    def test_send_instance_reminder_works(self):
         class IsCorrectMail(mox.Comparator):
             def equals(inner_self, message):
-                self.assertEquals('Reminder about VM VM_NAME', message.subject)
+                self.assertEquals('Reminder about instance VM_NAME',
+                                  message.subject)
                 self.assertTrue('2013-01-18 17:16:15 UTC' in message.body)
                 return True
 
@@ -155,14 +156,15 @@ class MailTestCase(MockedTestCase):
 
         with self.app.test_request_context():
             g.config = self.config
-            mail.send_vm_reminder('uuserovich@example.com',
+            mail.send_instance_reminder('uuserovich@example.com',
                                   'VM_NAME', 'VM_ID',
                                   datetime(2013, 1, 18, 17, 16, 15, 14))
 
-    def test_send_vm_reminder_works_without_expires(self):
+    def test_send_instance_reminder_works_without_expires(self):
         class IsCorrectMail(mox.Comparator):
             def equals(inner_self, message):
-                self.assertEquals('Reminder about VM VM_NAME', message.subject)
+                self.assertEquals('Reminder about instance VM_NAME',
+                                  message.subject)
                 self.assertTrue('DELETED' not in message.body)
                 return True
 
@@ -171,6 +173,6 @@ class MailTestCase(MockedTestCase):
 
         with self.app.test_request_context():
             g.config = self.config
-            mail.send_vm_reminder('uuserovich@example.com',
+            mail.send_instance_reminder('uuserovich@example.com',
                                   'VM_NAME', 'VM_ID')
 

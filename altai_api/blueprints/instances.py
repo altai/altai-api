@@ -42,33 +42,36 @@ from altai_api.blueprints.users import link_for_user_id
 from altai_api.blueprints.projects import link_for_project
 from altai_api.blueprints.images import link_for_image
 
-from altai_api.db.vm_data import VmDataDAO
+from altai_api.db.instance_data import InstanceDataDAO
 
 from novaclient.v1_1.servers import REBOOT_SOFT, REBOOT_HARD
 
 
-BP = Blueprint('vms', __name__)
+BP = Blueprint('instances', __name__)
 
 
 def link_for_server(server):
     return {
         u'id': server.id,
-        u'href': url_for('vms.get_vm', vm_id=server.id),
+        u'href': url_for('instances.get_instance', instance_id=server.id),
         u'name': server.name
     }
 
 
-def _vm_from_nova(server):
+def _instance_from_nova(server):
     client = admin_client_set()
     project_link = link_for_project(server.tenant_id)
     flavor = client.compute.flavors.get(server.flavor['id'])
     user_link = link_for_user_id(server.user_id)
     image_link = link_for_image(server.image['id'])
-    vmdata = VmDataDAO.get(server.id)
+    instancedata = InstanceDataDAO.get(server.id)
+
+    href_for = lambda endpoint: url_for(endpoint,
+                                        instance_id=server.id)
 
     result = {
         u'id': server.id,
-        u'href': url_for('vms.get_vm', vm_id=server.id),
+        u'href': href_for('instances.get_instance'),
         u'name': server.name,
         u'project': project_link,
         u'created-by': user_link,
@@ -85,29 +88,28 @@ def _vm_from_nova(server):
                   for val in server.addresses.itervalues()
                   for elem in val if elem['version'] == 4],
         u'actions': {
-            u'reboot': url_for('vms.reboot_vm', vm_id=server.id),
-            u'reset': url_for('vms.reset_vm', vm_id=server.id),
-            u'remove': url_for('vms.remove_vm', vm_id=server.id),
-            u'vnc': url_for('vms.vm_vnc_console', vm_id=server.id),
-            u'console-output': url_for('vms.vm_console_output',
-                                       vm_id=server.id),
+            u'reboot': href_for('instances.reboot_instance'),
+            u'reset': href_for('instances.reset_instance'),
+            u'remove': href_for('instances.remove_instance'),
+            u'vnc': href_for('instances.instance_vnc_console'),
+            u'console-output': href_for('instances.instance_console_output')
         }
     }
-    if vmdata:
-        if vmdata.expires_at is not None:
-            result[u'expires-at'] = vmdata.expires_at
-        if vmdata.remind_at is not None:
-            result[u'remind-at'] = vmdata.remind_at
+    if instancedata:
+        if instancedata.expires_at is not None:
+            result[u'expires-at'] = instancedata.expires_at
+        if instancedata.remind_at is not None:
+            result[u'remind-at'] = instancedata.remind_at
     return result
 
 
-def fetch_vm(vm_id):
+def fetch_instance(instance_id):
     try:
-        vm = admin_client_set().compute.servers.get(vm_id)
+        instance = admin_client_set().compute.servers.get(instance_id)
     except osc_exc.NotFound:
         abort(404)
-    assert_admin_or_project_user(vm.tenant_id, eperm_status=404)
-    return vm
+    assert_admin_or_project_user(instance.tenant_id, eperm_status=404)
+    return instance
 
 
 _SCHEMA = Schema((
@@ -151,23 +153,23 @@ def _servers_for_user():
 
 
 @BP.route('/', methods=('GET',))
-@root_endpoint('vms')
+@root_endpoint('instances')
 @user_endpoint
-def list_vms():
+def list_instances():
     parse_collection_request(_SCHEMA.sortby)
     if g.my_projects:
         servers = _servers_for_user()
     else:
         servers = g.client_set.compute.servers.list(
                 search_opts={'all_tenants': 1})
-    return make_collection_response( u'vms', [_vm_from_nova(vm)
-                                              for vm in servers])
+    result = [_instance_from_nova(instance) for instance in servers]
+    return make_collection_response(u'instances', result)
 
 
-@BP.route('/<vm_id>', methods=('GET',))
+@BP.route('/<instance_id>', methods=('GET',))
 @user_endpoint
-def get_vm(vm_id):
-    return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
+def get_instance(instance_id):
+    return make_json_response(_instance_from_nova(fetch_instance(instance_id)))
 
 
 def _security_group_ids_to_names(security_groups_ids, sg_manager):
@@ -191,7 +193,7 @@ def _security_group_ids_to_names(security_groups_ids, sg_manager):
 
 @BP.route('/', methods=('POST',))
 @user_endpoint
-def create_vm():
+def create_instance():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
     tcs = client_set_for_tenant(data['project'])
@@ -207,7 +209,7 @@ def create_vm():
             key_name=data.get('ssh-key-pair'),
             admin_pass=data.get('admin-pass'))
         if 'expires-at' in data or 'remind-at' in data:
-            VmDataDAO.create(server.id,
+            InstanceDataDAO.create(server.id,
                              expires_at=data.get('expires-at'),
                              remind_at=data.get('remind-at'))
     except osc_exc.OverLimit, e:
@@ -217,63 +219,63 @@ def create_vm():
             'message': 'Limits exceeded (%s)' % str(e)
         })
     set_audit_resource_id(server)
-    return make_json_response(_vm_from_nova(server))
+    return make_json_response(_instance_from_nova(server))
 
 
-@BP.route('/<vm_id>', methods=('PUT',))
+@BP.route('/<instance_id>', methods=('PUT',))
 @user_endpoint
-def update_vm(vm_id):
+def update_instance(instance_id):
     data = parse_request_data(_SCHEMA.updatable)
     if 'name' in data:
         try:
-            fetch_vm(vm_id).update(name=data['name'])
+            fetch_instance(instance_id).update(name=data['name'])
         except osc_exc.NotFound:
             abort(404)
-    vm = fetch_vm(vm_id)
+    instance = fetch_instance(instance_id)
 
-    for_vm_data = {}
+    for_instance_data = {}
     if 'expires-at' in data:
-        for_vm_data['expires_at'] = data['expires-at']
+        for_instance_data['expires_at'] = data['expires-at']
     if 'remind-at' in data:
-        for_vm_data['remind_at'] = data['remind-at']
-    if for_vm_data:
-        VmDataDAO.update(vm.id, **for_vm_data)
+        for_instance_data['remind_at'] = data['remind-at']
+    if for_instance_data:
+        InstanceDataDAO.update(instance.id, **for_instance_data)
 
-    set_audit_resource_id(vm)
-    return make_json_response(_vm_from_nova(vm))
+    set_audit_resource_id(instance)
+    return make_json_response(_instance_from_nova(instance))
 
 
-def _do_remove_vm(vm_id):
-    """The real VM removal implementation"""
+def _do_remove_instance(instance_id):
+    """The real instance removal implementation"""
     try:
-        fetch_vm(vm_id).delete()
+        fetch_instance(instance_id).delete()
     except osc_exc.NotFound:
         abort(404)
 
-    VmDataDAO.delete(vm_id)
+    InstanceDataDAO.delete(instance_id)
     try:
-        return fetch_vm(vm_id)
+        return fetch_instance(instance_id)
     except HTTPException:
         return None
 
 
-@BP.route('/<vm_id>/remove', methods=('POST',))
+@BP.route('/<instance_id>/remove', methods=('POST',))
 @user_endpoint
-def remove_vm(vm_id):
+def remove_instance(instance_id):
     parse_request_data()
-    server = _do_remove_vm(vm_id)
-    set_audit_resource_id(vm_id)
+    server = _do_remove_instance(instance_id)
+    set_audit_resource_id(instance_id)
     if server is not None:
-        return make_json_response(_vm_from_nova(server))
+        return make_json_response(_instance_from_nova(server))
     else:
         return make_json_response(None, status_code=204)
 
 
-@BP.route('/<vm_id>', methods=('DELETE',))
+@BP.route('/<instance_id>', methods=('DELETE',))
 @user_endpoint
-def delete_vm(vm_id):
-    set_audit_resource_id(vm_id)
-    server = _do_remove_vm(vm_id)
+def delete_instance(instance_id):
+    set_audit_resource_id(instance_id)
+    server = _do_remove_instance(instance_id)
     if server is not None:
         # TODO(imelnikov): wait for server to be gone if Expect: 202-Accepted
         #                  is not in request headers
@@ -282,67 +284,67 @@ def delete_vm(vm_id):
         return make_json_response(None, status_code=204)
 
 
-def _do_reboot_vm(vm_id, method):
+def _do_reboot_instance(instance_id, method):
     """Rebooting implementation.
 
     Reboot and reset actions differ only by one parameter. Their
     common code lives here.
 
     """
-    set_audit_resource_id(vm_id)
+    set_audit_resource_id(instance_id)
     parse_request_data()
     try:
-        fetch_vm(vm_id).reboot(method)
+        fetch_instance(instance_id).reboot(method)
     except osc_exc.NotFound:
         abort(404)
     # Fetch it again, with new status:
-    return make_json_response(_vm_from_nova(fetch_vm(vm_id)))
+    return make_json_response(_instance_from_nova(fetch_instance(instance_id)))
 
 
-@BP.route('/<vm_id>/reboot', methods=('POST',))
+@BP.route('/<instance_id>/reboot', methods=('POST',))
 @user_endpoint
-def reboot_vm(vm_id):
-    return _do_reboot_vm(vm_id, REBOOT_SOFT)
+def reboot_instance(instance_id):
+    return _do_reboot_instance(instance_id, REBOOT_SOFT)
 
 
-@BP.route('/<vm_id>/reset', methods=('POST',))
+@BP.route('/<instance_id>/reset', methods=('POST',))
 @user_endpoint
-def reset_vm(vm_id):
-    return _do_reboot_vm(vm_id, REBOOT_HARD)
+def reset_instance(instance_id):
+    return _do_reboot_instance(instance_id, REBOOT_HARD)
 
 
-@BP.route('/<vm_id>/console-output', methods=('POST',))
+@BP.route('/<instance_id>/console-output', methods=('POST',))
 @user_endpoint
-def vm_console_output(vm_id):
-    set_audit_resource_id(vm_id)
+def instance_console_output(instance_id):
+    set_audit_resource_id(instance_id)
     length = int_from_string(request.args.get('length'), allow_none=True)
     g.unused_args.discard('length')
 
     try:
-        server = fetch_vm(vm_id)
+        server = fetch_instance(instance_id)
         data = server.get_console_output(length=length)
     except osc_exc.NotFound:
         abort(404)
 
     return make_json_response({
-        'vm': link_for_server(server),
+        'instance': link_for_server(server),
         'console-output': data
     })
 
 
-@BP.route('/<vm_id>/vnc', methods=('POST',))
+@BP.route('/<instance_id>/vnc', methods=('POST',))
 @user_endpoint
-def vm_vnc_console(vm_id):
-    set_audit_resource_id(vm_id)
+def instance_vnc_console(instance_id):
+    set_audit_resource_id(instance_id)
 
     try:
-        server = fetch_vm(vm_id)
+        server = fetch_instance(instance_id)
         vnc = server.get_vnc_console(console_type='novnc')['console']
     except osc_exc.NotFound:
         abort(404)
 
     return make_json_response({
-        'vm': link_for_server(server),
+        'instance': link_for_server(server),
         'url': vnc['url'],
         'console-type': vnc['type']
     })

@@ -35,7 +35,7 @@ class StatsTestCase(MockedTestCase):
 
         expected = {
             'projects': 3,
-            'vms': 14,
+            'instances': 14,
             'users': 9,
             'total-images': 5,
             'global-images': 2
@@ -47,7 +47,7 @@ class StatsTestCase(MockedTestCase):
         cs.identity_admin.users.list()\
                 .AndReturn(['user%s' % i for i in xrange(9)])
         cs.compute.servers.list(search_opts={'all_tenants': 1})\
-                .AndReturn(['vm%s' % i for i in xrange(14)])
+                .AndReturn(['instance%s' % i for i in xrange(14)])
         stats.list_all_images(cs.image.images).AndReturn(images)
 
         self.mox.ReplayAll()

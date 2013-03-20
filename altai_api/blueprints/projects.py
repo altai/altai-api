@@ -84,7 +84,7 @@ def _project_from_nova(tenant, net, quotaset):
         result[u'cpus-limit'] = quotaset.cores
         result[u'ram-limit'] = from_mb(quotaset.ram)
         result[u'storage-limit'] = from_gb(quotaset.gigabytes)
-        result[u'vms-limit'] = quotaset.instances
+        result[u'instances-limit'] = quotaset.instances
     return result
 
 
@@ -134,12 +134,12 @@ _SCHEMA = Schema((
     st.Int('cpus-limit'),
     st.Int('ram-limit'),
     st.Int('storage-limit'),
-    st.Int('vms-limit')),
+    st.Int('instances-limit')),
 
     create_required=('name', 'network'),
     allowed=(  # both on creation and update
         'description', 'cpus-limit', 'ram-limit',
-        'storage-limit', 'vms-limit')
+        'storage-limit', 'instances-limit')
 )
 
 
@@ -179,7 +179,7 @@ def get_project_stats(project_id):
 
     return make_json_response({
         u'project': link_for_tenant(tenant),
-        u'vms': len(servers),
+        u'instances': len(servers),
         u'members': len(users),
         u'local-images': len(local_images),
         u'total-images': len(images)
@@ -196,8 +196,8 @@ def _set_quota(tenant_id, data):
         kwargs['ram'] = to_mb(data.get('ram-limit'))
     if 'storage-limit' in data:
         kwargs['gigabytes'] = to_gb(data.get('storage-limit'))
-    if 'vms-limit' in data:
-        kwargs['instances'] = data.get('vms-limit')
+    if 'instances-limit' in data:
+        kwargs['instances'] = data.get('instances-limit')
 
     if kwargs:
         g.client_set.compute.quotas.update(tenant_id, **kwargs)
@@ -258,7 +258,7 @@ def delete_project(project_id):
     #   takes a lot of time, so to avoid races we don't delete them here
     if _project_has_servers(project_id):
         raise exc.InvalidRequest("Can't delete project "
-                                 "while there are VMs in it")
+                                 "while there are instances in it")
 
     # NOTE(imelnikov): image deletion would work OK here, but for consistency
     #   and safety we opt for check instead

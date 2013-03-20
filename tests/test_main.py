@@ -50,7 +50,7 @@ class MainTestCase(mox.MoxTestBase):
         self.mox.StubOutWithMock(main, 'app')
         self.mox.StubOutWithMock(main, 'setup_logging')
         self.mox.StubOutWithMock(main, 'check_connection')
-        self.mox.StubOutWithMock(main.vms_jobs, 'jobs_factory')
+        self.mox.StubOutWithMock(main.instances_jobs, 'jobs_factory')
 
     def tearDown(self):
         main.CONFIG_ENV = self.config_env
@@ -64,7 +64,7 @@ class MainTestCase(mox.MoxTestBase):
 
         main.setup_logging(main.app)
         main.check_connection().AndReturn(True)
-        main.vms_jobs.jobs_factory(main.app).AndReturn(jobs)
+        main.instances_jobs.jobs_factory(main.app).AndReturn(jobs)
         main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
         jobs[0].cancel().AndRaise(RuntimeError('ignore me'))
@@ -92,7 +92,7 @@ class MainTestCase(mox.MoxTestBase):
                 .WithSideEffects(side_effect)
         main.setup_logging(main.app)
         main.check_connection().AndReturn(True)
-        main.vms_jobs.jobs_factory(main.app).AndReturn([])
+        main.instances_jobs.jobs_factory(main.app).AndReturn([])
         main.app.run(use_reloader=False,
                      host='127.0.0.1', port=42)
         self.mox.ReplayAll()

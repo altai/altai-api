@@ -22,59 +22,60 @@
 from altai_api.db import DB
 
 
-class VmData(DB.Model):
-    """Model for Altai-API specific extra VM data"""
-    __tablename__ = 'vm_data'
+class InstanceData(DB.Model):
+    """Model for Altai-API specific extra instance data"""
+    __tablename__ = 'instance_data'
 
-    vm_id = DB.Column(DB.String(64), primary_key=True)
+    instance_id = DB.Column(DB.String(64), primary_key=True)
     expires_at = DB.Column(DB.DateTime)
     remind_at = DB.Column(DB.DateTime)
 
 
-class VmDataDAO(object):
+class InstanceDataDAO(object):
 
     @staticmethod
-    def create(vm_id, expires_at, remind_at):
-        DB.session.add(VmData(vm_id=vm_id,
+    def create(instance_id, expires_at, remind_at):
+        DB.session.add(InstanceData(instance_id=instance_id,
                               expires_at=expires_at,
                               remind_at=remind_at))
         DB.session.commit()
 
     @staticmethod
-    def get(vm_id):
-        return VmData.query.get(vm_id)
+    def get(instance_id):
+        return InstanceData.query.get(instance_id)
 
     @staticmethod
-    def update(vm_id, **kwargs):
-        vmdata = VmData(vm_id=vm_id)
+    def update(instance_id, **kwargs):
+        instancedata = InstanceData(instance_id=instance_id)
         if 'expires_at' in kwargs:
-            vmdata.expires_at = kwargs['expires_at']
+            instancedata.expires_at = kwargs['expires_at']
         if 'remind_at' in kwargs:
-            vmdata.remind_at = kwargs['remind_at']
-        DB.session.merge(vmdata)
+            instancedata.remind_at = kwargs['remind_at']
+        DB.session.merge(instancedata)
         DB.session.commit()
 
     @staticmethod
     def list_all():
-        return VmData.query
+        return InstanceData.query
 
     @staticmethod
     def expired_list(now):
-        return VmData.query.filter(VmData.expires_at <= now)
+        return InstanceData.query.filter(InstanceData.expires_at <= now)
 
     @staticmethod
     def remind_list(now):
-        return VmData.query.filter(VmData.remind_at <= now)
+        return InstanceData.query.filter(InstanceData.remind_at <= now)
 
     @staticmethod
-    def delete(vm_id):
-        """Delete data for machine with id vm_id
+    def delete(instance_id):
+        """Delete data for machine with id instance_id
 
         Returns True if any records were deleted, False otherwise.
 
         """
-        num = VmData.query.filter(VmData.vm_id == vm_id).delete()
+        num = InstanceData.query\
+                .filter(InstanceData.instance_id == instance_id)\
+                .delete()
         DB.session.commit()
         return num > 0
-
 

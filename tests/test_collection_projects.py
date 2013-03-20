@@ -46,7 +46,7 @@ class ConvertersTestCase(MockedTestCase):
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
-            u'vms-limit': 10,
+            u'instances-limit': 10,
             u'stats-href': u'/v1/projects/c4fc65e/stats',
             u'network': {
                 u'id': u'2699a5',
@@ -73,7 +73,7 @@ class ConvertersTestCase(MockedTestCase):
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
-            u'vms-limit': 10,
+            u'instances-limit': 10,
             u'stats-href': u'/v1/projects/c4fc65e/stats',
             'network': None
         }
@@ -356,7 +356,7 @@ class ProjectStatsTestCase(MockedTestCase):
                 u'name': u'test project'
             },
             u'members': 42,
-            u'vms': 3,
+            u'instances': 3,
             u'local-images': 0,
             u'total-images': 0
         }
@@ -537,7 +537,7 @@ class DeleteProjectTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
         data = self.interact(expected_status_code=400)
-        self.assertTrue('VMs' in data.get('message'))
+        self.assertTrue('instances in it' in data.get('message'))
 
     def test_project_deletion_with_images_fails(self):
         self.fake_client_set.identity_admin \
@@ -640,7 +640,7 @@ class UpdateProjectTestCase(MockedTestCase):
             u'cpus-limit': 13,
             u'ram-limit': 11 * gb,
             u'storage-limit': 1000 * gb,
-            u'vms-limit': 8
+            u'instances-limit': 8
         }
 
         self.fake_client_set.identity_admin \
