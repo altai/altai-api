@@ -37,6 +37,7 @@ class InvitesTestCase(MockedTestCase):
         super(InvitesTestCase, self).setUp()
         self.mox.StubOutWithMock(invites, 'InvitesDAO')
         self.mox.StubOutWithMock(invites, 'user_from_nova')
+        self.mox.StubOutWithMock(invites.auth, 'admin_client_set')
 
         self.code = '42'
         self.token = Token(code=self.code,
@@ -45,11 +46,10 @@ class InvitesTestCase(MockedTestCase):
                                  id='UID', name='self.user', enabled=False)
 
         self.fake_client_set = self._fake_client_set_factory()
-        self.mox.StubOutWithMock(invites, 'admin_client_set')
 
     def test_get_works(self):
         invites.InvitesDAO.get(self.code).AndReturn(self.token)
-        invites.admin_client_set() \
+        invites.auth.admin_client_set() \
                 .AndReturn(self.fake_client_set)
         self.fake_client_set.identity_admin.users.get(self.user.id)\
                 .AndReturn(self.user)
@@ -63,7 +63,7 @@ class InvitesTestCase(MockedTestCase):
     def test_complete_invite_404(self):
         self.token.complete = True
 
-        invites.admin_client_set() \
+        invites.auth.admin_client_set() \
                 .AndReturn(self.fake_client_set)
         invites.InvitesDAO.get(self.code).AndReturn(self.token)
 
@@ -74,7 +74,7 @@ class InvitesTestCase(MockedTestCase):
 
     def test_user_not_found(self):
         invites.InvitesDAO.get(self.code).AndReturn(self.token)
-        invites.admin_client_set() \
+        invites.auth.admin_client_set() \
                 .AndReturn(self.fake_client_set)
         self.fake_client_set.identity_admin.users.get('UID')\
                 .AndRaise(osc_exc.NotFound('failure'))
@@ -88,7 +88,7 @@ class InvitesTestCase(MockedTestCase):
         self.user.enabled = True
 
         invites.InvitesDAO.get(self.code).AndReturn(self.token)
-        invites.admin_client_set() \
+        invites.auth.admin_client_set() \
                 .AndReturn(self.fake_client_set)
         self.fake_client_set.identity_admin.users.get(self.user.id)\
                 .AndReturn(self.user)
@@ -103,14 +103,16 @@ class InvitesTestCase(MockedTestCase):
         user_mgr = self.fake_client_set.identity_admin.users
 
         invites.InvitesDAO.get(self.code).AndReturn(self.token)
-        invites.admin_client_set() \
-                .AndReturn(self.fake_client_set)
+        invites.auth.admin_client_set().AndReturn(self.fake_client_set)
         user_mgr.get(self.user.id).AndReturn(self.user)
-        user_mgr.update(self.user.id, enabled=True)
-        user_mgr.update_password(self.user.id, '123')
-        invites.InvitesDAO.complete_for_user(self.user.id)
+        invites.auth.admin_client_set().AndReturn(self.fake_client_set)
+        user_mgr.update(self.user, enabled=True)
+        user_mgr.update_password(self.user, '123')
 
+        invites.auth.admin_client_set().AndReturn(self.fake_client_set)
         user_mgr.get(self.user.id).AndReturn(self.user)
+
+        invites.InvitesDAO.complete_for_user(self.user.id)
         invites.user_from_nova(self.user, self.token).AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -123,12 +125,38 @@ class InvitesTestCase(MockedTestCase):
     def test_accept_late_not_found(self):
         params = { 'password': '123' }
 
-        invites.admin_client_set() \
+        invites.auth.admin_client_set() \
                 .AndReturn(self.fake_client_set)
         invites.InvitesDAO.get(self.code).AndReturn(self.token)
         user_mgr = self.fake_client_set.identity_admin.users
         user_mgr.get(self.user.id).AndReturn(self.user)
-        user_mgr.update(self.user.id, enabled=True)\
+        invites.auth.admin_client_set() \
+                .AndReturn(self.fake_client_set)
+        user_mgr.update(self.user, enabled=True)\
+                .AndRaise(osc_exc.NotFound('failure'))
+
+        self.mox.ReplayAll()
+        rv = self.client.put('/v1/invites/%s' % self.code,
+                             data=json.dumps(params),
+                             content_type='application/json')
+        self.check_and_parse_response(rv, status_code=404,
+                                      authenticated=False)
+
+    def test_accept_latest_not_found(self):
+        params = { 'password': '123' }
+
+        invites.auth.admin_client_set() \
+                .AndReturn(self.fake_client_set)
+        invites.InvitesDAO.get(self.code).AndReturn(self.token)
+        user_mgr = self.fake_client_set.identity_admin.users
+        user_mgr.get(self.user.id).AndReturn(self.user)
+        invites.auth.admin_client_set() \
+                .AndReturn(self.fake_client_set)
+        user_mgr.update(self.user, enabled=True)
+        user_mgr.update_password(self.user, '123')
+
+        invites.auth.admin_client_set().AndReturn(self.fake_client_set)
+        user_mgr.get(self.user.id)\
                 .AndRaise(osc_exc.NotFound('failure'))
 
         self.mox.ReplayAll()

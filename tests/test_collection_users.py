@@ -620,7 +620,6 @@ class UpdateUserSelfTestCase(MockedTestCase):
 
     def test_update_self(self):
         users.fetch_user(self.user.id, False).AndReturn(self.user)
-        users.auth.current_user_id().AndReturn(self.user.id)  # to compare
         self.fake_client_set.identity_admin \
                     .users.update(self.user, name=self.name) \
                     .AndReturn('new-user')
@@ -635,20 +634,6 @@ class UpdateUserSelfTestCase(MockedTestCase):
                               content_type='application/json')
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, 'new-user-dict')
-
-    def test_update_paranoia(self):
-        # NOTE(imelnikov): this can never happen, as other users
-        # are 'invisible', but it's still better to double check
-        users.fetch_user(self.user.id, False).AndReturn(self.user)
-        users.auth.current_user_id().AndReturn('OTHER_UID')  # to compare
-
-        self.mox.ReplayAll()
-
-        post_params = { "name": self.name }
-        rv = self.client.put('/v1/users/%s' % self.user.id,
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-        self.check_and_parse_response(rv, status_code=403)
 
 
 class DeleteUserTestCase(MockedTestCase):

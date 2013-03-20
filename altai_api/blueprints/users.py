@@ -271,15 +271,12 @@ def _invite_user(user, data):
 
 
 def update_user_data(user, data):
-    if not g.is_admin and user.id != auth.current_user_id():
-        abort(403)
-    user_mgr = auth.admin_client_set().identity_admin.users
-
     fields_to_update = {}
     for key in ('name', 'email', 'fullname', 'enabled'):
         if key in data:
             fields_to_update[key] = data[key]
 
+    user_mgr = auth.admin_client_set().identity_admin.users
     try:
         if fields_to_update:
             user_mgr.update(user, **fields_to_update)
@@ -294,6 +291,7 @@ def update_user_data(user, data):
 def update_user(user_id):
     param = parse_request_data(_SCHEMA.updatable)
     user = fetch_user(user_id, g.is_admin)
+
     set_audit_resource_id(user_id)
     if 'admin' in param:
         auth.assert_admin()
