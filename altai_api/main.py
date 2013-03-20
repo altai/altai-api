@@ -39,9 +39,6 @@ app.config.from_object('altai_api.default_settings')
 from altai_api.db import DB
 DB.init_app(app)
 
-from altai_api.utils.mail import MAIL
-MAIL.init_app(app)
-
 from altai_api import entry_points
 from altai_api import stats
 from altai_api import error_handlers

@@ -24,9 +24,6 @@ from flask.ext import mail
 from altai_api import exceptions as exc
 
 
-MAIL = mail.Mail()
-
-
 def _render_link_template(template, code):
     link = template.replace('{{code}}', code)
     if '{{' in link or '{%' in link:
@@ -48,7 +45,7 @@ def _send_mail(email, link_template, subject, template, args):
     msg = mail.Message(subject % args, recipients=[email])
     msg.body = render_template(template, **args)
     try:
-        MAIL.send(msg)
+        mail.Mail(current_app).send(msg)
     except IOError, e:
         e.message = 'Failed to send e-mail'
         raise

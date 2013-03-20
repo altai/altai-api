@@ -31,7 +31,7 @@ from altai_api.utils import mail
 class MailTestCase(MockedTestCase):
     def setUp(self):
         super(MailTestCase, self).setUp()
-        self.mox.StubOutWithMock(mail, 'MAIL')
+        self.mox.StubOutClassWithMocks(mail.mail, 'Mail')
 
     def test_send_invitation_works(self):
         class IsCorrectMail(mox.Comparator):
@@ -42,7 +42,7 @@ class MailTestCase(MockedTestCase):
                                 in message.body)
                 return True
 
-        mail.MAIL.send(IsCorrectMail())
+        mail.mail.Mail(mail.current_app).send(IsCorrectMail())
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
@@ -59,7 +59,7 @@ class MailTestCase(MockedTestCase):
                 self.assertTrue('follow the link' not in message.body)
                 return True
 
-        mail.MAIL.send(IsCorrectMail())
+        mail.mail.Mail(mail.current_app).send(IsCorrectMail())
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
@@ -67,7 +67,8 @@ class MailTestCase(MockedTestCase):
                                  'THE_CODE')
 
     def test_send_invitation_ioerror(self):
-        mail.MAIL.send(mox.IsA(mail.mail.Message)).AndRaise(IOError('HI'))
+        mail.mail.Mail(mail.current_app).send(mox.IsA(mail.mail.Message))\
+                .AndRaise(IOError('HI'))
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
@@ -109,7 +110,7 @@ class MailTestCase(MockedTestCase):
                 self.assertTrue('THE_USERNAME' in message.body)
                 return True
 
-        mail.MAIL.send(IsCorrectMail())
+        mail.mail.Mail(mail.current_app).send(IsCorrectMail())
 
         self.mox.ReplayAll()
         with self.app.test_request_context():
@@ -125,7 +126,7 @@ class MailTestCase(MockedTestCase):
                 self.assertTrue('2013-01-18 17:16:15 UTC' in message.body)
                 return True
 
-        mail.MAIL.send(IsCorrectMail())
+        mail.mail.Mail(mail.current_app).send(IsCorrectMail())
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
@@ -140,7 +141,7 @@ class MailTestCase(MockedTestCase):
                 self.assertTrue('DELETED' not in message.body)
                 return True
 
-        mail.MAIL.send(IsCorrectMail())
+        mail.mail.Mail(mail.current_app).send(IsCorrectMail())
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
