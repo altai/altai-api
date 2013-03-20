@@ -251,10 +251,17 @@ class CreateUserTestCase(MockedTestCase):
         self.mox.StubOutWithMock(users, 'user_from_nova')
         self.mox.StubOutWithMock(users, 'member_role_id')
         self.mox.StubOutWithMock(ConfigDAO, 'get')
+        self.mox.StubOutWithMock(users, '_invite_user')
+
+    def _interact(self, data, expected_status_code=200):
+        rv = self.client.post('/v1/users/',
+                              data=json.dumps(data),
+                              content_type='application/json')
+        return self.check_and_parse_response(
+                rv, status_code=expected_status_code)
 
     def test_create_user(self):
         client = self.fake_client_set
-        # prepare
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         fullname = "User Userovich"
         client.identity_admin.users.create(
@@ -263,18 +270,13 @@ class CreateUserTestCase(MockedTestCase):
         client.identity_admin.users.update('new-user', fullname=fullname)
         users.user_from_nova('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
-        # test
-        post_params = {
+
+        data = self._interact({
             "email": email,
             "password": passw,
             "fullname": fullname,
             "admin": False,
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-
-        data = self.check_and_parse_response(rv)
+        })
         self.assertEquals(data, 'new-user-dict')
 
     def test_create_user_with_projects(self):
@@ -292,18 +294,13 @@ class CreateUserTestCase(MockedTestCase):
         users.user_from_nova('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
 
-        post_params = {
+        data = self._interact({
             "name": name,
             "email": email,
             "password": passw,
             "projects": ['PID1', 'PID2'],
             "admin": False,
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-
-        data = self.check_and_parse_response(rv)
+        })
         self.assertEquals(data, 'new-user-dict')
 
     def test_create_user_with_bad_projects(self):
@@ -320,18 +317,13 @@ class CreateUserTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
 
-        post_params = {
+        data = self._interact(expected_status_code=400, data={
             "name": name,
             "email": email,
             "password": passw,
             "projects": ['PID1', 'PID2'],
             "admin": False,
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-
-        data = self.check_and_parse_response(rv, 400)
+        })
         self.assertEquals('projects', data.get('element-name'))
         self.assertEquals('PID1', data.get('element-value'))
 
@@ -339,52 +331,40 @@ class CreateUserTestCase(MockedTestCase):
         name, email = 'user-a', 'user-a@example.com'
         self.mox.ReplayAll()
 
-        post_params = {
+        data = self._interact(expected_status_code=400, data={
             "name": name,
             "email": email,
             "projects": ['PID1', 'PID2'],
             "admin": False,
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-        data = self.check_and_parse_response(rv, 400)
+        })
         self.assertEquals('password', data.get('element-name'))
 
     def test_create_no_link_template(self):
         name, email, passw = 'user-a', 'user-a@example.com', 'bananas'
         self.mox.ReplayAll()
 
-        post_params = {
+        data = self._interact(expected_status_code=400, data={
             "name": name,
             "email": email,
             "password": passw,
             "projects": ['PID1', 'PID2'],
             "admin": False,
             "link-template": "http://{{code}}"
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-        data = self.check_and_parse_response(rv, 400)
+        })
         self.assertEquals('link-template', data.get('element-name'))
 
     def test_create_no_send_invite_mail(self):
         name, email, passw = 'user-a', 'user-a@example.com', 'bananas'
         self.mox.ReplayAll()
 
-        post_params = {
+        data = self._interact(expected_status_code=400, data={
             "name": name,
             "email": email,
             "password": passw,
             "projects": ['PID1', 'PID2'],
             "admin": False,
             "send-invite-mail": False
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-        data = self.check_and_parse_response(rv, 400)
+        })
         self.assertEquals('send-invite-mail', data.get('element-name'))
 
     def test_invites_disabled(self):
@@ -393,93 +373,60 @@ class CreateUserTestCase(MockedTestCase):
         ConfigDAO.get('invitations', 'enabled').AndReturn(False)
         self.mox.ReplayAll()
 
-        post_params = {
+        self._interact(expected_status_code=400, data={
             "name": name,
             "email": email,
             "password": passw,
             "admin": False,
             "invite": True,
             "link-template": link_template
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-
-        self.check_and_parse_response(rv, status_code=400)
+        })
 
     def test_invite_user(self):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         link_template = 'http://altai.example.com/invite?code={{code}}'
-        user = doubles.make(self.mox, doubles.User,
-                            id='UID', name=name, email=email, fullname='')
-        invite = Token(user_id=user.id, code='THE_CODE', complete=False)
-        self.mox.StubOutWithMock(users, 'send_invitation')
-        self.mox.StubOutWithMock(users, 'InvitesDAO')
-
-        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
-        ConfigDAO.get('invitations', 'domains-allowed').AndReturn([])
-        self.fake_client_set.identity_admin.users.create(
-            name=name, password=passw, email=email,
-            enabled=False).AndReturn(user)
-        users.InvitesDAO.create(user.id, email).AndReturn(invite)
-        users.send_invitation(email, 'THE_CODE',
-                              link_template, greeting='')
-        users.user_from_nova(user, invite, send_code=False)\
-                .AndReturn('new-user-dict')
-
-        self.mox.ReplayAll()
-
         post_params = {
             "name": name,
             "email": email,
             "password": passw,
-            "admin": False,
             "invite": True,
             "link-template": link_template
         }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
+        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
+        ConfigDAO.get('invitations', 'domains-allowed').AndReturn([])
+        self.fake_client_set.identity_admin.users.create(
+            name=name, password=passw, email=email,
+            enabled=False).AndReturn('NEW_USER')
+        users._invite_user('NEW_USER', post_params) \
+                .AndReturn('new-user-dict')
 
-        data = self.check_and_parse_response(rv)
+        self.mox.ReplayAll()
+
+        data = self._interact(post_params)
         self.assertEquals(data, 'new-user-dict')
 
     def test_invite_user_from_allowed_domain(self):
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         link_template = 'http://altai.example.com/invite?code={{code}}'
-        user = doubles.make(self.mox, doubles.User,
-                            id='UID', name=name, email=email, fullname='')
-        invite = Token(user_id=user.id, code='THE_CODE', complete=False)
-        self.mox.StubOutWithMock(users, 'send_invitation')
-        self.mox.StubOutWithMock(users, 'InvitesDAO')
-
+        post_params = {
+            "name": name,
+            "email": email,
+            "password": passw,
+            "invite": True,
+            "link-template": link_template
+        }
         ConfigDAO.get('invitations', 'enabled').AndReturn(True)
         ConfigDAO.get('invitations', 'domains-allowed')\
                 .AndReturn(['example.net', 'example.com'])
         self.fake_client_set.identity_admin.users.create(
             name=name, password=passw, email=email,
-            enabled=False).AndReturn(user)
-        users.InvitesDAO.create(user.id, email).AndReturn(invite)
-        users.send_invitation(email, 'THE_CODE',
-                              link_template, greeting='')
-        users.user_from_nova(user, invite, send_code=False)\
+            enabled=False).AndReturn('NEW_USER')
+        users._invite_user('NEW_USER', post_params) \
                 .AndReturn('new-user-dict')
 
         self.mox.ReplayAll()
 
-        post_params = {
-            "name": name,
-            "email": email,
-            "password": passw,
-            "admin": False,
-            "invite": True,
-            "link-template": link_template
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-
-        data = self.check_and_parse_response(rv)
+        data = self._interact(post_params)
         self.assertEquals(data, 'new-user-dict')
 
     def test_invite_user_from_bad_domain(self):
@@ -492,52 +439,14 @@ class CreateUserTestCase(MockedTestCase):
 
         self.mox.ReplayAll()
 
-        post_params = {
+        self._interact(expected_status_code=403, data={
             "name": name,
             "email": email,
             "password": passw,
             "admin": False,
             "invite": True,
             "link-template": link_template
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-
-        self.check_and_parse_response(rv, status_code=403)
-
-    def test_invite_user_no_mail(self):
-        (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
-        user = doubles.make(self.mox, doubles.User,
-                            id='UID', name=name, email=email)
-        invite = Token(user_id=user.id, code='THE_CODE', complete=False)
-        self.mox.StubOutWithMock(users, 'send_invitation')
-        self.mox.StubOutWithMock(users, 'InvitesDAO')
-
-        ConfigDAO.get('invitations', 'enabled').AndReturn(True)
-        ConfigDAO.get('invitations', 'domains-allowed').AndReturn([])
-        self.fake_client_set.identity_admin.users.create(
-            name=name, password=passw, email=email,
-            enabled=False).AndReturn(user)
-        users.InvitesDAO.create(user.id, email).AndReturn(invite)
-        users.user_from_nova(user, invite, send_code=True)\
-                .AndReturn('new-user-dict')
-
-        self.mox.ReplayAll()
-
-        post_params = {
-            "name": name,
-            "email": email,
-            "password": passw,
-            "send-invite-mail": False,
-            "invite": True,
-        }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-
-        data = self.check_and_parse_response(rv)
-        self.assertEquals(data, 'new-user-dict')
+        })
 
     def test_create_admin(self):
         client = self.fake_client_set
@@ -554,36 +463,24 @@ class CreateUserTestCase(MockedTestCase):
         users.user_from_nova(new_user).AndReturn('new-user-dict')
 
         self.mox.ReplayAll()
-        post_params = {"name": name, "email": email,
-                       "password": passw, "admin": True}
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
-        data = self.check_and_parse_response(rv)
+        data = self._interact({"name": name, "email": email,
+                               "password": passw, "admin": True})
         self.assertEquals(data, 'new-user-dict')
 
     def test_create_existing_user(self):
         client = self.fake_client_set
-        # prepare
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
-        fullname = "User Userovich"
         client.identity_admin.users.create(
             name=name, email=email, password=passw, enabled=True) \
                 .AndRaise(osc_exc.BadRequest('fail'))
-        self.mox.ReplayAll()
-        # test
-        post_params = {
-                       "name": name,
-                       "email": email,
-                       "password": passw,
-                       "fullname": fullname,
-                       "admin": False,
-                      }
-        rv = self.client.post('/v1/users/',
-                              data=json.dumps(post_params),
-                              content_type='application/json')
 
-        self.check_and_parse_response(rv, status_code=400)
+        self.mox.ReplayAll()
+        self._interact(expected_status_code=400, data={
+            "name": name,
+            "email": email,
+            "password": passw,
+            "admin": False,
+        })
 
 
 class UpdateUserTestCase(MockedTestCase):
