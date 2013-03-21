@@ -438,7 +438,23 @@ class ClientSetForTenantTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            self.assertAborts(403, auth.client_set_for_tenant, 'PID')
+            ex = self.assertAborts(403, auth.client_set_for_tenant, 'PID')
+            self.assertEquals(str(ex), "You are not member of project 'PID'")
+            self.assertEquals(ex.exc_type, 'AdministratorIsNotMemberOfTenant')
+
+    def test_client_set_for_tenant_forbidden_no_admin(self):
+        tcs = self._fake_client_set_factory()
+        self.mock_client_set().AndReturn(tcs)
+        tcs.http_client.authenticate()\
+                .AndRaise(Forbidden('denied'))
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            g.is_admin = False
+            ex = self.assertAborts(403, auth.client_set_for_tenant, 'PID')
+            self.assertNotEquals(getattr(ex, 'exc_type', None),
+                                 'AdministratorIsNotMemberOfTenant')
 
 
 class AdminClientSetTestCase(MockedTestCase):

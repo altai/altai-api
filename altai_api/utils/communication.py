@@ -49,7 +49,7 @@ def _json_default(obj):
     raise TypeError('%r is not JSON serializable' % obj)
 
 
-def make_json_response(data, status_code=200, location=None):
+def make_json_response(data, status_code=200, add_headers=None):
     """Make json response from response data.
     """
     if data is not None:
@@ -67,9 +67,12 @@ def make_json_response(data, status_code=200, location=None):
     else:
         data = ""
     response = current_app.make_response((data, status_code))
+
+    if add_headers:
+        for header, value in add_headers:
+            response.headers[header] = value
+
     response.headers['Content-Type'] = _JSON
-    if location is not None:
-        response.headers['Location'] = location
     if is_authenticated():
         response.headers['X-GD-Altai-Implementation'] = _IMPLEMENTATION
     return response
@@ -222,6 +225,6 @@ def _check_unused_args_empty(response):
         return response
     # exception raised here will not be passed to handlers
     # so, to be consistent, we call handler directly
-    return altai_api.error_handlers.altai_api_exception_handler(
+    return current_app.handle_user_exception(
         exc.UnknownArgument(g.unused_args.pop()))
 

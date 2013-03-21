@@ -24,6 +24,7 @@ from flask import current_app as app
 
 from openstackclient_base.client_set import ClientSet
 from openstackclient_base import exceptions as osc_exc
+from altai_api import exceptions as exc
 
 
 ATTRIBUTE_NAME = 'altai_api_endpoint_auth_type'
@@ -114,8 +115,14 @@ def client_set_for_tenant(tenant_id, eperm_status=403, fallback_to_api=False):
         cs = _client_set(token=g.client_set.http_client.access['token']['id'],
                          tenant_id=tenant_id)
     except (osc_exc.Unauthorized, osc_exc.Forbidden):
-        if fallback_to_api and g.is_admin:
-            return api_client_set(tenant_id)
+        if g.is_admin:
+            if fallback_to_api:
+                return api_client_set(tenant_id)
+            else:
+                raise exc.AltaiApiException(
+                        'You are not member of project %r' % tenant_id,
+                        status_code=eperm_status,
+                        exc_type='AdministratorIsNotMemberOfTenant')
         abort(eperm_status)
     return cs
 

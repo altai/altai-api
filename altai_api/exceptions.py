@@ -19,23 +19,24 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-import flask
 import traceback
 
 
 class AltaiApiException(Exception):
-    def __init__(self, message, status_code, reason=None):
+    def __init__(self, message, status_code, reason=None, exc_type=None):
         super(AltaiApiException, self).__init__(message)
         self.status_code = status_code
         self.reason = reason
+        if exc_type is not None:
+            self.exc_type = exc_type
+        else:
+            self.exc_type = self.__class__.__name__
 
     def get_response_object(self):
         lines = traceback.format_exception_only(type(self), self)
         result = {
             'message': '\n'.join(lines),
-            'path': flask.request.path,
-            'method': flask.request.method,
-            'error-type': self.__class__.__name__
+            'error-type': self.exc_type
         }
         if self.reason:
             result['reason'] = self.reason
@@ -45,14 +46,14 @@ class AltaiApiException(Exception):
 class InvalidRequest(AltaiApiException):
     """Exception raised on invalid requests"""
 
-    def __init__(self, message):
-        super(InvalidRequest, self).__init__(message, 400)
+    def __init__(self, message, reason=None):
+        super(InvalidRequest, self).__init__(message, 400, reason)
 
 
 class InvalidElement(InvalidRequest):
 
-    def __init__(self, message, name):
-        super(InvalidElement, self).__init__(message)
+    def __init__(self, message, name, reason=None):
+        super(InvalidElement, self).__init__(message, reason)
         self.name = name
 
     def get_response_object(self):
@@ -64,17 +65,17 @@ class InvalidElement(InvalidRequest):
 class UnknownElement(InvalidElement):
     """Exception raised when unknown elements are present in response"""
 
-    def __init__(self, name):
+    def __init__(self, name, reason=None):
         super(UnknownElement, self).__init__(
-            'Unknown resource element: %r' % name, name)
+            'Unknown resource element: %r' % name, name, reason)
 
 
 class MissingElement(InvalidElement):
     """Exception raised when required request elements are missing"""
 
-    def __init__(self, name):
+    def __init__(self, name, reason=None):
         super(MissingElement, self).__init__(
-            'Required element is missing: %r' % name, name)
+            'Required element is missing: %r' % name, name, reason)
 
 
 class InvalidElementValue(InvalidElement):
@@ -83,13 +84,9 @@ class InvalidElementValue(InvalidElement):
     def __init__(self, name, typename, value, reason=None):
         msg = 'Invalid value for element %s of type %s: %r' \
                 % (name, typename, value)
-        if reason:
-            msg = '%s (%s)' % (msg, reason)
-
-        super(InvalidElementValue, self).__init__(msg, name)
+        super(InvalidElementValue, self).__init__(msg, name, reason)
         self.typename = typename
         self.value = value
-        self.reason = reason
 
     def get_response_object(self):
         rv = super(InvalidElementValue, self).get_response_object()
@@ -101,8 +98,8 @@ class InvalidElementValue(InvalidElement):
 class InvalidArgument(InvalidRequest):
     """Exception raised when invalid argument is supplied for request"""
 
-    def __init__(self, message, name):
-        super(InvalidArgument, self).__init__(message)
+    def __init__(self, message, name, reason=None):
+        super(InvalidArgument, self).__init__(message, reason)
         self.name = name
 
     def get_response_object(self):
@@ -114,9 +111,9 @@ class InvalidArgument(InvalidRequest):
 class UnknownArgument(InvalidArgument):
     """Exception raised when unknown arguments are present in request"""
 
-    def __init__(self, name):
+    def __init__(self, name, reason=None):
         super(UnknownArgument, self).__init__(
-            'Unknown request argument: %r' % name, name)
+            'Unknown request argument: %r' % name, name, reason)
 
 
 class InvalidArgumentValue(InvalidArgument):
@@ -125,13 +122,9 @@ class InvalidArgumentValue(InvalidArgument):
     def __init__(self, name, typename, value, reason=None):
         msg = 'Invalid value for argument %s of type %s: %r' \
                 % (name, typename, value)
-        if reason:
-            msg = '%s (%s)' % (msg, reason)
-
-        super(InvalidArgumentValue, self).__init__(msg, name)
+        super(InvalidArgumentValue, self).__init__(msg, name, reason)
         self.typename = typename
         self.value = value
-        self.reason = reason
 
     def get_response_object(self):
         rv = super(InvalidArgumentValue, self).get_response_object()

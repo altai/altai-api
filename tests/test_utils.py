@@ -41,6 +41,7 @@ from altai_api.utils.parsers import int_from_string, int_from_user
 from altai_api.utils.parsers import cidr_from_user, ipv4_from_user
 from altai_api.utils.parsers import timestamp_from_openstack
 from altai_api.utils.parsers import split_with_escape
+from altai_api.utils.http_names import http_code_name, http_code_message
 
 
 class MakeResponseTestCase(TestCase):
@@ -704,4 +705,19 @@ class ParseMyProjectsArgTestCase(TestCase):
             parse_my_projects_arg()
             self.assertEquals(flask.g.my_projects, False)
             self.assertEquals(flask.g.unused_args, set())
+
+
+class HttpNamesTestCase(unittest.TestCase):
+
+    def test_http_code_name_work(self):
+        self.assertEquals('Found', http_code_name(302))
+
+    def test_http_code_name_none(self):
+        self.assertEquals(None, http_code_name(444))
+
+    def test_http_code_message_work(self):
+        self.assertTrue('not found' in http_code_message(404).lower())
+
+    def test_http_code_message_unknown(self):
+        self.assertTrue('444' in http_code_message(444).lower())
 

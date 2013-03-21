@@ -32,16 +32,15 @@ monkey_patch()
 
 __all__ = [ 'app' ]
 
-app = flask.Flask(__name__, static_folder=None)
+from altai_api.app import ApiApp
+app = ApiApp(__name__)
 app.config.from_object('altai_api.default_settings')
-
 
 from altai_api.db import DB
 DB.init_app(app)
 
 from altai_api.entry_points import register_entry_points
 
-from altai_api import error_handlers
 from altai_api import auth
 
 from altai_api.utils import audit

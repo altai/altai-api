@@ -23,8 +23,6 @@ import flask
 
 from tests import TestCase
 
-from altai_api import error_handlers
-
 
 class HttpResponsesTestCase(TestCase):
     def test_404(self):
@@ -107,7 +105,7 @@ class HttpResponsesTestCase(TestCase):
     def test_except_checks_204(self):
         rv = self.client.get('/', headers={'Expect': '204-no-data'})
         data = self.check_and_parse_response(rv, status_code=417)
-        self.assertTrue('expectation' in data.get('message').lower())
+        self.assertTrue('Expect header' in data.get('message'))
 
     def test_except_checks_202(self):
         rv = self.client.get('/', headers={'Expect': '202-accepted'})
@@ -133,54 +131,4 @@ class HttpResponsesTestCase(TestCase):
 class ExceptionsTestCase(TestCase):
     # TODO(imelnikov): test how exceptions are raised and handled
     pass
-
-
-class ErrorHandlerTestCase(TestCase):
-    FAKE_AUTH = False
-
-    def setUp(self):
-        super(ErrorHandlerTestCase, self).setUp()
-
-    def test_unauthorized_500(self):
-        with self.app.test_request_context():
-            # create exception context for test
-            try:
-                raise RuntimeError('Test message')
-            except RuntimeError, ex:
-                resp = self.app.make_response(
-                    error_handlers.exception_handler(ex))
-        self.check_and_parse_response(resp, status_code=500,
-                                      authenticated=False)
-        self.assertTrue('Test message' in resp.data)
-        self.assertTrue('traceback' not in resp.data)
-
-    def test_unauthorized_500_other_error(self):
-        with self.app.test_request_context():
-            resp = self.app.make_response(
-                error_handlers.exception_handler(RuntimeError('Test message')))
-        self.check_and_parse_response(resp, status_code=500,
-                                      authenticated=False)
-        self.assertTrue('Test message' in resp.data)
-
-    def test_authorized_500(self):
-        with self.app.test_request_context():
-            self.install_fake_auth()
-            # create exception context for test
-            try:
-                raise RuntimeError('Test message')
-            except RuntimeError, ex:
-                resp = self.app.make_response(
-                    error_handlers.exception_handler(ex))
-        data = self.check_and_parse_response(resp, status_code=500)
-        self.assertTrue('Test message' in data.get('message', ''))
-        self.assertTrue(isinstance(data.get('traceback'), list))
-
-    def test_authorized_500_other_error(self):
-        with self.app.test_request_context():
-            self.install_fake_auth()
-            resp = self.app.make_response(
-                error_handlers.exception_handler(RuntimeError('Test message')))
-        data = self.check_and_parse_response(resp, status_code=500)
-        self.assertTrue('Test message' in data.get('message', ''))
-        self.assertTrue('traceback' not in data)
 

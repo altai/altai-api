@@ -21,10 +21,13 @@
 
 import sys
 import unittest
-import altai_api.main
-from altai_api import auth
+
 from flask import g, json
 from flask.exceptions import HTTPException
+
+import altai_api.main
+from altai_api import auth
+from altai_api import exceptions as exc
 
 
 class TestCase(unittest.TestCase):
@@ -73,6 +76,12 @@ class TestCase(unittest.TestCase):
             self.assertEquals(ex.code, status_code,
                               "Bad HTTP status code: expected %s, got %s"
                               % (status_code, ex.code))
+            return ex
+        except exc.AltaiApiException, ex:
+            self.assertEquals(ex.status_code, status_code,
+                              "Bad HTTP status code: expected %s, got %s"
+                              % (status_code, ex.status_code))
+            return ex
         else:
             self.fail("HTTPException was not raised")
 
