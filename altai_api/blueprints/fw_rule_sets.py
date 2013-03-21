@@ -19,10 +19,10 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
+from flask import current_app as app
 from flask import url_for, g, Blueprint, abort
 from openstackclient_base import exceptions as osc_exc
 
-from altai_api.main import app
 from altai_api.utils import *
 
 from altai_api.utils.decorators import root_endpoint, user_endpoint

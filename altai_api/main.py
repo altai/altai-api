@@ -41,7 +41,6 @@ DB.init_app(app)
 
 from altai_api.entry_points import register_entry_points
 
-from altai_api import stats
 from altai_api import error_handlers
 from altai_api import auth
 
@@ -73,22 +72,23 @@ def _mount_blueprints(iterable):
 
 
 _mount_blueprints((
-     ('networks', '/v1/networks'),
-     ('instance_types', '/v1/instance-types'),
-     ('projects', '/v1/projects'),
-     ('project_users', '/v1/projects/<project_id>/users'),
+     ('audit_log', '/v1/audit-log'),
+     ('config', '/v1/config'),
      ('fw_rule_sets', '/v1/fw-rule-sets'),
      ('fw_rules', '/v1/fw-rule-sets/<fw_rule_set_id>/rules'),
-     ('users', '/v1/users'),
-     ('instances', '/v1/instances'),
-     ('instance_fw_rule_sets', '/v1/instances/<instance_id>/fw-rule-sets'),
      ('images', '/v1/images'),
+     ('instance_fw_rule_sets', '/v1/instances/<instance_id>/fw-rule-sets'),
+     ('instances', '/v1/instances'),
+     ('instance_types', '/v1/instance-types'),
      ('invites', '/v1/invites'),
-     ('config', '/v1/config'),
-     ('audit_log', '/v1/audit-log'),
      ('me', '/v1/me'),
+     ('my_ssh_keys', '/v1/me/ssh-keys'),
+     ('networks', '/v1/networks'),
+     ('projects', '/v1/projects'),
+     ('project_users', '/v1/projects/<project_id>/users'),
+     ('stats', '/v1/stats'),
      ('users_ssh_keys', '/v1/users/<user_id>/ssh-keys'),
-     ('my_ssh_keys', '/v1/me/ssh-keys')
+     ('users', '/v1/users')
 ))
 register_entry_points(app)
 

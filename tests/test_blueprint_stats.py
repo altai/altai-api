@@ -22,7 +22,7 @@
 from tests import doubles
 from tests.mocked import MockedTestCase
 
-from altai_api import stats
+from altai_api.blueprints import stats
 
 
 class StatsTestCase(MockedTestCase):

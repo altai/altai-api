@@ -19,16 +19,18 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from altai_api.utils.decorators import root_endpoint
+from flask import Blueprint
 
-from altai_api.main import app
 from altai_api.auth import admin_client_set
 from altai_api.utils import make_json_response
+from altai_api.utils.decorators import root_endpoint
 from altai_api.utils.decorators import user_endpoint
 from altai_api.blueprints.images import list_all_images
 
+BP = Blueprint('stats', __name__)
 
-@app.route('/v1/stats', methods=('GET',))
+
+@BP.route('', methods=('GET',))
 @root_endpoint('stats')
 @user_endpoint
 def altai_stats():
