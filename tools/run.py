@@ -20,17 +20,18 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-"""Run service locally for test purposes
-"""
+"""Run service or config command locally for test purposes"""
 
-import os, sys
+import sys
+from os.path import dirname
 
-
-sys.path.insert(0, os.path.dirname(__file__))
-
-
-from altai_api.main import main
 
 if __name__ == '__main__':
-    main()
+    sys.path.insert(0, dirname(dirname(__file__)))
+    if len(sys.argv) == 1 or sys.argv[1] == 'service':
+        import altai_api.main
+        altai_api.main.main()
+    else:
+        import altai_api.command
+        altai_api.command.main()
 

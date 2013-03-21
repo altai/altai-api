@@ -1,0 +1,50 @@
+#!/bin/bash -e
+#
+# Pre-recieve hook fot git that runs check_code.sh on every new commit.
+#
+
+tmpdir=
+cleanup_tmpdir()
+{
+        [ -z "$tmpdir" ] || rm -rf -- "$tmpdir"
+        exit "$@"
+}
+
+tmpdir=$(mktemp -dt "${0##*/}.XXXXXXXX")
+trap 'cleanup_tmpdir $?' EXIT
+trap 'exit 143' HUP INT QUIT PIPE TERM
+
+run_tests () {
+    local ref=$1
+    local dir="$tmpdir/$ref"
+
+    echo -en "\nChecking "
+    git log --oneline -1 "$ref"
+
+    mkdir -p "$dir"
+    git archive --format=tar "$ref" | tar -xC "$dir" 2> /dev/null
+
+    pushd $dir > /dev/null
+    [ -x ./check_code.sh ] && CHECK_CODE="./check_code.sh"
+    [ -x ./tools/check_code.sh ] && CHECK_CODE="./tools/check_code.sh"
+    if [ -z "$CHECK_CODE" ]; then
+        echo "Could not check code: script not found."
+        exit 1
+    fi
+    if ! "$CHECK_CODE"; then
+         echo 'CHECK FAILED'
+         exit 1
+    fi
+    popd > /dev/null
+}
+
+while read old_ref new_ref name; do
+    if [ "$name" == "refs/heads/altai-api" ] ; then
+	git rev-list --topo-order --reverse "$new_ref" ^"$old_ref" | while read ref; do
+             run_tests "$ref"
+        done
+    fi
+done
+
+echo 'CHECK OK'
+
