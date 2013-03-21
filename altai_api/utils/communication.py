@@ -159,7 +159,8 @@ def parse_request_data(allowed=None, required=None):
     # NOTE(imelnikov): we don't use request.json because we want
     # to raise our custom exception and add our custom validation
     try:
-        data = json.loads(request.data, object_hook=_json_object_hook)
+        data = json.loads(request.data, object_hook=_json_object_hook,
+                          encoding=request.mimetype_params.get('charset'))
     except ValueError, e:
         raise exc.InvalidRequest('JSON decoding error: %s' % e)
 

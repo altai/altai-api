@@ -1,4 +1,5 @@
 
+# -*- encoding: utf-8 -*-
 # vim: tabstop=8 shiftwidth=4 softtabstop=4 expandtab smarttab autoindent
 
 # Altai API Service
@@ -190,6 +191,30 @@ class ParseRequestDataTestCase(TestCase):
     def test_checks_key_is_string(self):
         with self.app.test_request_context(data='{5:0}'):
             self.assertRaises(exc.InvalidRequest, parse_request_data)
+
+    def test_utf8_by_default(self):
+        schema = Schema((st.String('morning'),))
+        with self.app.test_request_context(
+                data=u'{"morning": "утро"}'.encode('utf-8'),
+                content_type='application/json'):
+            data = parse_request_data(schema)
+        self.assertEquals({'morning': u'утро'}, data)
+
+    def test_utf8_explicit(self):
+        schema = Schema((st.String('morning'),))
+        with self.app.test_request_context(
+                data=u'{"morning": "утро"}'.encode('utf-8'),
+                content_type='application/json; charset=UTF-8'):
+            data = parse_request_data(schema)
+        self.assertEquals({'morning': u'утро'}, data)
+
+    def test_supports_latin1(self):
+        schema = Schema((st.String('morning'),))
+        with self.app.test_request_context(
+                data=u'{"morning": "mañana"}'.encode('latin-1'),
+                content_type='application/json; charset=ISO-8859-1'):
+            data = parse_request_data(schema)
+        self.assertEquals({'morning': u'mañana'}, data)
 
 
 class IntParseAndCheckTestCase(unittest.TestCase):
