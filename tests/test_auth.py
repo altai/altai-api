@@ -19,7 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import Flask, g
+from flask import g
 from base64 import b64encode
 
 from openstackclient_base.exceptions import Unauthorized, Forbidden
@@ -29,6 +29,7 @@ from tests.mocked import MockedTestCase
 from tests import doubles
 
 from altai_api import auth
+from altai_api.main import make_app
 from altai_api.utils.decorators import (no_auth_endpoint,
                                         user_endpoint,
                                         admin_endpoint)
@@ -187,29 +188,13 @@ class CurrentUserProjectIds(MockedTestCase):
             self.assertEquals(ids, set(('PID1', 'PID2')))
 
 
-def make_test_app():
-    test_app = Flask(__name__)
-    test_app.config['SYSTENANT'] = 'test_default_tenant'
-
-    @test_app.before_request
-    def test_check():
-        g.audit_data = {}
-        auth.require_auth()
-
-    @test_app.errorhandler(500)
-    def error(error):
-        return str(error), 500
-
-    return test_app
-
-
 class NoAuthEndpointTestCase(MoxTestBase):
 
     def setUp(self):
         super(NoAuthEndpointTestCase, self).setUp()
-        self.test_app = make_test_app()
+        self.app = make_app()
 
-        @self.test_app.route('/hello')
+        @self.app.route('/hello')
         @no_auth_endpoint
         def hello_():
             assert not g.is_admin
@@ -217,29 +202,29 @@ class NoAuthEndpointTestCase(MoxTestBase):
 
     def test_no_auth_endpoint(self):
         self.mox.ReplayAll()
-        with self.test_app.test_request_context('/hello'):
+        with self.app.test_request_context('/hello'):
             result = auth.require_auth()
             self.assertEquals(result, None)
             self.assertEquals(g.client_set, None)
 
     def test_no_auth_request_no_rule(self):
-        self.test_app.before_request(auth.require_auth)
+        self.app.before_request(auth.require_auth)
 
         self.mox.ReplayAll()
-        rv = self.test_app.test_client().get('/non/existing/resource')
+        rv = self.app.test_client().get('/non/existing/resource')
         # no rule found, so we have to authorize as usual
         self.assertEquals(rv.status_code, 401)
 
     def test_no_auth_request_no_current_user(self):
-        self.test_app.before_request(auth.require_auth)
+        self.app.before_request(auth.require_auth)
 
-        @self.test_app.route('/cu')
+        @self.app.route('/cu')
         @no_auth_endpoint
         def current_user_():
             return auth.current_user_id()
 
         self.mox.ReplayAll()
-        rv = self.test_app.test_client().get('/cu')
+        rv = self.app.test_client().get('/cu')
         self.assertEquals(rv.status_code, 500)
         self.assertTrue('No current user' in rv.data)
 
@@ -248,9 +233,10 @@ class UserEndpointTestCase(MoxTestBase):
 
     def setUp(self):
         super(UserEndpointTestCase, self).setUp()
-        self.test_app = make_test_app()
+        self.app = make_app()
+        self.app.config['SYSTENANT'] = 'test_default_tenant'
 
-        @self.test_app.route('/hello')
+        @self.app.route('/hello')
         @user_endpoint
         def hello_():
             assert g.audit_data['user_id'] == 'FAKE_UID'
@@ -263,7 +249,7 @@ class UserEndpointTestCase(MoxTestBase):
 
     def test_user_endpoint_no_auth(self):
         self.mox.ReplayAll()
-        rv = self.test_app.test_client().get('/hello')
+        rv = self.app.test_client().get('/hello')
         self.assertEquals(rv.status_code, 401, rv.data)
 
     def test_user_endpoint_as_user(self):
@@ -276,7 +262,7 @@ class UserEndpointTestCase(MoxTestBase):
         auth.current_user_id().AndReturn('FAKE_UID')
         self.mox.ReplayAll()
 
-        rv = self.test_app.test_client().get(
+        rv = self.app.test_client().get(
             '/hello',
             headers={'Authorization': _basic_auth(user, password)}
         )
@@ -290,7 +276,7 @@ class UserEndpointTestCase(MoxTestBase):
         auth.current_user_id().AndReturn('FAKE_UID')
         self.mox.ReplayAll()
 
-        rv = self.test_app.test_client().get(
+        rv = self.app.test_client().get(
             '/hello',
             headers={'Authorization': _basic_auth(user, password)}
         )
@@ -304,7 +290,7 @@ class UserEndpointTestCase(MoxTestBase):
                 .AndRaise(Unauthorized('denied'))
         self.mox.ReplayAll()
 
-        rv = self.test_app.test_client().get(
+        rv = self.app.test_client().get(
             '/hello',
             headers={'Authorization': _basic_auth(user, password)}
         )
@@ -315,9 +301,10 @@ class AdminEndpointTestCase(MoxTestBase):
 
     def setUp(self):
         super(AdminEndpointTestCase, self).setUp()
-        self.test_app = make_test_app()
+        self.app = make_app()
+        self.app.config['SYSTENANT'] = 'test_default_tenant'
 
-        @self.test_app.route('/hello')
+        @self.app.route('/hello')
         @admin_endpoint
         def hello_():
             assert g.audit_data['user_id'] == 'FAKE_UID'
@@ -331,7 +318,7 @@ class AdminEndpointTestCase(MoxTestBase):
 
     def test_admin_endpoint_no_auth(self):
         self.mox.ReplayAll()
-        rv = self.test_app.test_client().get('/hello')
+        rv = self.app.test_client().get('/hello')
         self.assertEquals(rv.status_code, 401, rv.data)
 
     def test_admin_endpoint_ok(self):
@@ -343,7 +330,7 @@ class AdminEndpointTestCase(MoxTestBase):
         auth.current_user_id().AndReturn('FAKE_UID')
         self.mox.ReplayAll()
 
-        rv = self.test_app.test_client().get(
+        rv = self.app.test_client().get(
             '/hello',
             headers={'Authorization': _basic_auth(admin, password)}
         )
@@ -356,7 +343,7 @@ class AdminEndpointTestCase(MoxTestBase):
                 .AndRaise(Unauthorized('denied'))
         self.mox.ReplayAll()
 
-        rv = self.test_app.test_client().get(
+        rv = self.app.test_client().get(
             '/hello',
             headers={'Authorization': _basic_auth(admin, password)}
         )
@@ -370,7 +357,7 @@ class AdminEndpointTestCase(MoxTestBase):
         auth.admin_role_id('FAKE_CLIENT_SET').AndReturn(None)
         self.mox.ReplayAll()
 
-        rv = self.test_app.test_client().get(
+        rv = self.app.test_client().get(
             '/hello',
             headers={'Authorization': _basic_auth(admin, password)}
         )
