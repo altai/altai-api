@@ -110,7 +110,7 @@ def get_tenant(project_id):
         abort(404)
 
     # systenant is special entity, not a 'project' in Altai sense
-    if tenant.name == app.config['DEFAULT_TENANT']:
+    if tenant.name == app.config['SYSTENANT']:
         abort(404)
     return tenant
 
@@ -157,7 +157,7 @@ def list_projects():
     networks = dict(((net.project_id, net)
                      for net in admin_client_set().compute.networks.list()
                      if net.project_id))
-    systenant = app.config['DEFAULT_TENANT']
+    systenant = app.config['SYSTENANT']
     # systenant is special entity, not a 'project' in Altai sense
     result = [_project_from_nova(t, networks.get(t.id),
                                  _quotaset_for_project(t.id))

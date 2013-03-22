@@ -80,7 +80,7 @@ def list_fw_rule_sets():
 
     result = []
     for tenant in tenants:
-        if tenant.name != app.config['DEFAULT_TENANT']:
+        if tenant.name != app.config['SYSTENANT']:
             tcs = client_set_for_tenant(tenant.id, fallback_to_api=g.is_admin)
             for sg in tcs.compute.security_groups.list():
                 result.append(_sg_from_nova(sg, tenant.name))

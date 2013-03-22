@@ -189,7 +189,7 @@ class CurrentUserProjectIds(MockedTestCase):
 
 def make_test_app():
     test_app = Flask(__name__)
-    test_app.config['DEFAULT_TENANT'] = 'test_default_tenant'
+    test_app.config['SYSTENANT'] = 'test_default_tenant'
 
     @test_app.before_request
     def test_check():
@@ -464,9 +464,9 @@ class AdminClientSetTestCase(MockedTestCase):
         super(AdminClientSetTestCase, self).setUp()
         self.mox.StubOutWithMock(auth, '_client_set')
         self.mox.StubOutWithMock(auth, 'admin_role_id')
-        self.app.config['KEYSTONE_ADMIN'] = 'test_admin'
-        self.app.config['DEFAULT_TENANT'] = 'test_default_tenant'
-        self.app.config['KEYSTONE_ADMIN_PASSWORD'] = 'test_p@ssw0rd'
+        self.app.config['ALTAI_API_SUPERUSER'] = 'test_admin'
+        self.app.config['SYSTENANT'] = 'test_default_tenant'
+        self.app.config['ALTAI_API_SUPERUSER_PASSWORD'] = 'test_p@ssw0rd'
 
     def test_admin_client_set_works(self):
         auth._client_set('test_admin', 'test_p@ssw0rd',
@@ -592,9 +592,9 @@ class ApiClientSetTestCase(MockedTestCase):
         self.mox.StubOutWithMock(auth, '_client_set')
         self.mox.StubOutWithMock(auth, 'admin_role_id')
         self.mox.StubOutWithMock(auth, 'add_api_superuser_to_project')
-        self.app.config['DEFAULT_TENANT'] = 'test_default_tenant'
-        self.app.config['KEYSTONE_ADMIN'] = 'test_admin'
-        self.app.config['KEYSTONE_ADMIN_PASSWORD'] = 'test_p@ssw0rd'
+        self.app.config['SYSTENANT'] = 'test_default_tenant'
+        self.app.config['ALTAI_API_SUPERUSER'] = 'test_admin'
+        self.app.config['ALTAI_API_SUPERUSER_PASSWORD'] = 'test_p@ssw0rd'
 
     def test_api_cs_for_admin(self):
         auth._client_set('test_admin', 'test_p@ssw0rd',

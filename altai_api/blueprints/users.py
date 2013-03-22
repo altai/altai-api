@@ -76,7 +76,7 @@ def _user_is_visible(user, admin_mode):
 
 
 def _role_is_visible(role):
-    if role.tenant['name'] == app.config['DEFAULT_TENANT']:
+    if role.tenant['name'] == app.config['SYSTENANT']:
         return False
     if not g.my_projects:
         return True
@@ -108,7 +108,7 @@ def user_from_nova(user, invite=None, send_code=False):
                 for r in roles if _role_is_visible(r)]
     is_admin = any((r.role["name"].lower() == 'admin'
                     for r in roles
-                    if r.tenant['name'] == app.config['DEFAULT_TENANT']))
+                    if r.tenant['name'] == app.config['SYSTENANT']))
     result = {
         u'id': user.id,
         u'href': url_for('users.get_user', user_id=user.id),

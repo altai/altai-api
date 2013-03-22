@@ -47,7 +47,7 @@ def _keystone_auth(require_admin):
 
     try:
         cs = _client_set(auth.username, auth.password,
-                         tenant_name=app.config['DEFAULT_TENANT'])
+                         tenant_name=app.config['SYSTENANT'])
     except (osc_exc.Unauthorized, osc_exc.Forbidden):
         if require_admin:
             abort(403)
@@ -128,7 +128,7 @@ def client_set_for_tenant(tenant_id, eperm_status=403, fallback_to_api=False):
 
 
 def default_tenant_id():
-    """Returns ID of tenant named app.config['DEFAULT_TENANT']
+    """Returns ID of tenant named app.config['SYSTENANT']
     """
     return admin_client_set().http_client.access['token']['tenant']['id']
 
@@ -195,12 +195,12 @@ def add_api_superuser_to_project(project_id):
 
 
 def _api_client_set_impl(project_id=None):
-    user = app.config['KEYSTONE_ADMIN']
-    password = app.config['KEYSTONE_ADMIN_PASSWORD']
+    user = app.config['ALTAI_API_SUPERUSER']
+    password = app.config['ALTAI_API_SUPERUSER_PASSWORD']
     try:
         if project_id is None:
             cs = _client_set(user, password,
-                             tenant_name=app.config['DEFAULT_TENANT'])
+                             tenant_name=app.config['SYSTENANT'])
         else:
             cs = _client_set(user, password, tenant_id=project_id)
         if admin_role_id(cs) is not None:

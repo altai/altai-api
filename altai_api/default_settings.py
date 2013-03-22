@@ -36,13 +36,15 @@ TEST_STRING = 'Test'
 # enable this to make responses readable
 PRETTY_PRINT_JSON = False
 
-# keystone administrator credentials, for internal administrative jobs
-KEYSTONE_ADMIN = 'admin'
-KEYSTONE_ADMIN_PASSWORD = 'admin'
+# credentials for Altai API superuser
+ALTAI_API_SUPERUSER = 'altai_api_superuser'
+ALTAI_API_SUPERUSER_PASSWORD = '9b7ba716-e418-4123-857f-3a19aed44916'
+
+# OpenStack endpoint
 KEYSTONE_URI = 'localhost:5000/v2.0'
 
-# system tenant to use by default
-DEFAULT_TENANT = 'systenant'
+# system tenant name
+SYSTENANT = 'systenant'
 
 # audit verbosity -- possible values
 # 0: don't write anything to audit log
