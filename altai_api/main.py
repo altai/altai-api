@@ -39,27 +39,9 @@ app.config.from_object('altai_api.default_settings')
 from altai_api.db import DB
 DB.init_app(app)
 
-from altai_api.entry_points import register_entry_points
-
 from altai_api import auth
-
-from altai_api.utils import audit
-from altai_api.utils import communication
-
+from altai_api.entry_points import register_entry_points
 from altai_api.jobs import instances as instances_jobs
-
-from altai_api.db.config import ConfigDAO
-
-
-@app.before_request
-def check_request():
-    flask.g.config = ConfigDAO.get
-    audit.setup_audit()
-    auth.require_auth()
-    communication.check_request_headers()
-    communication.setup_args_handling()
-    communication.parse_my_projects_arg()
-    return None
 
 
 def _mount_blueprints(iterable):

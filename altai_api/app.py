@@ -24,10 +24,14 @@ import flask
 import sys
 import traceback
 
+from altai_api import auth
 from altai_api import exceptions as exc
-from altai_api.auth import is_authenticated
+
 from altai_api.utils import make_json_response
+from altai_api.utils import audit, communication
 from altai_api.utils.http_names import http_code_name, http_code_message
+
+from altai_api.db.config import ConfigDAO
 
 
 def _traceback_to_json(error):
@@ -76,7 +80,7 @@ class ApiApp(flask.Flask):
             'message': '\n'.join(lines).strip(),
             'error-type': 'UnknownError'
         }
-        if is_authenticated():
+        if auth.is_authenticated():
             # TODO(imelnikov): make this configurable
             tb = _traceback_to_json(error)
             if tb:
@@ -100,6 +104,16 @@ class ApiApp(flask.Flask):
 
     def handle_user_exception(self, error):
         return self._exception_response(*self._handle_any_exception(error))
+
+    def preprocess_request(self):
+        """Add our auth, checks and setup before request processing"""
+        flask.g.config = ConfigDAO.get
+        audit.setup_audit()
+        auth.require_auth()
+        communication.check_request_headers()
+        communication.setup_args_handling()
+        communication.parse_my_projects_arg()
+        return flask.Flask.preprocess_request(self)
 
     def handle_exception(self, error):
         # TODO(imelnikov): log exception
