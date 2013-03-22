@@ -21,20 +21,42 @@
 
 
 import os
-import unittest
+import flask
 import logging.handlers
 import mox
 from tests.mocked import MockedTestCase
 
 from altai_api import main
+from altai_api.app import ApiApp
 from altai_api.utils.periodic_job import PeriodicJob
 
 
-class ConfigurationTestCase(unittest.TestCase):
+class MakeAppTestCase(mox.MoxTestBase):
 
     def test_settings_are_read(self):
+        self.mox.ReplayAll()
         # we promise we will never redefine TEST_STRING
-        self.assertEquals(main.app.config['TEST_STRING'], 'Test')
+        self.assertEquals(main.make_app(None).config['TEST_STRING'], 'Test')
+
+    def test_make_app_generally_works(self):
+        self.mox.StubOutClassWithMocks(main, 'ApiApp')
+        self.mox.StubOutWithMock(main.DB, 'init_app')
+        self.mox.StubOutWithMock(main, 'register_entry_points')
+        os.environ[main.CONFIG_ENV] = 'TEST'
+
+        app = main.ApiApp('altai_api.main')
+        app.config = self.mox.CreateMockAnything()
+
+        app.config.from_object('altai_api.default_settings')
+        app.config.from_envvar(main.CONFIG_ENV)
+        main.DB.init_app(app)
+        for _ in xrange(17):
+            app.register_blueprint(mox.IsA(flask.Blueprint),
+                                   url_prefix=mox.IsA(basestring))
+        main.register_entry_points(app)
+
+        self.mox.ReplayAll()
+        self.assertEquals(app, main.make_app())
 
 
 class MainTestCase(mox.MoxTestBase):
@@ -43,60 +65,37 @@ class MainTestCase(mox.MoxTestBase):
         'HOST': '127.0.0.1',
         'PORT': 42
     }
-    config_env = main.CONFIG_ENV
 
     def setUp(self):
         super(MainTestCase, self).setUp()
-        self.mox.StubOutWithMock(main, 'app')
+        self.mox.StubOutWithMock(main, 'make_app')
         self.mox.StubOutWithMock(main, 'setup_logging')
         self.mox.StubOutWithMock(main, 'check_connection')
         self.mox.StubOutWithMock(main.instances_jobs, 'jobs_factory')
-
-    def tearDown(self):
-        main.CONFIG_ENV = self.config_env
-        super(MainTestCase, self).tearDown()
+        self.fake_app = self.mox.CreateMock(ApiApp)
+        self.fake_app.config = self.config
 
     def test_main_works(self):
-        main.CONFIG_ENV = 'I_HOPE_THIS_WILL_NEVER_EVER_EXIST'
-        main.app.config = self.config
+        main.make_app().AndReturn(self.fake_app)
         jobs = [self.mox.CreateMock(PeriodicJob),
                  self.mox.CreateMock(PeriodicJob)]
 
-        main.setup_logging(main.app)
-        main.check_connection().AndReturn(True)
-        main.instances_jobs.jobs_factory(main.app).AndReturn(jobs)
-        main.app.run(use_reloader=False,
-                     host='127.0.0.1', port=42)
+        main.setup_logging(self.fake_app)
+        main.check_connection(self.fake_app).AndReturn(True)
+        main.instances_jobs.jobs_factory(self.fake_app).AndReturn(jobs)
+        self.fake_app.run(use_reloader=False,
+                          host='127.0.0.1', port=42)
         jobs[0].cancel().AndRaise(RuntimeError('ignore me'))
         jobs[1].cancel()
         self.mox.ReplayAll()
         main.main()
 
     def test_main_check_failed(self):
-        main.CONFIG_ENV = 'I_HOPE_THIS_WILL_NEVER_EVER_EXIST'
-        main.app.config = self.config
-
-        main.setup_logging(main.app)
-        main.check_connection().AndReturn(False)
+        main.make_app().AndReturn(self.fake_app)
+        main.setup_logging(self.fake_app)
+        main.check_connection(self.fake_app).AndReturn(False)
         self.mox.ReplayAll()
         self.assertRaises(SystemExit, main.main)
-
-    def test_env_is_looked_at(self):
-        main.CONFIG_ENV = os.environ.keys()[0]
-        main.app.config = self.mox.CreateMockAnything()
-
-        def side_effect(arg_):
-            main.app.config = self.config
-
-        main.app.config.from_envvar(main.CONFIG_ENV)\
-                .WithSideEffects(side_effect)
-        main.setup_logging(main.app)
-        main.check_connection().AndReturn(True)
-        main.instances_jobs.jobs_factory(main.app).AndReturn([])
-        main.app.run(use_reloader=False,
-                     host='127.0.0.1', port=42)
-        self.mox.ReplayAll()
-        main.main()
 
 
 class SetupLoggingTestCase(mox.MoxTestBase):
@@ -149,11 +148,11 @@ class CheckConnectionTestCase(MockedTestCase):
         self.mox.StubOutWithMock(main.auth, 'api_client_set')
         main.auth.api_client_set()
         self.mox.ReplayAll()
-        self.assertEquals(True, main.check_connection())
+        self.assertEquals(True, main.check_connection(self.app))
 
     def test_check_connection_fail(self):
         self.mox.StubOutWithMock(main.auth, 'api_client_set')
         main.auth.api_client_set().AndRaise(RuntimeError('catch_me'))
         self.mox.ReplayAll()
-        self.assertEquals(False, main.check_connection())
+        self.assertEquals(False, main.check_connection(self.app))
 

@@ -25,7 +25,7 @@
 import sys
 from flask import json
 
-from altai_api.main import app, CONFIG_ENV
+from altai_api.main import make_app
 from altai_api.db import DB
 from altai_api.db.config import ConfigDAO
 from altai_api.blueprints.config import SCHEMAS
@@ -129,8 +129,7 @@ def main(argv=None):
             command = _COMMANDS.get(argv[1])
         except (KeyError, IndexError):
             show_help(argv)
-        app.config.from_envvar(CONFIG_ENV)
-        with app.test_request_context():
+        with make_app().test_request_context():
             command(argv)
     except Exception, e:
         die('Failed: %s', e)

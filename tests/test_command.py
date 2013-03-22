@@ -56,6 +56,7 @@ class CommandsTest(MockedTestCase):
         self.mox.StubOutWithMock(command, 'show_help')
         self.mox.StubOutWithMock(command, 'ConfigDAO')
         self.mox.StubOutWithMock(command, 'DB')
+        self.mox.StubOutWithMock(command, 'make_app')
         self.mox.StubOutWithMock(sys, 'stdout')
 
     def test_init_db_wrong_args(self):
@@ -162,14 +163,7 @@ class CommandsTest(MockedTestCase):
         command.main(['test'])
 
     def test_main_works(self):
-        ac = self.app.config
-
-        def restore_config(arg_):
-            self.app.config = ac
-
-        self.app.config = self.mox.CreateMockAnything()
-        self.app.config.from_envvar('ALTAI_API_SETTINGS') \
-                .WithSideEffects(restore_config)
+        command.make_app().AndReturn(self.app)
         command.ConfigDAO.get('test', 'var').AndReturn(None)
         self.mox.ReplayAll()
         command.main(['test', 'get', 'test.var'])

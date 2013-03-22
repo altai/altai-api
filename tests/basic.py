@@ -25,9 +25,9 @@ import unittest
 from flask import g, json
 from flask.exceptions import HTTPException
 
-import altai_api.main
 from altai_api import auth
 from altai_api import exceptions as exc
+from altai_api.main import make_app
 
 
 class TestCase(unittest.TestCase):
@@ -51,11 +51,10 @@ class TestCase(unittest.TestCase):
 
     def setUp(self):
         super(TestCase, self).setUp()
-        self.app = altai_api.main.app
-        self.client = self.app.test_client()
-        self.__config = self.app.config
-        self.app.config = self.app.config.copy()
+        self.app = make_app(None)
         self.app.config['AUDIT_VERBOSITY'] = 0
+
+        self.client = self.app.test_client()
         if self.FAKE_AUTH:
             self.fake_client_set = self._fake_client_set_factory()
             self.__require_auth = auth.require_auth
@@ -66,7 +65,6 @@ class TestCase(unittest.TestCase):
             del self.fake_client_set
         if self.FAKE_AUTH:
             auth.require_auth = self.__require_auth
-        self.app.config = self.__config
 
     def assertAborts(self, status_code, callable_obj, *args, **kwargs):
         """Check that callable raises HTTP exception with given code"""

@@ -34,6 +34,7 @@ class DBTestCase(TestCase):
     def tearDown(self):
         with self.app.test_request_context():
             DB.drop_all()
+        DB.session.remove()
         super(DBTestCase, self).tearDown()
 
 
