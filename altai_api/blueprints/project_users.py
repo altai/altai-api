@@ -80,7 +80,9 @@ def _get_user(user_id):
     try:
         return g.client_set.identity_admin.users.get(user_id)
     except osc_exc.NotFound:
-        raise exc.InvalidRequest('User with id %s does not exist' % user_id)
+        raise exc.InvalidElementValue('id', 'link object', user_id,
+                                      'User with id %r does not exist'
+                                      % user_id)
 
 
 @BP.route('/', methods=('POST',))

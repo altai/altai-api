@@ -212,9 +212,10 @@ def update_image(image_id):
     return make_json_response(_image_from_nova(image))
 
 
-def _assert_param_absent(name, data):
+def _assert_param_absent(name, data, which):
     if name in data:
-        raise exc.UnknownElement(name)
+        reason = '%s should not be specified for %s images' % (name, which)
+        raise exc.UnknownElement(name, reason)
 
 
 @BP.route('/', methods=('POST',))
@@ -224,7 +225,7 @@ def create_image():
 
     is_public = data.get('global', 'project' not in data)
     if is_public:
-        _assert_param_absent('project', data)
+        _assert_param_absent('project', data, 'public')
         auth.assert_admin()
         client_set = g.client_set
     else:
@@ -240,8 +241,8 @@ def create_image():
         if 'ramdisk' in data:
             props['ramdisk_id'] = data['ramdisk']
     else:
-        _assert_param_absent('kernel', data)
-        _assert_param_absent('ramdisk', data)
+        _assert_param_absent('kernel', data, data['disk-format'])
+        _assert_param_absent('ramdisk', data, data['disk-format'])
 
     image = client_set.image.images.create(
         name=data['name'],

@@ -230,10 +230,10 @@ def create_user():
     else:
         if 'password' not in data:
             raise exc.MissingElement('password')
-        if 'send-invite-mail' in data:
-            raise exc.UnknownElement('send-invite-mail')
-        if 'link-template' in data:
-            raise exc.UnknownElement('link-template')
+        for e in ('send-invite-mail', 'link-template'):
+            if e in data:
+                reason = '%s element is allowed only when inviting user' % e
+                raise exc.UnknownElement(e, reason)
 
     try:
         user_mgr = g.client_set.identity_admin.users

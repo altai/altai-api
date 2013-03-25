@@ -209,14 +209,15 @@ def create_project():
 
     # first, check network
     networks = g.client_set.compute.networks
+    network_id = data['network']
     try:
         net = networks.get(data['network'])
-        assert net.project_id is None
-        # TODO(imelnikov): special exception for used networks
-    except (KeyError, AssertionError, osc_exc.NotFound):
-        raise exc.InvalidElementValue(name='network',
-                                      typename='link object',
-                                      value=data.get('network'))
+    except osc_exc.NotFound:
+        raise exc.InvalidElementValue('network', 'link object', network_id,
+                                      'Network does not exist.')
+    if net.project_id is not None:
+        raise exc.InvalidElementValue('network', 'link object', network_id,
+                                      'Network is already used.')
     tenant = g.client_set.identity_admin.tenants.create(
         data['name'], data.get('description', ''))
     set_audit_resource_id(tenant)

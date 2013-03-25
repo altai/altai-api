@@ -47,7 +47,9 @@ def _parse_one_sortby_item(item, allowed_names):
     elif elems[1] == 'desc':
         is_asc = False
     else:
-        raise exc.InvalidRequest('Invalid sorting direction: %r' % elems[1])
+        raise exc.InvalidArgumentValue(
+            'sortby', 'string', item,
+            'Invalid sorting direction: %r' % elems[1])
 
     keys = name.split('.')
     if len(keys) == 1:
