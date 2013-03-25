@@ -197,7 +197,7 @@ class NoAuthEndpointTestCase(MoxTestBase):
         @self.app.route('/hello')
         @no_auth_endpoint
         def hello_():
-            assert not g.is_admin
+            g.client_set = 42
             return 'hello, world!'
 
     def test_no_auth_endpoint(self):
@@ -206,6 +206,22 @@ class NoAuthEndpointTestCase(MoxTestBase):
             result = auth.require_auth()
             self.assertEquals(result, None)
             self.assertEquals(g.client_set, None)
+            self.assertEquals(g.is_admin, False)
+
+    def test_no_auth_endpoint_with_auth(self):
+        self.mox.StubOutWithMock(auth, 'user_auth')
+
+        def _setup_g(*_args):
+            g.client_set = None
+            g.is_admin = False
+
+        auth.user_auth().WithSideEffects(_setup_g)
+        self.mox.ReplayAll()
+
+        rv = self.app.test_client().get('/hello', headers={
+            'Authorization': _basic_auth('user', 'password')
+        })
+        self.assertEquals(rv.status_code, 200, 'Failed: %s' % rv.data)
 
     def test_no_auth_request_no_rule(self):
         self.app.before_request(auth.require_auth)

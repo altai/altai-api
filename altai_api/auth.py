@@ -82,9 +82,12 @@ def user_auth():
 
 def no_auth():
     """Authorize for noauth endpoint"""
-    g.client_set = None
-    g.is_admin = False
-    return None
+    if request.authorization is None:
+        g.client_set = None
+        g.is_admin = False
+        return None
+    else:
+        return user_auth()
 
 
 def _client_set(username=None, password=None, token=None,
