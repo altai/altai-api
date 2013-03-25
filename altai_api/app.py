@@ -80,11 +80,6 @@ class ApiApp(flask.Flask):
             'message': '\n'.join(lines).strip(),
             'error-type': 'UnknownError'
         }
-        if auth.is_authenticated():
-            # TODO(imelnikov): make this configurable
-            tb = _traceback_to_json(error)
-            if tb:
-                response['traceback'] = tb
         return response, 500, None
 
     def _handle_any_exception(self, error):
@@ -94,16 +89,23 @@ class ApiApp(flask.Flask):
             return self._handle_http_exception(error)
         return self._handle_other_exception(error)
 
-    @staticmethod
-    def _exception_response(response, code, add_headers):
+    def _exception_response(self, error, response, code, add_headers):
         if not isinstance(response, dict):  # pragma: nocover
             response = { 'message': str(response) }
         response['path'] = flask.request.path
         response['method'] = flask.request.method
+
+        tb_mode = self.config['TRACEBACK_IN_RESPONSE']
+        if tb_mode == 'always' or (tb_mode == 'auth_500' and code == 500
+                                   and auth.is_authenticated()):
+            tb = _traceback_to_json(error)
+            if tb:
+                response['traceback'] = tb
         return make_json_response(response, code, add_headers)
 
     def handle_user_exception(self, error):
-        return self._exception_response(*self._handle_any_exception(error))
+        return self._exception_response(
+                    error, *self._handle_any_exception(error))
 
     def preprocess_request(self):
         """Add our auth, checks and setup before request processing"""
@@ -117,5 +119,6 @@ class ApiApp(flask.Flask):
 
     def handle_exception(self, error):
         # TODO(imelnikov): log exception
-        return self._exception_response(*self._handle_other_exception(error))
+        return self._exception_response(
+                error, *self._handle_other_exception(error))
 

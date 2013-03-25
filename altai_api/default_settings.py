@@ -52,6 +52,12 @@ SYSTENANT = 'systenant'
 # 2: write everything to audit log
 AUDIT_VERBOSITY = 1
 
+# put exception traceback into response in case of error; possible values:
+# 'never': don't put traceback to any response
+# 'auth_500': put traceback to 500 error response if user was authenticated
+# 'always': put traceback to every error response caused by exception
+TRACEBACK_IN_RESPONSE = 'auth_500'
+
 # mail configuration
 MAIL_SERVER = 'smtp.gmail.com'
 MAIL_PORT = 587
