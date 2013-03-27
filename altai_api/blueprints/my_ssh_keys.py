@@ -22,7 +22,7 @@
 from flask import url_for, Blueprint, abort
 
 from altai_api.utils import *
-from altai_api.utils.decorators import user_endpoint
+from altai_api.utils.decorators import user_endpoint, root_endpoint
 from altai_api.auth import bound_client_set
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -55,6 +55,7 @@ _SCHEMA = Schema((
 
 @BP.route('/', methods=('GET',))
 @user_endpoint
+@root_endpoint('my-ssh-keys')
 def list_my_ssh_keys():
     parse_collection_request(_SCHEMA)
 

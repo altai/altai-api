@@ -72,7 +72,6 @@ class ConfigTestCase(MockedTestCase):
             'href': '/v1/config/general',
             'installation-name': 'Altai',
             'authorization-mode': 'NATIVE',
-            'openstack-endpoint': 'test_keystone_uri'
         }
 
         self.mox.ReplayAll()
@@ -134,7 +133,6 @@ class UserConfigTestCase(MockedTestCase):
             'href': '/v1/config/general',
             'installation-name': 'Altai',
             'authorization-mode': 'NATIVE',
-            'openstack-endpoint': 'test_keystone_uri'
         }
 
         self.mox.ReplayAll()

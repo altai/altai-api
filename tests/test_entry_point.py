@@ -21,10 +21,12 @@
 """Tests for API entry point"""
 
 from tests import TestCase
+from tests.mocked import MockedTestCase
 
 
 class EntryPointTestCase(TestCase):
     FAKE_AUTH = False
+    maxDiff = None
 
     def test_get_entry_point(self):
         rv = self.client.get('/')
@@ -46,17 +48,71 @@ class EntryPointTestCase(TestCase):
             'major': 1,
             'minor': 0,
             'href': '/v1/',
-            'links': {
-                'projects-href': '/v1/projects/',
-                'networks-href': '/v1/networks/',
-                'fw-rule-sets-href': '/v1/fw-rule-sets/',
-                'users-href': '/v1/users/',
-                'instances-href': '/v1/instances/',
-                'instance-types-href': '/v1/instance-types/',
-                'stats-href': '/v1/stats',
-                'images-href': '/v1/images/',
-                'config-href': '/v1/config/',
-                'audit-log-href': '/v1/audit-log/'
+            'resources': {
+                'audit-log': '/v1/audit-log/',
+                'config': '/v1/config/',
+                'fw-rule-sets': '/v1/fw-rule-sets/',
+                'images': '/v1/images/',
+                'instances': '/v1/instances/',
+                'instance-types': '/v1/instance-types/',
+                'invites': '/v1/invites/',
+                'me': '/v1/me',
+                'my-ssh-keys': '/v1/me/ssh-keys/',
+                'networks': '/v1/networks/',
+                'projects': '/v1/projects/',
+                'reset-password': '/v1/me/reset-password',
+                'stats': '/v1/stats',
+                'users': '/v1/users/',
+            }
+        })
+
+
+class AuthenticatedEntryPointTestCase(MockedTestCase):
+    maxDiff = None
+
+    def test_get_entry_point(self):
+        self.mox.ReplayAll()
+        rv = self.client.get('/')
+        data = self.check_and_parse_response(rv)
+        self.assertEquals(data, {
+            "versions": [
+                {
+                    "major": 1,
+                    "minor": 0,
+                    "href": "/v1/"
+                }
+            ]
+        })
+
+    def test_get_v1_entry_point(self):
+        self.app.config['KEYSTONE_URI'] = 'test_keystone_uri'
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/')
+        data = self.check_and_parse_response(rv)
+        self.assertEqual(data, {
+            'major': 1,
+            'minor': 0,
+            'href': '/v1/',
+            'resources': {
+                'audit-log': '/v1/audit-log/',
+                'config': '/v1/config/',
+                'fw-rule-sets': '/v1/fw-rule-sets/',
+                'images': '/v1/images/',
+                'instances': '/v1/instances/',
+                'instance-types': '/v1/instance-types/',
+                'invites': '/v1/invites/',
+                'me': '/v1/me',
+                'my-ssh-keys': '/v1/me/ssh-keys/',
+                'networks': '/v1/networks/',
+                'projects': '/v1/projects/',
+                'reset-password': '/v1/me/reset-password',
+                'stats': '/v1/stats',
+                'users': '/v1/users/',
+            },
+            'services': {
+                'keystone': 'test_keystone_uri',
+                # NOTE(imelnikov): see tests.mocked._TEST_SERVICE_CATALOG
+                'nova-billing': 'http://altai.example.com:8787/v2'
             }
         })
 

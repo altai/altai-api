@@ -76,8 +76,12 @@ def _project_from_nova(tenant, net, quotaset):
         u'href': url_for('projects.get_project', project_id=tenant.id),
         u'description': tenant.description,
         u'network': network,
-        u'stats-href': url_for('projects.get_project_stats',
-                               project_id=tenant.id)
+        u'links': {
+            u'stats': url_for('projects.get_project_stats',
+                              project_id=tenant.id),
+            u'manage-users': url_for('project_users.list_project_users',
+                                     project_id=tenant.id)
+        }
     }
 
     if quotaset is not None:

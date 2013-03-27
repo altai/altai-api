@@ -24,7 +24,7 @@ import json
 from openstackclient_base import exceptions as osc_exc
 
 from altai_api.db.tokens import Token
-from tests import doubles
+from tests import doubles, TestCase
 from tests.mocked import MockedTestCase
 
 from altai_api.blueprints import invites
@@ -173,4 +173,11 @@ class InvitesTestCase(MockedTestCase):
                              content_type='application/json')
         self.check_and_parse_response(rv, status_code=400,
                                       authenticated=False)
+
+
+class AuthenticatedInvitesTestCase(TestCase):
+
+    def test_no_root(self):
+        rv = self.client.get('/v1/invites/')
+        self.check_and_parse_response(rv, status_code=404)
 

@@ -87,12 +87,14 @@ def _instance_from_nova(server):
         u'ipv4': [elem['addr']
                   for val in server.addresses.itervalues()
                   for elem in val if elem['version'] == 4],
-        u'actions': {
+        u'links': {
             u'reboot': href_for('instances.reboot_instance'),
             u'reset': href_for('instances.reset_instance'),
             u'remove': href_for('instances.remove_instance'),
             u'vnc': href_for('instances.instance_vnc_console'),
-            u'console-output': href_for('instances.instance_console_output')
+            u'console-output': href_for('instances.instance_console_output'),
+            u'fw-rules': href_for('instance_fw_rule_sets'
+                                  '.list_instance_fw_rule_sets')
         }
     }
     if instancedata:

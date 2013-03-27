@@ -86,6 +86,62 @@ def mock_with_attributes(mox, object_type, **kwargs):
         setattr(m, k, v)
     return m
 
+# real service catalog, with replaced host, some services removed
+_TEST_SERVICE_CATALOG = [
+    {
+        "endpoints_links": [],
+        "endpoints": [
+            {
+                "adminURL": "http://altai.example.com:15353",
+                "region": "RegionOne",
+                "internalURL": "http://altai.example.com:15353",
+                "publicURL": "http://altai.example.com:15353"
+            }
+        ],
+        "type": "nova-dns",
+        "name": "Nova DNS Service"
+    },
+    {
+        "endpoints_links": [],
+        "endpoints": [
+            {
+                "adminURL": "http://altai.example.com:8774/v2",
+                "region": "RegionOne",
+                "internalURL": "http://altai.example.com:8774/v2",
+                "publicURL": "http://altai.example.com:8774/v2"
+            }
+        ],
+        "type": "compute",
+        "name": "Compute Service"
+    },
+    {
+        "endpoints_links": [],
+        "endpoints": [
+            {
+                "adminURL": "http://altai.example.com:8787/v2",
+                "region": "RegionOne",
+                "internalURL": "http://altai.example.com:8787/v2",
+                "publicURL": "http://altai.example.com:8787/v2"
+            }
+        ],
+        "type": "nova-billing",
+        "name": "Nova Billing Service"
+    },
+    {
+        "endpoints_links": [],
+        "endpoints": [
+            {
+                "adminURL": "http://altai.example.com:35357/v2.0",
+                "region": "RegionOne",
+                "internalURL": "http://altai.example.com:5000/v2.0",
+                "publicURL": "http://altai.example.com:5000/v2.0"
+            }
+        ],
+        "type": "identity",
+        "name": "Identity Service"
+    }
+]
+
 
 def mock_client_set(mox, aliases=False):
     """Create mocked ClientSet with mocked clients and managers"""
@@ -101,7 +157,7 @@ def mock_client_set(mox, aliases=False):
                 u'name': u'systenant'
             }
         },
-        u'serviceCatalog': [],  # it's contents is irrelevant
+        u'serviceCatalog': _TEST_SERVICE_CATALOG,
         u'user': {
             u'username': u'admin',
             u'roles_links': [],

@@ -77,7 +77,11 @@ class UserFromNovaTestCase(MockedTestCase):
                     u'href': '/v1/projects/PID2'
                 }
             ],
-            u'completed-registration': True
+            u'completed-registration': True,
+            u'links': {
+                u'send-invite': '/v1/users/42/send-invite',
+                u'ssh-keys': '/v1/users/42/ssh-keys/',
+            }
         }
 
         self.mox.ReplayAll()
@@ -103,7 +107,11 @@ class UserFromNovaTestCase(MockedTestCase):
             u'fullname': 'Example User',
             u'admin': False,
             u'projects': [],
-            u'completed-registration': False
+            u'completed-registration': False,
+            u'links': {
+                u'send-invite': '/v1/users/42/send-invite',
+                u'ssh-keys': '/v1/users/42/ssh-keys/',
+            }
         }
 
         self.mox.ReplayAll()
@@ -132,7 +140,11 @@ class UserFromNovaTestCase(MockedTestCase):
             u'admin': False,
             u'projects': [],
             u'completed-registration': False,
-            u'invited-at': date
+            u'invited-at': date,
+            u'links': {
+                u'send-invite': '/v1/users/42/send-invite',
+                u'ssh-keys': '/v1/users/42/ssh-keys/',
+            }
         }
 
         self.mox.ReplayAll()
@@ -161,7 +173,11 @@ class UserFromNovaTestCase(MockedTestCase):
             u'projects': [],
             u'completed-registration': True,  # because user can work
             u'invited-at': date,
-            u'invitation-code': 'THE_CODE'
+            u'invitation-code': 'THE_CODE',
+            u'links': {
+                u'send-invite': '/v1/users/42/send-invite',
+                u'ssh-keys': '/v1/users/42/ssh-keys/',
+            }
         }
 
         self.mox.ReplayAll()

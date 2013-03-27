@@ -19,8 +19,17 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
+from flask import g
+from altai_api import auth
 from altai_api.utils import make_json_response
 from altai_api.utils.decorators import no_auth_endpoint
+
+
+def _get_os_service_url(name):
+    for svc in g.client_set.http_client.access['serviceCatalog']:
+        if svc['type'] == name:
+            for ep in svc['endpoints']:
+                return ep['adminURL'] if g.is_admin else ep['publicURL']
 
 
 def register_entry_points(app):
@@ -39,12 +48,12 @@ def register_entry_points(app):
     for endpoint, function in app.view_functions.iteritems():
         name = getattr(function, 'altai_api_root_endpoint', None)
         if name:
-            root_endpoints[name + '-href'] = url_for(endpoint)
+            root_endpoints[name] = url_for(endpoint)
 
     v1_info = { 'major': 1, 'minor': 0 }
     versions = { 'versions': [ v1_info ] }
     v1_root = v1_info.copy()
-    v1_root['links'] = root_endpoints
+    v1_root['resources'] = root_endpoints
 
     @app.route('/', methods=('GET',))
     @no_auth_endpoint
@@ -56,7 +65,14 @@ def register_entry_points(app):
     @no_auth_endpoint
     def get_v1_endpoint():
         """Entry point for API v1"""
-        return make_json_response(v1_root)
+        if not auth.is_authenticated():
+            return make_json_response(v1_root)
+        result = v1_root.copy()
+        result['services'] = {
+            'keystone': app.config['KEYSTONE_URI'],
+            'nova-billing': _get_os_service_url('nova-billing')
+        }
+        return make_json_response(result)
 
     v1_href = url_for('get_v1_endpoint')
     v1_info['href'] = v1_href

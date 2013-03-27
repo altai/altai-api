@@ -109,15 +109,20 @@ def user_from_nova(user, invite=None, send_code=False):
     is_admin = any((r.role["name"].lower() == 'admin'
                     for r in roles
                     if r.tenant['name'] == app.config['SYSTENANT']))
+    href = lambda endpoint: url_for(endpoint, user_id=user.id)
     result = {
         u'id': user.id,
-        u'href': url_for('users.get_user', user_id=user.id),
+        u'href': href('users.get_user'),
         u'name': user.name,
         u'email': user.email,
         u'fullname': getattr(user, 'fullname', ''),
         u'admin': is_admin,
         u'projects': projects,
         u'completed-registration': user.enabled,
+        u'links': {
+            u'ssh-keys': href('users_ssh_keys.list_users_ssh_keys'),
+            u'send-invite': href('users.send_invite_for_user')
+        }
     }
 
     if not user.enabled and invite is None:

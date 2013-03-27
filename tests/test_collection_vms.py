@@ -110,13 +110,14 @@ class InstanceFromNovaTestCase(MockedTestCase):
                 u'href': '/v1/instance-types/1',
                 u'name': u'test instance type'
             },
-            u'actions': {
+            u'links': {
+                u'console-output': '/v1/instances/VMID/console-output',
                 u'reboot': '/v1/instances/VMID/reboot',
-                u'reset': '/v1/instances/VMID/reset',
                 u'remove': '/v1/instances/VMID/remove',
+                u'reset': '/v1/instances/VMID/reset',
                 u'vnc': '/v1/instances/VMID/vnc',
-                u'console-output': '/v1/instances/VMID/console-output'
-            }
+                u'fw-rules': '/v1/instances/VMID/fw-rule-sets/',
+            },
         }
 
         # ACTION

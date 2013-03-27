@@ -30,7 +30,7 @@ from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 from altai_api.utils import make_json_response, parse_request_data
-from altai_api.utils.decorators import no_auth_endpoint
+from altai_api.utils.decorators import no_auth_endpoint, root_endpoint
 
 
 BP = Blueprint('invites', __name__)
@@ -46,6 +46,13 @@ def _invite_and_user(code):
     except (osc_exc.NotFound, AssertionError):
         abort(404)
     return invite, user
+
+
+@BP.route('/')
+@root_endpoint('invites')
+def list_invites():
+    # just a stub to mark with root_endpoint
+    abort(404)
 
 
 @BP.route('/<code>', methods=('GET',))

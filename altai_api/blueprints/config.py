@@ -19,7 +19,7 @@
 # License along with this program. If not, see
 # <http://www.gnu.org/licenses/>.
 
-from flask import url_for, abort, Blueprint, g, current_app
+from flask import url_for, abort, Blueprint, g
 
 from altai_api.schema import Schema
 from altai_api.schema import types as st
@@ -66,7 +66,6 @@ def _link_for_group(group):
 
 def _update_general(general):
     general['authorization-mode'] = 'NATIVE'
-    general['openstack-endpoint'] = current_app.config['KEYSTONE_URI']
 
 
 @BP.route('/', methods=('GET',))

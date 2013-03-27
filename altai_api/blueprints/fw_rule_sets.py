@@ -51,8 +51,10 @@ def link_for_security_group(secgroup):
 def _sg_from_nova(secgroup, project_name=None):
     result = link_for_security_group(secgroup)
     result.update((
-        (u'description', secgroup.description),
-        (u'project', link_for_project(secgroup.tenant_id, project_name))
+        ('description', secgroup.description),
+        ('project', link_for_project(secgroup.tenant_id, project_name)),
+        ('rules-href', url_for('fw_rules.list_fw_rules',
+                               fw_rule_set_id=secgroup.id))
     ))
     return result
 

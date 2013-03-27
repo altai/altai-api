@@ -47,7 +47,10 @@ class ConvertersTestCase(MockedTestCase):
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
             u'instances-limit': 10,
-            u'stats-href': u'/v1/projects/c4fc65e/stats',
+            u'links': {
+                u'manage-users': '/v1/projects/c4fc65e/users/',
+                u'stats': '/v1/projects/c4fc65e/stats'
+            },
             u'network': {
                 u'id': u'2699a5',
                 u'name': u'net22',
@@ -74,7 +77,10 @@ class ConvertersTestCase(MockedTestCase):
             u'ram-limit': 50 * gb,
             u'storage-limit': 1000 * gb,
             u'instances-limit': 10,
-            u'stats-href': u'/v1/projects/c4fc65e/stats',
+            u'links': {
+                u'manage-users': '/v1/projects/c4fc65e/users/',
+                u'stats': '/v1/projects/c4fc65e/stats'
+            },
             'network': None
         }
 
@@ -93,7 +99,10 @@ class ConvertersTestCase(MockedTestCase):
             u'href': u'/v1/projects/c4fc65e',
             u'name': u'Project X',
             u'description': u'Rather long description.',
-            u'stats-href': u'/v1/projects/c4fc65e/stats',
+            u'links': {
+                u'manage-users': '/v1/projects/c4fc65e/users/',
+                u'stats': '/v1/projects/c4fc65e/stats'
+            },
             u'network': {
                 u'id': u'2699a5',
                 u'name': u'net22',

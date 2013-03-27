@@ -47,6 +47,7 @@ class ConvertersTestCase(MockedTestCase):
                 u'href': '/v1/projects/PID',
                 u'name': u'Tenant'
             },
+            u'rules-href': u'/v1/fw-rule-sets/42/rules/',
             u'href': u'/v1/fw-rule-sets/42'
         }
 
