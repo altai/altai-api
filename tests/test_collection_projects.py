@@ -45,7 +45,6 @@ class ConvertersTestCase(MockedTestCase):
             u'description': u'Rather long description.',
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
-            u'storage-limit': 1000 * gb,
             u'instances-limit': 10,
             u'links': {
                 u'manage-users': '/v1/projects/c4fc65e/users/',
@@ -75,7 +74,6 @@ class ConvertersTestCase(MockedTestCase):
             u'description': u'Rather long description.',
             u'cpus-limit': 33,
             u'ram-limit': 50 * gb,
-            u'storage-limit': 1000 * gb,
             u'instances-limit': 10,
             u'links': {
                 u'manage-users': '/v1/projects/c4fc65e/users/',
@@ -648,14 +646,13 @@ class UpdateProjectTestCase(MockedTestCase):
         params = {
             u'cpus-limit': 13,
             u'ram-limit': 11 * gb,
-            u'storage-limit': 1000 * gb,
             u'instances-limit': 8
         }
 
         self.fake_client_set.identity_admin \
             .tenants.get(self.tenant_id).AndReturn(tenant)
         self.fake_client_set.compute.quotas.update(self.tenant_id,
-            instances=8, ram=11 * 1024, gigabytes=1000, cores=13)
+            instances=8, ram=11 * 1024, cores=13)
 
         projects._network_for_project(self.tenant_id).AndReturn('NET')
         projects._quotaset_for_project(self.tenant_id).AndReturn('QUOTA')

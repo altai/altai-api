@@ -31,7 +31,7 @@ from altai_api.utils.decorators import root_endpoint, user_endpoint
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.utils.misc import from_mb, from_gb, to_mb, to_gb
+from altai_api.utils.misc import from_mb, to_mb
 from altai_api.auth import admin_client_set, client_set_for_tenant
 
 
@@ -87,7 +87,6 @@ def _project_from_nova(tenant, net, quotaset):
     if quotaset is not None:
         result[u'cpus-limit'] = quotaset.cores
         result[u'ram-limit'] = from_mb(quotaset.ram)
-        result[u'storage-limit'] = from_gb(quotaset.gigabytes)
         result[u'instances-limit'] = quotaset.instances
     return result
 
@@ -137,13 +136,12 @@ _SCHEMA = Schema((
     st.LinkObject('network'),
     st.Int('cpus-limit'),
     st.Int('ram-limit'),
-    st.Int('storage-limit'),
     st.Int('instances-limit')),
 
     create_required=('name', 'network'),
     allowed=(  # both on creation and update
         'description', 'cpus-limit', 'ram-limit',
-        'storage-limit', 'instances-limit')
+        'instances-limit')
 )
 
 
@@ -198,8 +196,6 @@ def _set_quota(tenant_id, data):
         kwargs['cores'] = data.get('cpus-limit')
     if 'ram-limit' in data:
         kwargs['ram'] = to_mb(data.get('ram-limit'))
-    if 'storage-limit' in data:
-        kwargs['gigabytes'] = to_gb(data.get('storage-limit'))
     if 'instances-limit' in data:
         kwargs['instances'] = data.get('instances-limit')
 

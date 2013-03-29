@@ -37,7 +37,6 @@ _SCHEMA = Schema((
     st.Link('stats-href'),
     st.Int('cpus-limit'),
     st.Int('ram-limit'),
-    st.Int('storage-limit')
 ))
 
 """
