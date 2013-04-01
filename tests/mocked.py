@@ -51,7 +51,6 @@ from novaclient.v1_1 import floating_ip_dns
 from novaclient.v1_1 import floating_ips
 from novaclient.v1_1 import floating_ip_pools
 from novaclient.v1_1 import hosts
-from novaclient.v1_1 import images
 from novaclient.v1_1 import keypairs
 from novaclient.v1_1 import limits
 from novaclient.v1_1 import quota_classes

@@ -25,6 +25,7 @@ from flask.exceptions import HTTPException
 from altai_api import auth
 from altai_api.utils import *
 from altai_api.utils import collection
+from altai_api.utils.communication import make_stream_response
 
 from altai_api.utils.decorators import (data_handler, root_endpoint,
                                         user_endpoint)
@@ -79,7 +80,8 @@ def _image_to_view(image, tenant=None):
         u'container-format': image.container_format,
         u'created': timestamp_from_openstack(image.created_at),
         u'md5sum': image.checksum,
-        u'size': image.size
+        u'size': image.size,
+        u'data-href': url_for('images.get_image_data', image_id=image.id)
     })
     if image.owner == auth.default_tenant_id():
         result[u'global'] = True
@@ -93,10 +95,6 @@ def _image_to_view(image, tenant=None):
     if 'ramdisk_id' in image.properties:
         result['ramdisk'] = link_for_image(image.properties['ramdisk_id'])
 
-    if image.status == 'queued':
-        actions = result.setdefault('actions', {})
-        actions['upload'] = url_for('images.upload_image_data',
-                                    image_id=image.id)
     return result
 
 
@@ -261,6 +259,18 @@ def remove_image(image_id):
     image = _fetch_image(image_id, to_modify=True)  # also, checks permissions
     image.delete()
     return make_json_response(None, status_code=204)
+
+
+@BP.route('/<image_id>/data', methods=('GET',))
+@user_endpoint
+def get_image_data(image_id):
+    image = _fetch_image(image_id, to_modify=False)
+    if image.status != 'active':
+        abort(405)
+    try:
+        return make_stream_response(image.data(), image.size)
+    except osc_exc.NotFound:
+        abort(404)
 
 
 @BP.route('/<image_id>/data', methods=('PUT',))

@@ -56,6 +56,7 @@ class ImageFromNovaWorks(MockedTestCase):
         expected = {
             u'id': u'IMAGE',
             u'href': '/v1/images/IMAGE',
+            u'data-href': '/v1/images/IMAGE/data',
             u'name': u'TestImage',
             u'global': False,
             u'project': {
@@ -87,6 +88,7 @@ class ImageFromNovaWorks(MockedTestCase):
         expected = {
             u'id': u'IMAGE',
             u'href': '/v1/images/IMAGE',
+            u'data-href': '/v1/images/IMAGE/data',
             u'name': u'TestImage',
             u'global': True,
             u'created': datetime(2012, 10, 15, 01, 43, 00),
@@ -114,6 +116,7 @@ class ImageFromNovaWorks(MockedTestCase):
         expected = {
             u'id': u'IMAGE',
             u'href': '/v1/images/IMAGE',
+            u'data-href': '/v1/images/IMAGE/data',
             u'name': u'TestImage',
             u'global': True,
             u'created': datetime(2012, 10, 15, 01, 43, 00),
@@ -122,9 +125,6 @@ class ImageFromNovaWorks(MockedTestCase):
             u'md5sum': '831a05f7bdeadbabe5l1k3133715e7ea',
             u'size': 123456,
             u'status': u'queued',
-            u'actions': {
-                u'upload': '/v1/images/IMAGE/data',
-            }
         }
 
         self.mox.ReplayAll()
@@ -156,6 +156,7 @@ class ImageFromNovaWorks(MockedTestCase):
         expected = {
             u'id': u'IMAGE',
             u'href': '/v1/images/IMAGE',
+            u'data-href': '/v1/images/IMAGE/data',
             u'name': u'TestImage',
             u'global': True,
             u'created': datetime(2012, 10, 15, 01, 43, 00),
@@ -768,4 +769,43 @@ class LinkForImageTestCase(MockedTestCase):
             self.install_fake_auth()
             result = images.link_for_image('IMG')
         self.assertEquals(result, expected)
+
+
+class ImageDownloadTestCase(MockedTestCase):
+
+    def setUp(self):
+        super(ImageDownloadTestCase, self).setUp()
+        self.mox.StubOutWithMock(images, '_fetch_image')
+        self.image = doubles.make(self.mox, doubles.Image,
+                                  id=u'IMG', owner=u'PID', name='test image',
+                                  status='active', size=42)
+
+    def test_get_image_data_works(self):
+        data = 'a' * 42
+        images._fetch_image('IMG', to_modify=False).AndReturn(self.image)
+        self.image.data().AndReturn(data)
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/images/IMG/data')
+        self.assertEquals(rv.status_code, 200)
+        self.assertTrue('X-GD-Altai-Implementation' in rv.headers)
+        self.assertEquals(rv.content_length, 42)
+        self.assertEquals(rv.content_type, 'application/octet-stream')
+        self.assertEquals(rv.data, data)
+
+    def test_get_image_data_late_404(self):
+        images._fetch_image('IMG', to_modify=False).AndReturn(self.image)
+        self.image.data().AndRaise(osc_exc.NotFound('gone'))
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/images/IMG/data')
+        self.check_and_parse_response(rv, status_code=404)
+
+    def test_get_image_data_too_eraly(self):
+        self.image.status = 'queued'
+        images._fetch_image('IMG', to_modify=False).AndReturn(self.image)
+
+        self.mox.ReplayAll()
+        rv = self.client.get('/v1/images/IMG/data')
+        self.check_and_parse_response(rv, status_code=405)
 

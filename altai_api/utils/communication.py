@@ -78,6 +78,15 @@ def make_json_response(data, status_code=200, add_headers=None):
     return response
 
 
+def make_stream_response(stream, content_length, status_code=200):
+    """Make binary response from stream"""
+    return current_app.response_class(stream, status=status_code, headers={
+        'X-GD-Altai-Implementation': _IMPLEMENTATION,
+        'Content-Length': content_length,
+        'Content-Type': 'application/octet-stream'
+    })
+
+
 def check_request_headers():
     """Checks that request has all the correct headers"""
     if request.accept_mimetypes and _JSON not in request.accept_mimetypes:
