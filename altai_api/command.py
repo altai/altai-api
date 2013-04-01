@@ -126,7 +126,7 @@ def main(argv=None):
     try:
         argv = argv if argv is not None else sys.argv
         try:
-            command = _COMMANDS.get(argv[1])
+            command = _COMMANDS[argv[1]]
         except (KeyError, IndexError):
             show_help(argv)
         with make_app().test_request_context():
