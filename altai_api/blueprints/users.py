@@ -217,21 +217,34 @@ def get_user(user_id):
     return make_json_response(user_from_nova(user))
 
 
+def _check_invite_allowed(email_domain):
+    if not g.config('invitations', 'enabled'):
+        # TODO(imelnikov): consider if this is error 403, not 400
+        raise exc.InvalidRequest('Invitations disabled')
+
+    domains_allowed = g.config('invitations', 'domains-allowed')
+    if domains_allowed and email_domain not in domains_allowed:
+        abort(403)
+
+
+def _check_attributes_unique(objects, **kwargs):
+    for name, value in kwargs.iteritems():
+        if any(getattr(obj, name, None) == value for obj in objects):
+            raise exc.InvalidRequest('User with %s %s already exists'
+                                     % (name, value))
+
+
 @BP.route('/', methods=('POST',))
 def create_user():
     data = parse_request_data(_SCHEMA.create_allowed, _SCHEMA.create_required)
 
-    email_name, email_domain = data['email'].rsplit('@', 1)
+    email = data['email']
+    email_name, email_domain = email.rsplit('@', 1)
     name = data.get('name', email_name)
 
     invite = data.get('invite')
     if invite:
-        if not g.config('invitations', 'enabled'):
-            # TODO(imelnikov): consider if this is error 403, not 400
-            raise exc.InvalidRequest('Invitations disabled')
-        domains_allowed = g.config('invitations', 'domains-allowed')
-        if domains_allowed and email_domain not in domains_allowed:
-            abort(403)
+        _check_invite_allowed(email_domain)
     else:
         if 'password' not in data:
             raise exc.MissingElement('password')
@@ -240,13 +253,18 @@ def create_user():
                 reason = '%s element is allowed only when inviting user' % e
                 raise exc.UnknownElement(e, reason)
 
-    try:
-        user_mgr = g.client_set.identity_admin.users
+    user_mgr = g.client_set.identity_admin.users
+    # NOTE(imelnikov): there are some races: any other user can be created or
+    #   changed between following check and creation time, but this check
+    #   is not for integrity, but for convenience.
+    _check_attributes_unique(user_mgr.list(),
+                             name=name, email=email)
 
+    try:
         # NOTE(imelnikov): we disable user until she accepts invite
         new_user = user_mgr.create(name=name,
                                    password=data.get('password'),
-                                   email=data['email'],
+                                   email=email,
                                    enabled=not invite)
         set_audit_resource_id(new_user)
         if 'fullname' in data:

@@ -269,6 +269,10 @@ class CreateUserTestCase(MockedTestCase):
         self.mox.StubOutWithMock(ConfigDAO, 'get')
         self.mox.StubOutWithMock(users, '_invite_user')
 
+        self.user = doubles.make(self.mox, doubles.User,
+                                 id='OTHER_UID', name='otheruser',
+                                 email='other@example.com')
+
     def _interact(self, data, expected_status_code=200):
         rv = self.client.post('/v1/users/',
                               data=json.dumps(data),
@@ -280,6 +284,8 @@ class CreateUserTestCase(MockedTestCase):
         client = self.fake_client_set
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
         fullname = "User Userovich"
+
+        client.identity_admin.users.list().AndReturn([self.user])
         client.identity_admin.users.create(
             name=name, password=passw, email=email,
             enabled=True).AndReturn('new-user')
@@ -297,8 +303,9 @@ class CreateUserTestCase(MockedTestCase):
 
     def test_create_user_with_projects(self):
         client = self.fake_client_set
-
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+
+        client.identity_admin.users.list().AndReturn([self.user])
         client.identity_admin.users.create(
             name=name, password=passw, email=email,
             enabled=True).AndReturn('new-user')
@@ -321,8 +328,9 @@ class CreateUserTestCase(MockedTestCase):
 
     def test_create_user_with_bad_projects(self):
         client = self.fake_client_set
-
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+
+        client.identity_admin.users.list().AndReturn([self.user])
         client.identity_admin.users.create(
             name=name, password=passw, email=email,
             enabled=True).AndReturn('new-user')
@@ -410,7 +418,10 @@ class CreateUserTestCase(MockedTestCase):
         }
         ConfigDAO.get('invitations', 'enabled').AndReturn(True)
         ConfigDAO.get('invitations', 'domains-allowed').AndReturn([])
-        self.fake_client_set.identity_admin.users.create(
+        user_mgr = self.fake_client_set.identity_admin.users
+
+        user_mgr.list().AndReturn([self.user])
+        user_mgr.create(
             name=name, password=passw, email=email,
             enabled=False).AndReturn('NEW_USER')
         users._invite_user('NEW_USER', post_params) \
@@ -434,7 +445,10 @@ class CreateUserTestCase(MockedTestCase):
         ConfigDAO.get('invitations', 'enabled').AndReturn(True)
         ConfigDAO.get('invitations', 'domains-allowed')\
                 .AndReturn(['example.net', 'example.com'])
-        self.fake_client_set.identity_admin.users.create(
+        user_mgr = self.fake_client_set.identity_admin.users
+
+        user_mgr.list().AndReturn([self.user])
+        user_mgr.create(
             name=name, password=passw, email=email,
             enabled=False).AndReturn('NEW_USER')
         users._invite_user('NEW_USER', post_params) \
@@ -467,8 +481,9 @@ class CreateUserTestCase(MockedTestCase):
     def test_create_admin(self):
         client = self.fake_client_set
         new_user = doubles.make(self.mox, doubles.User, id='NUID')
-
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+
+        client.identity_admin.users.list().AndReturn([self.user])
         client.identity_admin.users.create(
             name=name, password=passw, email=email,
             enabled=True).AndReturn(new_user)
@@ -483,9 +498,11 @@ class CreateUserTestCase(MockedTestCase):
                                "password": passw, "admin": True})
         self.assertEquals(data, 'new-user-dict')
 
-    def test_create_existing_user(self):
+    def test_create_bad_user(self):
         client = self.fake_client_set
         (name, email, passw) = ('user-a', 'user-a@example.com', 'bananas')
+
+        client.identity_admin.users.list().AndReturn([self.user])
         client.identity_admin.users.create(
             name=name, email=email, password=passw, enabled=True) \
                 .AndRaise(osc_exc.BadRequest('fail'))
@@ -497,6 +514,40 @@ class CreateUserTestCase(MockedTestCase):
             "password": passw,
             "admin": False,
         })
+
+    def test_create_user_name_conflict(self):
+        client = self.fake_client_set
+        (name, email, passw) = (self.user.name,
+                                'user-a@example.com', 'bananas')
+        client.identity_admin.users.list().AndReturn([self.user])
+
+        self.mox.ReplayAll()
+        data = self._interact(expected_status_code=400, data={
+            "name": name,
+            "email": email,
+            "password": passw,
+            "admin": False,
+        })
+        self.assertEquals(data['error-type'], 'InvalidRequest')
+        self.assertTrue('already exists' in data['message'])
+        self.assertTrue(self.user.name in data['message'])
+
+    def test_create_user_email_conflict(self):
+        client = self.fake_client_set
+        (name, email, passw) = ('user-a', self.user.email, 'bananas')
+
+        client.identity_admin.users.list().AndReturn([self.user])
+
+        self.mox.ReplayAll()
+        data = self._interact(expected_status_code=400, data={
+            "name": name,
+            "email": email,
+            "password": passw,
+            "admin": False,
+        })
+        self.assertEquals(data['error-type'], 'InvalidRequest')
+        self.assertTrue('already exists' in data['message'])
+        self.assertTrue(self.user.email in data['message'])
 
 
 class UpdateUserTestCase(MockedTestCase):
