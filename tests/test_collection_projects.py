@@ -23,12 +23,13 @@ from flask import json
 import openstackclient_base.exceptions as osc_exc
 
 from tests import doubles
-from tests.mocked import mock_client_set, MockedTestCase
+from tests.mocked import MockedTestCase
 
 from altai_api.blueprints import projects
 
 
 class ConvertersTestCase(MockedTestCase):
+    maxDiff = None
 
     def test_project_from_nova_works(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
@@ -48,7 +49,7 @@ class ConvertersTestCase(MockedTestCase):
             u'instances-limit': 10,
             u'links': {
                 u'manage-users': '/v1/projects/c4fc65e/users/',
-                u'stats': '/v1/projects/c4fc65e/stats'
+                u'stats': '/v1/stats/by-project/c4fc65e'
             },
             u'network': {
                 u'id': u'2699a5',
@@ -77,7 +78,7 @@ class ConvertersTestCase(MockedTestCase):
             u'instances-limit': 10,
             u'links': {
                 u'manage-users': '/v1/projects/c4fc65e/users/',
-                u'stats': '/v1/projects/c4fc65e/stats'
+                u'stats': '/v1/stats/by-project/c4fc65e'
             },
             'network': None
         }
@@ -99,7 +100,7 @@ class ConvertersTestCase(MockedTestCase):
             u'description': u'Rather long description.',
             u'links': {
                 u'manage-users': '/v1/projects/c4fc65e/users/',
-                u'stats': '/v1/projects/c4fc65e/stats'
+                u'stats': '/v1/stats/by-project/c4fc65e'
             },
             u'network': {
                 u'id': u'2699a5',
@@ -337,50 +338,6 @@ class ProjectsTestCase(MockedTestCase):
         rv = self.client.get('/v1/projects/')
         data = self.check_and_parse_response(rv)
         self.assertEquals(data, expected)
-
-
-class ProjectStatsTestCase(MockedTestCase):
-
-    def test_stats_work(self):
-        tcs = mock_client_set(self.mox)
-        tenant = doubles.make(self.mox, doubles.Tenant,
-                              id=u'pid', name=u'test project')
-        self.mox.StubOutWithMock(projects, 'client_set_for_tenant')
-
-        self.fake_client_set.identity_admin.tenants.get(u'pid') \
-                .AndReturn(tenant)
-        self.fake_client_set.identity_admin.tenants.list_users(u'pid') \
-                .AndReturn(range(42))
-        projects.client_set_for_tenant(u'pid', fallback_to_api=True) \
-                .AndReturn(tcs)
-        tcs.compute.servers.list().AndReturn(range(3))
-        tcs.image.images.list().AndReturn([])
-
-        expected = {
-            u'project': {
-                u'id': u'pid',
-                u'href': u'/v1/projects/pid',
-                u'name': u'test project'
-            },
-            u'members': 42,
-            u'instances': 3,
-            u'local-images': 0,
-            u'total-images': 0
-        }
-
-        self.mox.ReplayAll()
-
-        rv = self.client.get('/v1/projects/pid/stats')
-        data = self.check_and_parse_response(rv)
-        self.assertEquals(data, expected)
-
-    def test_stats_not_found(self):
-        self.fake_client_set.identity_admin.tenants.get(u'pid') \
-                .AndRaise(osc_exc.NotFound("test message"))
-        self.mox.ReplayAll()
-
-        rv = self.client.get('/v1/projects/pid/stats')
-        self.check_and_parse_response(rv, 404)
 
 
 class CreateProjectTestCase(MockedTestCase):

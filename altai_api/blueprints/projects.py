@@ -32,7 +32,7 @@ from altai_api.schema import Schema
 from altai_api.schema import types as st
 
 from altai_api.utils.misc import from_mb, to_mb
-from altai_api.auth import admin_client_set, client_set_for_tenant
+from altai_api.auth import admin_client_set
 
 
 BP = Blueprint('projects', __name__)
@@ -77,7 +77,7 @@ def _project_from_nova(tenant, net, quotaset):
         u'description': tenant.description,
         u'network': network,
         u'links': {
-            u'stats': url_for('projects.get_project_stats',
+            u'stats': url_for('stats.get_project_stats',
                               project_id=tenant.id),
             u'manage-users': url_for('project_users.list_project_users',
                                      project_id=tenant.id)
@@ -165,27 +165,6 @@ def list_projects():
                                  _quotaset_for_project(t.id))
               for t in tenants if t.name != systenant]
     return make_collection_response(u'projects', result)
-
-
-@BP.route('/<project_id>/stats', methods=('GET',))
-@user_endpoint
-def get_project_stats(project_id):
-    tenant = get_tenant(project_id)
-    users = admin_client_set().identity_admin.tenants.list_users(tenant.id)
-
-    tcs = client_set_for_tenant(project_id, fallback_to_api=g.is_admin)
-    servers = tcs.compute.servers.list()
-    images = tcs.image.images.list()
-    local_images = [image for image in images
-                    if image.owner == tenant.id]
-
-    return make_json_response({
-        u'project': link_for_tenant(tenant),
-        u'instances': len(servers),
-        u'members': len(users),
-        u'local-images': len(local_images),
-        u'total-images': len(images)
-    })
 
 
 def _set_quota(tenant_id, data):
