@@ -117,7 +117,7 @@ class RecordFromDatabaseTestCase(MockedTestCase, ContextWrappedTestCase):
         audit_log._record_to_dict(record, None, None).AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        reply = audit_log.record_from_database(record)
+        reply = audit_log.record_to_view(record)
         self.assertEquals('REPLY', reply)
 
     def test_has_user_name(self):
@@ -126,7 +126,7 @@ class RecordFromDatabaseTestCase(MockedTestCase, ContextWrappedTestCase):
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        reply = audit_log.record_from_database(record, 'user')
+        reply = audit_log.record_to_view(record, 'user')
         self.assertEquals('REPLY', reply)
 
     def test_get_user_name(self):
@@ -137,7 +137,7 @@ class RecordFromDatabaseTestCase(MockedTestCase, ContextWrappedTestCase):
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        reply = audit_log.record_from_database(record)
+        reply = audit_log.record_to_view(record)
         self.assertEquals('REPLY', reply)
 
     def test_user_not_found(self):
@@ -147,7 +147,7 @@ class RecordFromDatabaseTestCase(MockedTestCase, ContextWrappedTestCase):
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        reply = audit_log.record_from_database(record)
+        reply = audit_log.record_to_view(record)
         self.assertEquals('REPLY', reply)
 
     def test_has_project_name(self):
@@ -156,7 +156,7 @@ class RecordFromDatabaseTestCase(MockedTestCase, ContextWrappedTestCase):
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        reply = audit_log.record_from_database(record, None, 'project')
+        reply = audit_log.record_to_view(record, None, 'project')
         self.assertEquals('REPLY', reply)
 
     def test_get_project_name(self):
@@ -167,7 +167,7 @@ class RecordFromDatabaseTestCase(MockedTestCase, ContextWrappedTestCase):
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        reply = audit_log.record_from_database(record)
+        reply = audit_log.record_to_view(record)
         self.assertEquals('REPLY', reply)
 
     def test_project_not_found(self):
@@ -177,7 +177,7 @@ class RecordFromDatabaseTestCase(MockedTestCase, ContextWrappedTestCase):
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
-        reply = audit_log.record_from_database(record)
+        reply = audit_log.record_to_view(record)
         self.assertEquals('REPLY', reply)
 
 
@@ -185,12 +185,12 @@ class AuditLogTestCase(MockedTestCase):
     def setUp(self):
         super(AuditLogTestCase, self).setUp()
         self.mox.StubOutWithMock(audit_log, 'AuditDAO')
-        self.mox.StubOutWithMock(audit_log, 'record_from_database')
+        self.mox.StubOutWithMock(audit_log, 'record_to_view')
 
     def test_list_works(self):
         audit_log.AuditDAO.list_all().AndReturn(['A1', 'A2'])
-        audit_log.record_from_database('A1').AndReturn('R1')
-        audit_log.record_from_database('A2').AndReturn('R2')
+        audit_log.record_to_view('A1').AndReturn('R1')
+        audit_log.record_to_view('A2').AndReturn('R2')
         expected = {
             'collection': {
                 'name': 'audit-log',
@@ -207,7 +207,7 @@ class AuditLogTestCase(MockedTestCase):
     def test_get_works(self):
         record_id = 'RID'
         audit_log.AuditDAO.get(record_id).AndReturn('RECORD')
-        audit_log.record_from_database('RECORD').AndReturn('REPLY')
+        audit_log.record_to_view('RECORD').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/audit-log/%s' % record_id)

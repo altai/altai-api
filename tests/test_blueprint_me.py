@@ -36,13 +36,13 @@ class MeTestCase(MockedTestCase):
 
     def setUp(self):
         super(MeTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_to_view')
 
     def test_get_me(self):
         self.fake_client_set.http_client.access['user']['id'] = 'user-a'
         self.fake_client_set.identity_admin.users\
                 .get('user-a').AndReturn('user-a')
-        users.user_from_nova('user-a').AndReturn('dict-a')
+        users.user_to_view('user-a').AndReturn('dict-a')
         self.mox.ReplayAll()
 
         rv = self.client.get('/v1/me')

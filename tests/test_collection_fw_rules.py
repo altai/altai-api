@@ -29,7 +29,7 @@ from altai_api.blueprints import fw_rules
 
 
 class RuleConvertNovaTestCase(MockedTestCase):
-    from_nova = {
+    to_view = {
         u'id': 1,
         u'ip_protocol': u'tcp',
         u'from_port': 80,
@@ -49,18 +49,18 @@ class RuleConvertNovaTestCase(MockedTestCase):
         u'source': u'10.0.0.0/8'
     }
 
-    def test_rule_dict_from_nova_works(self):
+    def test_rule_dict_to_view_works(self):
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            res = fw_rules._fw_rule_dict_from_nova(self.from_nova)
+            res = fw_rules._fw_rule_dict_to_view(self.to_view)
         self.assertEquals(res, self.expected)
 
-    def test_rule_object_from_nova_works(self):
+    def test_rule_object_to_view_works(self):
         rule = doubles.make(self.mox, doubles.SecurityGroupRule,
-                            **self.from_nova)
+                            **self.to_view)
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            res = fw_rules._fw_rule_object_from_nova(rule)
+            res = fw_rules._fw_rule_object_to_view(rule)
         self.assertEquals(res, self.expected)
 
 
@@ -68,7 +68,7 @@ class FwRulesTestCase(MockedTestCase):
 
     def setUp(self):
         super(FwRulesTestCase, self).setUp()
-        self.mox.StubOutWithMock(fw_rules, '_fw_rule_dict_from_nova')
+        self.mox.StubOutWithMock(fw_rules, '_fw_rule_dict_to_view')
         self.mox.StubOutWithMock(fw_rules.auth, 'assert_admin_or_project_user')
 
     def test_list_works(self):
@@ -78,8 +78,8 @@ class FwRulesTestCase(MockedTestCase):
 
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
         fw_rules.auth.assert_admin_or_project_user('TENANT', eperm_status=404)
-        fw_rules._fw_rule_dict_from_nova('RULE1').AndReturn('REPLY1')
-        fw_rules._fw_rule_dict_from_nova('RULE2').AndReturn('REPLY2')
+        fw_rules._fw_rule_dict_to_view('RULE1').AndReturn('REPLY1')
+        fw_rules._fw_rule_dict_to_view('RULE2').AndReturn('REPLY2')
 
         expected = {
             'collection': {
@@ -116,7 +116,7 @@ class FwRulesTestCase(MockedTestCase):
         self.fake_client_set.compute.security_groups.get(sg.id).AndReturn(sg)
         fw_rules.auth.assert_admin_or_project_user('PID', eperm_status=404)
 
-        fw_rules._fw_rule_dict_from_nova(rules[1]).AndReturn('REPLY')
+        fw_rules._fw_rule_dict_to_view(rules[1]).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/fw-rule-sets/%s/rules/%s' % (sg.id, ruleid))
@@ -227,7 +227,7 @@ class CreateRuleTestCase(MockedTestCase):
 
     def setUp(self):
         super(CreateRuleTestCase, self).setUp()
-        self.mox.StubOutWithMock(fw_rules, '_fw_rule_object_from_nova')
+        self.mox.StubOutWithMock(fw_rules, '_fw_rule_object_to_view')
         self.mox.StubOutWithMock(fw_rules, '_get_security_group')
         self.mox.StubOutWithMock(fw_rules.auth, 'client_set_for_tenant')
         self.sg = doubles.make(self.mox, doubles.SecurityGroup,
@@ -252,7 +252,7 @@ class CreateRuleTestCase(MockedTestCase):
             from_port=-1,
             to_port=-1,
             cidr='10.0.0.0/8').AndReturn('Created rule')
-        fw_rules._fw_rule_object_from_nova('Created rule').AndReturn('REPLY')
+        fw_rules._fw_rule_object_to_view('Created rule').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
@@ -291,7 +291,7 @@ class CreateRuleTestCase(MockedTestCase):
             from_port=80,
             to_port=80,
             cidr='10.0.0.0/8').AndReturn('Created rule')
-        fw_rules._fw_rule_object_from_nova('Created rule').AndReturn('REPLY')
+        fw_rules._fw_rule_object_to_view('Created rule').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
@@ -313,7 +313,7 @@ class CreateRuleTestCase(MockedTestCase):
             from_port=42,
             to_port=60042,
             cidr='10.0.0.0/8').AndReturn('Created rule')
-        fw_rules._fw_rule_object_from_nova('Created rule').AndReturn('REPLY')
+        fw_rules._fw_rule_object_to_view('Created rule').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 

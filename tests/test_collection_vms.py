@@ -80,7 +80,7 @@ class InstanceFromNovaTestCase(MockedTestCase):
                         expires_at=datetime(2012, 12, 11, 10, 9, 8),
                         remind_at=datetime(2012, 12, 10, 8, 6, 4))
 
-    def test_instance_from_nova_works(self):
+    def test_instance_to_view_works(self):
         expected = {
             u'id': u'VMID',
             u'href': '/v1/instances/VMID',
@@ -131,10 +131,10 @@ class InstanceFromNovaTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            result = instances._instance_from_nova(self.instance)
+            result = instances._instance_to_view(self.instance)
         self.assertEquals(result, expected)
 
-    def test_instance_from_nova_no_tenant(self):
+    def test_instance_to_view_no_tenant(self):
         expected_project = {
             'id': 'TENANT',
             'href': '/v1/projects/%s' % 'TENANT',
@@ -152,10 +152,10 @@ class InstanceFromNovaTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            result = instances._instance_from_nova(self.instance)
+            result = instances._instance_to_view(self.instance)
         self.assertEquals(result['project'], expected_project)
 
-    def test_instance_from_nova_no_user(self):
+    def test_instance_to_view_no_user(self):
         expected_user = {
             'id': 'UID',
             'href': '/v1/users/%s' % 'UID',
@@ -173,7 +173,7 @@ class InstanceFromNovaTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            result = instances._instance_from_nova(self.instance)
+            result = instances._instance_to_view(self.instance)
         self.assertEquals(result['created-by'], expected_user)
 
 
@@ -181,7 +181,7 @@ class InstancesListTestCase(MockedTestCase):
 
     def setUp(self):
         super(InstancesListTestCase, self).setUp()
-        self.mox.StubOutWithMock(instances, '_instance_from_nova')
+        self.mox.StubOutWithMock(instances, '_instance_to_view')
         self.mox.StubOutWithMock(instances, '_servers_for_user')
         self.mox.StubOutWithMock(instances, 'fetch_instance')
 
@@ -189,8 +189,8 @@ class InstancesListTestCase(MockedTestCase):
         self.fake_client_set.compute.servers\
                 .list(search_opts={'all_tenants': 1})\
                 .AndReturn([u'VM1', u'VM2'])
-        instances._instance_from_nova(u'VM1').AndReturn(u'R1')
-        instances._instance_from_nova(u'VM2').AndReturn(u'R2')
+        instances._instance_to_view(u'VM1').AndReturn(u'R1')
+        instances._instance_to_view(u'VM2').AndReturn(u'R2')
 
         expected = {
             u'collection': {
@@ -208,8 +208,8 @@ class InstancesListTestCase(MockedTestCase):
     def test_list_instances_my_projects(self):
         instances._servers_for_user() \
                 .AndReturn([u'VM1', u'VM2'])
-        instances._instance_from_nova(u'VM1').AndReturn(u'R1')
-        instances._instance_from_nova(u'VM2').AndReturn(u'R2')
+        instances._instance_to_view(u'VM1').AndReturn(u'R1')
+        instances._instance_to_view(u'VM2').AndReturn(u'R2')
 
         expected = {
             u'collection': {
@@ -226,7 +226,7 @@ class InstancesListTestCase(MockedTestCase):
 
     def test_get_instance_works(self):
         instances.fetch_instance(u'VMID').AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/instances/VMID')
@@ -312,7 +312,7 @@ class CreateTestCase(MockedTestCase):
 
     def setUp(self):
         super(CreateTestCase, self).setUp()
-        self.mox.StubOutWithMock(instances, '_instance_from_nova')
+        self.mox.StubOutWithMock(instances, '_instance_to_view')
         self.mox.StubOutWithMock(instances, 'client_set_for_tenant')
         self.mox.StubOutWithMock(instances, 'InstanceDataDAO')
         self.tcs = mock_client_set(self.mox)
@@ -340,7 +340,7 @@ class CreateTestCase(MockedTestCase):
             key_name=None,
             admin_pass=None
         ).AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -368,7 +368,7 @@ class CreateTestCase(MockedTestCase):
         instances.InstanceDataDAO.create(u'VMID',
                              expires_at=datetime(2013, 1, 17, 15, 36, 0),
                              remind_at=None)
-        instances._instance_from_nova(server).AndReturn('REPLY')
+        instances._instance_to_view(server).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -391,7 +391,7 @@ class CreateTestCase(MockedTestCase):
             key_name=None,
             admin_pass=u'p@ssw0rd'
         ).AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -435,7 +435,7 @@ class CreateTestCase(MockedTestCase):
             key_name=u'thisiskey',
             admin_pass=None
         ).AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -464,7 +464,7 @@ class CreateTestCase(MockedTestCase):
             key_name=None,
             admin_pass=None
         ).AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -493,7 +493,7 @@ class UpdateTestCase(MockedTestCase):
 
     def setUp(self):
         super(UpdateTestCase, self).setUp()
-        self.mox.StubOutWithMock(instances, '_instance_from_nova')
+        self.mox.StubOutWithMock(instances, '_instance_to_view')
         self.mox.StubOutWithMock(instances, 'InstanceDataDAO')
         self.mox.StubOutWithMock(instances, 'fetch_instance')
         self.server = doubles.make(self.mox, doubles.Server,
@@ -512,7 +512,7 @@ class UpdateTestCase(MockedTestCase):
         instances.fetch_instance(self.instance_id).AndReturn(self.server)
         self.server.update(name=u'new name')
         instances.fetch_instance(self.instance_id).AndReturn('VM')
-        instances._instance_from_nova('VM').AndReturn('REPLY')
+        instances._instance_to_view('VM').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -531,7 +531,7 @@ class UpdateTestCase(MockedTestCase):
         params = {}
 
         instances.fetch_instance(self.instance_id).AndReturn('VM')
-        instances._instance_from_nova('VM').AndReturn('REPLY')
+        instances._instance_to_view('VM').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -555,7 +555,7 @@ class UpdateTestCase(MockedTestCase):
         instances.fetch_instance(self.instance_id).AndReturn(server)
         instances.InstanceDataDAO.update('VMID',
                              expires_at=datetime(2013, 2, 17, 15, 36, 0))
-        instances._instance_from_nova(server).AndReturn('REPLY')
+        instances._instance_to_view(server).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -571,7 +571,7 @@ class UpdateTestCase(MockedTestCase):
         instances.fetch_instance(self.instance_id).AndReturn(server)
         instances.InstanceDataDAO.update('VMID', expires_at=None,
                                          remind_at=None)
-        instances._instance_from_nova(server).AndReturn('REPLY')
+        instances._instance_to_view(server).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -586,7 +586,7 @@ class UpdateTestCase(MockedTestCase):
         instances.fetch_instance(self.instance_id).AndReturn(server)
         instances.InstanceDataDAO.update('VMID',
                              remind_at=datetime(2013, 2, 17, 15, 36, 0))
-        instances._instance_from_nova(server).AndReturn('REPLY')
+        instances._instance_to_view(server).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -599,7 +599,7 @@ class ActionsTestCase(MockedTestCase):
         super(ActionsTestCase, self).setUp()
         self.server = doubles.make(self.mox, doubles.Server,
                                    id=u'VICTIM', name=u'VICTIM VM')
-        self.mox.StubOutWithMock(instances, '_instance_from_nova')
+        self.mox.StubOutWithMock(instances, '_instance_to_view')
         self.mox.StubOutWithMock(instances, 'InstanceDataDAO')
         self.mox.StubOutWithMock(instances, 'fetch_instance')
 
@@ -615,7 +615,7 @@ class ActionsTestCase(MockedTestCase):
         instances.fetch_instance(s.id).AndReturn(s)
         s.reboot(REBOOT_SOFT)
         instances.fetch_instance(s.id).AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact('/v1/instances/%s/reboot' % s.id, {})
@@ -644,7 +644,7 @@ class ActionsTestCase(MockedTestCase):
         instances.fetch_instance(s.id).AndReturn(s)
         s.reboot(REBOOT_HARD)
         instances.fetch_instance(s.id).AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact('/v1/instances/%s/reset' % s.id, {})
@@ -656,7 +656,7 @@ class ActionsTestCase(MockedTestCase):
         s.delete()
         instances.InstanceDataDAO.delete(s.id)
         instances.fetch_instance(s.id).AndReturn('VM1')
-        instances._instance_from_nova('VM1').AndReturn('REPLY')
+        instances._instance_to_view('VM1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact('/v1/instances/%s/remove' % s.id, {})

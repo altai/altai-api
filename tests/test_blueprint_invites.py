@@ -36,7 +36,7 @@ class InvitesTestCase(MockedTestCase):
     def setUp(self):
         super(InvitesTestCase, self).setUp()
         self.mox.StubOutWithMock(invites, 'InvitesDAO')
-        self.mox.StubOutWithMock(invites, 'user_from_nova')
+        self.mox.StubOutWithMock(invites, 'user_to_view')
         self.mox.StubOutWithMock(invites.auth, 'admin_client_set')
 
         self.code = '42'
@@ -53,7 +53,7 @@ class InvitesTestCase(MockedTestCase):
                 .AndReturn(self.fake_client_set)
         self.fake_client_set.identity_admin.users.get(self.user.id)\
                 .AndReturn(self.user)
-        invites.user_from_nova(self.user, self.token).AndReturn('REPLY')
+        invites.user_to_view(self.user, self.token).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/invites/%s' % self.code)
@@ -113,7 +113,7 @@ class InvitesTestCase(MockedTestCase):
         user_mgr.get(self.user.id).AndReturn(self.user)
 
         invites.InvitesDAO.complete_for_user(self.user.id)
-        invites.user_from_nova(self.user, self.token).AndReturn('REPLY')
+        invites.user_to_view(self.user, self.token).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.put('/v1/invites/%s' % self.code,

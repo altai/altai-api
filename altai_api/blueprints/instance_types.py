@@ -39,7 +39,7 @@ from altai_api.schema import types as st
 BP = Blueprint('instance_types', __name__)
 
 
-def _instance_type_from_nova(flavor):
+def _instance_type_to_view(flavor):
     return {
         u'id': flavor.id,
         u'href': url_for('instance_types.get_instance_type',
@@ -80,7 +80,7 @@ _SCHEMA = Schema((
 def list_instance_types():
     parse_collection_request(_SCHEMA)
     all_flavors = bound_client_set().compute.flavors.list()
-    result = [_instance_type_from_nova(flavor)
+    result = [_instance_type_to_view(flavor)
               for flavor in all_flavors]
     return make_collection_response(u'instance-types', result)
 
@@ -97,7 +97,7 @@ def get_instance_type(instance_type_id):
     all_flavors = bound_client_set().compute.flavors.list()
     for flavor in all_flavors:
         if flavor.id == instance_type_id:
-            return make_json_response(_instance_type_from_nova(flavor))
+            return make_json_response(_instance_type_to_view(flavor))
     abort(404)
 
 
@@ -111,7 +111,7 @@ def create_instance_type():
     except osc_exc.HttpException, e:
         raise exc.InvalidRequest(str(e))
     set_audit_resource_id(flavor)
-    return make_json_response(_instance_type_from_nova(flavor))
+    return make_json_response(_instance_type_to_view(flavor))
 
 
 @BP.route('/<instance_type_id>', methods=('DELETE',))

@@ -22,7 +22,7 @@
 from flask import Blueprint, abort
 from openstackclient_base import exceptions as osc_exc
 
-from altai_api.blueprints.users import (user_from_nova, InvitesDAO,
+from altai_api.blueprints.users import (user_to_view, InvitesDAO,
                                         update_user_data)
 
 from altai_api import auth
@@ -59,7 +59,7 @@ def list_invites():
 @no_auth_endpoint
 def get_user_by_code(code):
     invite, user = _invite_and_user(code)
-    return make_json_response(user_from_nova(user, invite))
+    return make_json_response(user_to_view(user, invite))
 
 
 _ACCEPT_SCHEMA = Schema((
@@ -87,5 +87,5 @@ def accept_invite(code):
         abort(404)
 
     InvitesDAO.complete_for_user(user.id)
-    return make_json_response(user_from_nova(user, invite), 200)
+    return make_json_response(user_to_view(user, invite), 200)
 

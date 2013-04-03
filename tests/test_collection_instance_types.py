@@ -36,7 +36,7 @@ _GB = 1024 * 1024 * 1024
 
 class InstanceTypesToNovaTestCase(MockedTestCase):
 
-    def test_from_nova(self):
+    def test_to_view(self):
         flavor = doubles.make(self.mox, doubles.Flavor,
                               id=u'42',
                               name=u'my test',
@@ -54,7 +54,7 @@ class InstanceTypesToNovaTestCase(MockedTestCase):
             u'ephemeral-size': 80 * _GB
         }
         with self.app.test_request_context():
-            res = instance_types._instance_type_from_nova(flavor)
+            res = instance_types._instance_type_to_view(flavor)
         self.assertEquals(expected, res)
 
     def test_for_nova_works(self):
@@ -80,7 +80,7 @@ class InstanceTypesListTestCase(MockedTestCase):
 
     def setUp(self):
         super(InstanceTypesListTestCase, self).setUp()
-        self.mox.StubOutWithMock(instance_types, '_instance_type_from_nova')
+        self.mox.StubOutWithMock(instance_types, '_instance_type_to_view')
 
     def test_no_flavors(self):
         expected = {
@@ -111,8 +111,8 @@ class InstanceTypesListTestCase(MockedTestCase):
         }
 
         self.fake_client_set.compute.flavors.list().AndReturn(['F1', 'F2'])
-        instance_types._instance_type_from_nova('F1').AndReturn(reply[0])
-        instance_types._instance_type_from_nova('F2').AndReturn(reply[1])
+        instance_types._instance_type_to_view('F1').AndReturn(reply[0])
+        instance_types._instance_type_to_view('F2').AndReturn(reply[1])
 
         self.mox.ReplayAll()
 
@@ -127,7 +127,7 @@ class InstanceTypesListTestCase(MockedTestCase):
             doubles.make(self.mox, doubles.Flavor, id="421"),
         ]
         self.fake_client_set.compute.flavors.list().AndReturn(flavors)
-        instance_types._instance_type_from_nova(flavors[1]).AndReturn('REPLY')
+        instance_types._instance_type_to_view(flavors[1]).AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
@@ -148,7 +148,7 @@ class InstanceTypesCreateTestCase(MockedTestCase):
     def setUp(self):
         super(InstanceTypesCreateTestCase, self).setUp()
         self.mox.StubOutWithMock(instance_types, '_instance_type_for_nova')
-        self.mox.StubOutWithMock(instance_types, '_instance_type_from_nova')
+        self.mox.StubOutWithMock(instance_types, '_instance_type_to_view')
         self.mox.StubOutWithMock(uuid, 'uuid4')
 
         self.fake_params = {
@@ -182,7 +182,7 @@ class InstanceTypesCreateTestCase(MockedTestCase):
         for_nova['flavorid'] = flavorid.int
         self.fake_client_set.compute.flavors.create(**for_nova)\
                 .AndReturn('FLAVOR42')
-        instance_types._instance_type_from_nova('FLAVOR42').AndReturn('REPLY')
+        instance_types._instance_type_to_view('FLAVOR42').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(self.fake_params)

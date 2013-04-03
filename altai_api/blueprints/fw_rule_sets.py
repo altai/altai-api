@@ -48,7 +48,7 @@ def link_for_security_group(secgroup):
     }
 
 
-def _sg_from_nova(secgroup, project_name=None):
+def _sg_to_view(secgroup, project_name=None):
     result = link_for_security_group(secgroup)
     result.update((
         ('description', secgroup.description),
@@ -85,7 +85,7 @@ def list_fw_rule_sets():
         if tenant.name != app.config['SYSTENANT']:
             tcs = client_set_for_tenant(tenant.id, fallback_to_api=g.is_admin)
             for sg in tcs.compute.security_groups.list():
-                result.append(_sg_from_nova(sg, tenant.name))
+                result.append(_sg_to_view(sg, tenant.name))
     return make_collection_response(u'fw-rule-sets', result)
 
 
@@ -97,7 +97,7 @@ def get_fw_rule_set(fw_rule_set_id):
     except osc_exc.NotFound:
         abort(404)
     assert_admin_or_project_user(sg.tenant_id, eperm_status=404)
-    return make_json_response(_sg_from_nova(sg))
+    return make_json_response(_sg_to_view(sg))
 
 
 @BP.route('/', methods=('POST',))
@@ -109,7 +109,7 @@ def create_fw_rule_set():
     sg = tcs.compute.security_groups.create(
         name=data['name'], description=data.get('description', ''))
     set_audit_resource_id(sg)
-    return make_json_response(_sg_from_nova(sg))
+    return make_json_response(_sg_to_view(sg))
 
 
 @BP.route('/<fw_rule_set_id>', methods=('DELETE',))

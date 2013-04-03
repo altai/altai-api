@@ -71,7 +71,7 @@ def link_for_image(image_id, image_name=None):
     }
 
 
-def _image_from_nova(image, tenant=None):
+def _image_to_view(image, tenant=None):
     result = link_for_image(image.id, image.name)
     result.update({
         u'status': image.status,
@@ -142,7 +142,7 @@ def _images_for_tenant(tenant_id, is_public):
                                         fallback_to_api=g.is_admin)
     image_list = client.image.images.list(
             filters={'is_public': is_public})
-    return [_image_from_nova(image, tenant) for image in image_list]
+    return [_image_to_view(image, tenant) for image in image_list]
 
 
 def _images_for_all_tenants():
@@ -154,7 +154,7 @@ def _images_for_all_tenants():
     tenant_dict = dict(((tenant.id, tenant) for tenant in tenants))
     tenant_dict[auth.default_tenant_id()] = None
 
-    return [_image_from_nova(image, tenant_dict.get(image.owner))
+    return [_image_to_view(image, tenant_dict.get(image.owner))
             for image in list_all_images(auth.admin_client_set().image.images)
             if not g.my_projects or image.owner in tenant_dict]
 
@@ -192,7 +192,7 @@ def list_images():
 @user_endpoint
 def get_image(image_id):
     image = _fetch_image(image_id, to_modify=False)
-    return make_json_response(_image_from_nova(image))
+    return make_json_response(_image_to_view(image))
 
 
 @BP.route('/<image_id>', methods=('PUT',))
@@ -209,7 +209,7 @@ def update_image(image_id):
         image.update(**fields_to_update)
         image = _fetch_image(image_id, to_modify=False)
 
-    return make_json_response(_image_from_nova(image))
+    return make_json_response(_image_to_view(image))
 
 
 def _assert_param_absent(name, data, which):
@@ -251,7 +251,7 @@ def create_image():
         is_public=is_public,
         properties=props)
     set_audit_resource_id(image)
-    return make_json_response(_image_from_nova(image))
+    return make_json_response(_image_to_view(image))
 
 
 @BP.route('/<image_id>', methods=('DELETE',))

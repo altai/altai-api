@@ -31,7 +31,7 @@ from openstackclient_base import exceptions as osc_exc
 
 class KeypairFromNovaTestCase(MockedTestCase):
 
-    def test_keypair_from_nova_works(self):
+    def test_keypair_to_view_works(self):
         kp = doubles.make(self.mox, doubles.Keypair,
                           name='Test KP', public_key='PUBKEY',
                           fingerprint='FP')
@@ -43,7 +43,7 @@ class KeypairFromNovaTestCase(MockedTestCase):
         }
         self.mox.ReplayAll()
         with self.app.test_request_context():
-            data = my_ssh_keys.keypair_from_nova(kp)
+            data = my_ssh_keys.keypair_to_view(kp)
         self.assertEquals(data, expected)
 
 
@@ -51,7 +51,7 @@ class MySShKeysListTestCase(MockedTestCase):
 
     def setUp(self):
         super(MySShKeysListTestCase, self).setUp()
-        self.mox.StubOutWithMock(my_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(my_ssh_keys, 'keypair_to_view')
 
     def test_list_works(self):
         expected = {
@@ -65,8 +65,8 @@ class MySShKeysListTestCase(MockedTestCase):
 
         self.fake_client_set.compute.keypairs.list()\
                 .AndReturn(['K1', 'K2'])
-        my_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY1')
-        my_ssh_keys.keypair_from_nova('K2').AndReturn('REPLY2')
+        my_ssh_keys.keypair_to_view('K1').AndReturn('REPLY1')
+        my_ssh_keys.keypair_to_view('K2').AndReturn('REPLY2')
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/me/ssh-keys/')
@@ -76,7 +76,7 @@ class MySShKeysListTestCase(MockedTestCase):
     def test_get_works(self):
         self.fake_client_set.compute.keypairs.find(name='kp')\
                 .AndReturn('K1')
-        my_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY')
+        my_ssh_keys.keypair_to_view('K1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
@@ -115,7 +115,7 @@ class CreateMySshKeyTestCase(MockedTestCase):
 
     def setUp(self):
         super(CreateMySshKeyTestCase, self).setUp()
-        self.mox.StubOutWithMock(my_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(my_ssh_keys, 'keypair_to_view')
 
     def interact(self, data, expected_status_code=200):
         rv = self.client.post('/v1/me/ssh-keys/',
@@ -130,7 +130,7 @@ class CreateMySshKeyTestCase(MockedTestCase):
                           fingerprint='FP', private_key='PRIVATE')
         self.fake_client_set.compute.keypairs.create(kp.name, None)\
                 .AndReturn(kp)
-        my_ssh_keys.keypair_from_nova(kp).AndReturn({'FAKE': 1})
+        my_ssh_keys.keypair_to_view(kp).AndReturn({'FAKE': 1})
 
         self.mox.ReplayAll()
 
@@ -143,7 +143,7 @@ class CreateMySshKeyTestCase(MockedTestCase):
                           fingerprint='FP')
         self.fake_client_set.compute.keypairs.create(kp.name, 'PUBLIC')\
                 .AndReturn(kp)
-        my_ssh_keys.keypair_from_nova(kp).AndReturn('REPLY')
+        my_ssh_keys.keypair_to_view(kp).AndReturn('REPLY')
 
         self.mox.ReplayAll()
 

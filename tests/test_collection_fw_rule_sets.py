@@ -31,7 +31,7 @@ from altai_api.blueprints import fw_rule_sets
 
 class ConvertersTestCase(MockedTestCase):
 
-    def test_sg_from_nova_works(self):
+    def test_sg_to_view_works(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
                               id=u'PID', name=u'Tenant')
         sg = doubles.make(self.mox, doubles.SecurityGroup,
@@ -54,7 +54,7 @@ class ConvertersTestCase(MockedTestCase):
         self.mox.ReplayAll()
 
         with self.app.test_request_context():
-            res = fw_rule_sets._sg_from_nova(sg, tenant.name)
+            res = fw_rule_sets._sg_to_view(sg, tenant.name)
         self.assertEquals(expected, res)
 
 
@@ -63,7 +63,7 @@ class RuleSetsTestCase(MockedTestCase):
     def setUp(self):
         super(RuleSetsTestCase, self).setUp()
         self.mox.StubOutWithMock(fw_rule_sets, 'client_set_for_tenant')
-        self.mox.StubOutWithMock(fw_rule_sets, '_sg_from_nova')
+        self.mox.StubOutWithMock(fw_rule_sets, '_sg_to_view')
 
     def test_list_works(self):
         tenants = (
@@ -77,14 +77,14 @@ class RuleSetsTestCase(MockedTestCase):
         fw_rule_sets.client_set_for_tenant(u'PID1', fallback_to_api=True) \
                 .AndReturn(tcs1)
         tcs1.compute.security_groups.list().AndReturn(['SG1', 'SG2'])
-        fw_rule_sets._sg_from_nova('SG1', tenants[0].name).AndReturn('REPLY1')
-        fw_rule_sets._sg_from_nova('SG2', tenants[0].name).AndReturn('REPLY2')
+        fw_rule_sets._sg_to_view('SG1', tenants[0].name).AndReturn('REPLY1')
+        fw_rule_sets._sg_to_view('SG2', tenants[0].name).AndReturn('REPLY2')
 
         tcs2 = mock_client_set(self.mox)
         fw_rule_sets.client_set_for_tenant(u'PID2', fallback_to_api=True) \
                 .AndReturn(tcs2)
         tcs2.compute.security_groups.list().AndReturn(['SG3'])
-        fw_rule_sets._sg_from_nova('SG3', tenants[2].name).AndReturn('REPLY3')
+        fw_rule_sets._sg_to_view('SG3', tenants[2].name).AndReturn('REPLY3')
 
         expected = {
             'collection': {
@@ -109,7 +109,7 @@ class RuleSetsTestCase(MockedTestCase):
         fw_rule_sets.client_set_for_tenant(u'PID1', fallback_to_api=True) \
                 .AndReturn(tcs1)
         tcs1.compute.security_groups.list().AndReturn(['SG1'])
-        fw_rule_sets._sg_from_nova('SG1', tenant.name).AndReturn('REPLY1')
+        fw_rule_sets._sg_to_view('SG1', tenant.name).AndReturn('REPLY1')
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/fw-rule-sets/?my-projects=true')
@@ -122,7 +122,7 @@ class RuleSetsTestCase(MockedTestCase):
                           id=u'SGID', name=u'Test SG',
                           description=u'XXX', tenant_id=u'TENANT')
         self.fake_client_set.compute.security_groups.get(arg).AndReturn(sg)
-        fw_rule_sets._sg_from_nova(sg).AndReturn('REPLY')
+        fw_rule_sets._sg_to_view(sg).AndReturn('REPLY')
         self.mox.ReplayAll()
         rv = self.client.get('/v1/fw-rule-sets/%s' % arg)
         data = self.check_and_parse_response(rv)
@@ -164,7 +164,7 @@ class CreateFwRuleSetTestCase(MockedTestCase):
 
     def setUp(self):
         super(CreateFwRuleSetTestCase, self).setUp()
-        self.mox.StubOutWithMock(fw_rule_sets, '_sg_from_nova')
+        self.mox.StubOutWithMock(fw_rule_sets, '_sg_to_view')
         self.mox.StubOutWithMock(fw_rule_sets, 'client_set_for_tenant')
 
     def interact(self, params, expected_status_code=200):
@@ -186,7 +186,7 @@ class CreateFwRuleSetTestCase(MockedTestCase):
                 .AndReturn(tcs)
         tcs.compute.security_groups.create(
             name=u'Test SG', description=u'Description').AndReturn('SG')
-        fw_rule_sets._sg_from_nova('SG').AndReturn('REPLY')
+        fw_rule_sets._sg_to_view('SG').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
@@ -204,7 +204,7 @@ class CreateFwRuleSetTestCase(MockedTestCase):
                 .AndReturn(tcs)
         tcs.compute.security_groups.create(
             name=u'Test SG', description='').AndReturn('SG')
-        fw_rule_sets._sg_from_nova('SG').AndReturn('REPLY')
+        fw_rule_sets._sg_to_view('SG').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 

@@ -35,7 +35,7 @@ from altai_api.schema import types as st
 BP = Blueprint('fw_rules', __name__)
 
 
-def _fw_rule_dict_from_nova(rule):
+def _fw_rule_dict_to_view(rule):
     """Convert dict from nova representation to ours.
 
     Such dicts can be found in secgroup.rules list.
@@ -54,7 +54,7 @@ def _fw_rule_dict_from_nova(rule):
     }
 
 
-def _fw_rule_object_from_nova(rule):
+def _fw_rule_object_to_view(rule):
     """Convert SecurityGroupRule to our representation"""
     rule_id = str(rule.id)
     return {
@@ -95,7 +95,7 @@ _SCHEMA = Schema((
 @user_endpoint
 def list_fw_rules(fw_rule_set_id):
     parse_collection_request(_SCHEMA)
-    result = [_fw_rule_dict_from_nova(rule)
+    result = [_fw_rule_dict_to_view(rule)
               for rule in _get_security_group(fw_rule_set_id).rules]
     parent_href = url_for('fw_rule_sets.get_fw_rule_set',
                           fw_rule_set_id=fw_rule_set_id)
@@ -117,7 +117,7 @@ def _find_rule(sg_id, rule_id):
 @user_endpoint
 def get_fw_rule(fw_rule_set_id, rule_id):
     rule = _find_rule(fw_rule_set_id, rule_id)
-    return make_json_response(_fw_rule_dict_from_nova(rule))
+    return make_json_response(_fw_rule_dict_to_view(rule))
 
 
 @BP.route('/', methods=('POST',))
@@ -146,7 +146,7 @@ def create_fw_rule(fw_rule_set_id):
     except osc_exc.NotFound:
         abort(404)
     set_audit_resource_id(rule)
-    return make_json_response(_fw_rule_object_from_nova(rule))
+    return make_json_response(_fw_rule_object_to_view(rule))
 
 
 @BP.route('/<rule_id>', methods=('DELETE',))

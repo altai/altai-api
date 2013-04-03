@@ -102,7 +102,7 @@ def member_role_id():
     raise RuntimeError('Server misconfiguration: role not found')
 
 
-def user_from_nova(user, invite=None, send_code=False):
+def user_to_view(user, invite=None, send_code=False):
     roles = user.list_roles()
     projects = [link_for_project(r.tenant['id'], r.tenant['name'])
                 for r in roles if _role_is_visible(r)]
@@ -205,7 +205,7 @@ def list_users():
     parse_collection_request(_SCHEMA.list_args)
     user_mgr = auth.admin_client_set().identity_admin.users
     return make_collection_response(
-        u'users', [user_from_nova(user)
+        u'users', [user_to_view(user)
                    for user in user_mgr.list()
                    if _user_is_visible(user, not g.my_projects)])
 
@@ -214,7 +214,7 @@ def list_users():
 @user_endpoint
 def get_user(user_id):
     user = fetch_user(user_id, not g.my_projects)
-    return make_json_response(user_from_nova(user))
+    return make_json_response(user_to_view(user))
 
 
 def _check_invite_allowed(email_domain):
@@ -278,7 +278,7 @@ def create_user():
     if invite:
         result = _invite_user(new_user, data)
     else:
-        result = user_from_nova(new_user)
+        result = user_to_view(new_user)
     return make_json_response(result)
 
 
@@ -291,7 +291,7 @@ def _invite_user(user, data):
                         greeting=getattr(user, 'fullname', ''))
     else:
         auth.assert_admin()
-    return user_from_nova(user, inv, send_code=not send_mail)
+    return user_to_view(user, inv, send_code=not send_mail)
 
 
 def update_user_data(user, data):
@@ -330,7 +330,7 @@ def update_user(user_id):
 
     # get updated user
     user = fetch_user(user_id, g.is_admin)
-    return make_json_response(user_from_nova(user))
+    return make_json_response(user_to_view(user))
 
 
 @BP.route('/<user_id>', methods=('DELETE',))

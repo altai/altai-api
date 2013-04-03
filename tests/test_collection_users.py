@@ -52,7 +52,7 @@ class UserFromNovaTestCase(MockedTestCase):
                          tenant={'id': 'PID2', 'name': 'other'})
         ]
 
-    def test_user_from_nova_works(self):
+    def test_user_to_view_works(self):
         user = doubles.make(self.mox, doubles.User,
                             id=u'42', name=u'iv', email=u'iv@example.com',
                             fullname=u'Example User', enabled=True)
@@ -88,10 +88,10 @@ class UserFromNovaTestCase(MockedTestCase):
 
         with self.app.test_request_context():
             self.install_fake_auth()
-            data = users.user_from_nova(user)
+            data = users.user_to_view(user)
         self.assertEquals(data, expected)
 
-    def test_user_from_nova_disabled_noadmin(self):
+    def test_user_to_view_disabled_noadmin(self):
         user = doubles.make(self.mox, doubles.User,
                             id=u'42', name=u'iv', email=u'iv@example.com',
                             fullname=u'Example User', enabled=False)
@@ -118,10 +118,10 @@ class UserFromNovaTestCase(MockedTestCase):
 
         with self.app.test_request_context():
             self.install_fake_auth()
-            data = users.user_from_nova(user)
+            data = users.user_to_view(user)
         self.assertEquals(data, expected)
 
-    def test_user_from_nova_invite(self):
+    def test_user_to_view_invite(self):
         user = doubles.make(self.mox, doubles.User,
                             id=u'42', name=u'iv', email=u'iv@example.com',
                             fullname=u'Example User', enabled=False)
@@ -150,10 +150,10 @@ class UserFromNovaTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            data = users.user_from_nova(user)
+            data = users.user_to_view(user)
         self.assertEquals(data, expected)
 
-    def test_user_from_nova_send_invite_code(self):
+    def test_user_to_view_send_invite_code(self):
         """What we got when resending invite without disabling user"""
         user = doubles.make(self.mox, doubles.User,
                             id=u'42', name=u'iv', email=u'iv@example.com',
@@ -183,10 +183,10 @@ class UserFromNovaTestCase(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            data = users.user_from_nova(user, invite, send_code=True)
+            data = users.user_to_view(user, invite, send_code=True)
         self.assertEquals(data, expected)
 
-    def test_user_from_nova_with_my_projects(self):
+    def test_user_to_view_with_my_projects(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
                               id='PID', name='ptest')
         user = doubles.make(self.mox, doubles.User,
@@ -207,7 +207,7 @@ class UserFromNovaTestCase(MockedTestCase):
         with self.app.test_request_context():
             self.install_fake_auth()
             flask.g.my_projects = True
-            data = users.user_from_nova(user)
+            data = users.user_to_view(user)
         self.assertEquals(data['projects'], expected_projects)
 
 
@@ -215,14 +215,14 @@ class GetUsersTestCase(MockedTestCase):
 
     def setUp(self):
         super(GetUsersTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_to_view')
         self.mox.StubOutWithMock(users, 'member_role_id')
 
     def test_list_users(self):
         self.fake_client_set.identity_admin \
                 .users.list().AndReturn(['user-a', 'user-b'])
-        users.user_from_nova('user-a').AndReturn('dict-a')
-        users.user_from_nova('user-b').AndReturn('dict-b')
+        users.user_to_view('user-a').AndReturn('dict-a')
+        users.user_to_view('user-b').AndReturn('dict-b')
         expected = {
             'collection': {
                 'name': 'users',
@@ -241,7 +241,7 @@ class GetUsersTestCase(MockedTestCase):
         # prepare
         self.fake_client_set.identity_admin.users\
                 .get('user-a').AndReturn('user-a')
-        users.user_from_nova('user-a').AndReturn('dict-a')
+        users.user_to_view('user-a').AndReturn('dict-a')
         self.mox.ReplayAll()
         # test
         rv = self.client.get('/v1/users/user-a')
@@ -264,7 +264,7 @@ class CreateUserTestCase(MockedTestCase):
 
     def setUp(self):
         super(CreateUserTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_to_view')
         self.mox.StubOutWithMock(users, 'member_role_id')
         self.mox.StubOutWithMock(ConfigDAO, 'get')
         self.mox.StubOutWithMock(users, '_invite_user')
@@ -290,7 +290,7 @@ class CreateUserTestCase(MockedTestCase):
             name=name, password=passw, email=email,
             enabled=True).AndReturn('new-user')
         client.identity_admin.users.update('new-user', fullname=fullname)
-        users.user_from_nova('new-user').AndReturn('new-user-dict')
+        users.user_to_view('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
 
         data = self._interact({
@@ -314,7 +314,7 @@ class CreateUserTestCase(MockedTestCase):
             user='new-user', role='member-role', tenant='PID1')
         client.identity_admin.roles.add_user_role(
             user='new-user', role='member-role', tenant='PID2')
-        users.user_from_nova('new-user').AndReturn('new-user-dict')
+        users.user_to_view('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
 
         data = self._interact({
@@ -491,7 +491,7 @@ class CreateUserTestCase(MockedTestCase):
         # see doubles.py, near line 100 for role id and tenant id here
         client.identity_admin.roles.add_user_role(
             'NUID', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
-        users.user_from_nova(new_user).AndReturn('new-user-dict')
+        users.user_to_view(new_user).AndReturn('new-user-dict')
 
         self.mox.ReplayAll()
         data = self._interact({"name": name, "email": email,
@@ -554,7 +554,7 @@ class UpdateUserTestCase(MockedTestCase):
 
     def setUp(self):
         super(UpdateUserTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_to_view')
         self.mox.StubOutWithMock(users, 'member_role_id')
 
     def test_update_user(self):
@@ -568,7 +568,7 @@ class UpdateUserTestCase(MockedTestCase):
                         fullname=fullname).AndReturn('new-user')
         ia.users.update_password('new-user', passw).AndReturn('new-user')
         ia.users.get('new-user').AndReturn('new-user')
-        users.user_from_nova('new-user').AndReturn('new-user-dict')
+        users.user_to_view('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
         # test
         post_params = {
@@ -624,7 +624,7 @@ class UpdateUserTestCase(MockedTestCase):
         client.identity_admin.roles.add_user_role(
             u'user-a', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
         client.identity_admin.users.get(uid).AndReturn('same-user')
-        users.user_from_nova('same-user').AndReturn('REPLY')
+        users.user_to_view('same-user').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.put(u'/v1/users/%s' % uid,
@@ -642,7 +642,7 @@ class UpdateUserTestCase(MockedTestCase):
         client.identity_admin.roles.remove_user_role(
             u'user-a', u'ADMIN_ROLE_ID', u'SYSTENANT_ID')
         client.identity_admin.users.get(uid).AndReturn('same-user')
-        users.user_from_nova('same-user').AndReturn('REPLY')
+        users.user_to_view('same-user').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.put(u'/v1/users/%s' % uid,
@@ -662,7 +662,7 @@ class UpdateUserTestCase(MockedTestCase):
                 .AndRaise(osc_exc.NotFound('failure'))
         # raised, but nothing should happen
         client.identity_admin.users.get(uid).AndReturn('same-user')
-        users.user_from_nova('same-user').AndReturn('REPLY')
+        users.user_to_view('same-user').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.put(u'/v1/users/%s' % uid,
@@ -678,7 +678,7 @@ class UpdateUserSelfTestCase(MockedTestCase):
 
     def setUp(self):
         super(UpdateUserSelfTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_to_view')
         self.mox.StubOutWithMock(users, 'member_role_id')
         self.mox.StubOutWithMock(users.auth, 'current_user_id')
         self.mox.StubOutWithMock(users, 'fetch_user')
@@ -692,7 +692,7 @@ class UpdateUserSelfTestCase(MockedTestCase):
                     .AndReturn('new-user')
 
         users.fetch_user(self.user.id, False).AndReturn('new-user')
-        users.user_from_nova('new-user').AndReturn('new-user-dict')
+        users.user_to_view('new-user').AndReturn('new-user-dict')
         self.mox.ReplayAll()
 
         post_params = { "name": self.name }
@@ -707,7 +707,7 @@ class DeleteUserTestCase(MockedTestCase):
 
     def setUp(self):
         super(DeleteUserTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_to_view')
         self.mox.StubOutWithMock(users, 'member_role_id')
         self.mox.StubOutWithMock(self.app.logger, 'exception')
 
@@ -751,7 +751,7 @@ class SendInviteTestCase(MockedTestCase):
 
     def setUp(self):
         super(SendInviteTestCase, self).setUp()
-        self.mox.StubOutWithMock(users, 'user_from_nova')
+        self.mox.StubOutWithMock(users, 'user_to_view')
         self.mox.StubOutWithMock(users, 'send_invitation')
         self.mox.StubOutWithMock(users, 'InvitesDAO')
         self.mox.StubOutWithMock(users, 'update_user_data')
@@ -786,7 +786,7 @@ class SendInviteTestCase(MockedTestCase):
                 .AndReturn(self.invite)
         users.send_invitation(self.user.email, self.invite.code,
                               None, greeting=self.user.fullname)
-        users.user_from_nova(self.user, self.invite, send_code=False)\
+        users.user_to_view(self.user, self.invite, send_code=False)\
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -813,7 +813,7 @@ class SendInviteTestCase(MockedTestCase):
         })
         users.send_invitation(self.user.email, self.invite.code,
                               None, greeting=self.user.fullname)
-        users.user_from_nova(self.user, self.invite, send_code=False)\
+        users.user_to_view(self.user, self.invite, send_code=False)\
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -827,7 +827,7 @@ class SendInviteTestCase(MockedTestCase):
         users.InvitesDAO.create(self.uid, self.user.email)\
                 .AndReturn(self.invite)
         users.auth.assert_admin()
-        users.user_from_nova(self.user, self.invite, send_code=True)\
+        users.user_to_view(self.user, self.invite, send_code=True)\
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()

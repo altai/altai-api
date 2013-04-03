@@ -67,7 +67,7 @@ def _record_to_dict(record, user_name, project_name):
     return result
 
 
-def record_from_database(record, user_name=None, project_name=None):
+def record_to_view(record, user_name=None, project_name=None):
     iadm = g.client_set.identity_admin
     if record.user_id is not None and user_name is None:
         try:
@@ -99,13 +99,13 @@ _SCHEMA = Schema((
 @root_endpoint('audit-log')
 def list_all_records():
     parse_collection_request(_SCHEMA)
-    result = [record_from_database(record)
+    result = [record_to_view(record)
               for record in AuditDAO.list_all()]
     return make_collection_response(u'audit-log', result)
 
 
 @BP.route('/<record_id>')
 def get_log_record(record_id):
-    result = record_from_database(AuditDAO.get(record_id))
+    result = record_to_view(AuditDAO.get(record_id))
     return make_json_response(result)
 

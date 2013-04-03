@@ -63,7 +63,7 @@ def link_for_tenant(tenant):
     return link_for_project(tenant.id, tenant.name)
 
 
-def _project_from_nova(tenant, net, quotaset):
+def _project_to_view(tenant, net, quotaset):
     network = None if net is None else {
         u'id': net.id,
         u'name': net.label,
@@ -125,7 +125,7 @@ def get_project(project_id):
     net = _network_for_project(project_id)
     quotaset = _quotaset_for_project(project_id)
 
-    result = _project_from_nova(tenant, net, quotaset)
+    result = _project_to_view(tenant, net, quotaset)
     return make_json_response(result)
 
 
@@ -161,7 +161,7 @@ def list_projects():
                      if net.project_id))
     systenant = app.config['SYSTENANT']
     # systenant is special entity, not a 'project' in Altai sense
-    result = [_project_from_nova(t, networks.get(t.id),
+    result = [_project_to_view(t, networks.get(t.id),
                                  _quotaset_for_project(t.id))
               for t in tenants if t.name != systenant]
     return make_collection_response(u'projects', result)
@@ -208,7 +208,7 @@ def create_project():
         raise exc.InvalidRequest('Failed to associate network %r '
                                  'with created project' % data['network'])
     _set_quota(tenant.id, data)
-    result = _project_from_nova(tenant, networks.get(net.id),
+    result = _project_to_view(tenant, networks.get(net.id),
                                 _quotaset_for_project(tenant.id))
     return make_json_response(result)
 
@@ -274,6 +274,6 @@ def update_project(project_id):
 
     net = _network_for_project(project_id)
     quotaset = _quotaset_for_project(project_id)
-    result = _project_from_nova(tenant, net, quotaset)
+    result = _project_to_view(tenant, net, quotaset)
     return make_json_response(result)
 

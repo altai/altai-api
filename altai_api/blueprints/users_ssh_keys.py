@@ -29,7 +29,7 @@ from altai_api.utils.decorators import user_endpoint
 from altai_api.schema import Schema
 from altai_api.schema import types as st
 
-from altai_api.blueprints.my_ssh_keys import keypair_from_nova
+from altai_api.blueprints.my_ssh_keys import keypair_to_view
 from altai_api.blueprints.users import fetch_user
 
 BP = Blueprint('users_ssh_keys', __name__)
@@ -51,7 +51,7 @@ def list_users_ssh_keys(user_id):
     fetch_user(user_id, g.is_admin)  # check that user exists and is visible
 
     mgr = auth.admin_client_set().compute_ext.user_keypairs
-    result = [keypair_from_nova(keypair) for keypair in mgr.list(user_id)]
+    result = [keypair_to_view(keypair) for keypair in mgr.list(user_id)]
 
     parent_href = url_for('users.get_user', user_id=user_id)
     return make_collection_response('ssh-keys', result,
@@ -68,7 +68,7 @@ def get_users_ssh_key(user_id, key_name):
         keypair = mgr.get(user_id, key_name)
     except osc_exc.NotFound:
         abort(404)
-    return make_json_response(keypair_from_nova(keypair))
+    return make_json_response(keypair_to_view(keypair))
 
 
 @BP.route('/', methods=('POST',))
@@ -86,7 +86,7 @@ def create_users_ssh_key(user_id):
     except osc_exc.BadRequest, e:
         raise exc.InvalidRequest(str(e))
     set_audit_resource_id(kp.name)
-    return make_json_response(keypair_from_nova(kp))
+    return make_json_response(keypair_to_view(kp))
 
 
 @BP.route('/<key_name>', methods=('DELETE',))

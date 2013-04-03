@@ -34,7 +34,7 @@ class UsersSShKeysListTestCase(MockedTestCase):
 
     def setUp(self):
         super(UsersSShKeysListTestCase, self).setUp()
-        self.mox.StubOutWithMock(users_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(users_ssh_keys, 'keypair_to_view')
         self.mox.StubOutWithMock(users_ssh_keys, 'fetch_user')
         self.mox.StubOutWithMock(users_ssh_keys.auth, 'assert_admin')
 
@@ -51,8 +51,8 @@ class UsersSShKeysListTestCase(MockedTestCase):
         users_ssh_keys.fetch_user(self.user_id, True)
         self.fake_client_set.compute_ext.user_keypairs \
                 .list(self.user_id).AndReturn(['K1', 'K2'])
-        users_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY1')
-        users_ssh_keys.keypair_from_nova('K2').AndReturn('REPLY2')
+        users_ssh_keys.keypair_to_view('K1').AndReturn('REPLY1')
+        users_ssh_keys.keypair_to_view('K2').AndReturn('REPLY2')
 
         self.mox.ReplayAll()
         rv = self.client.get('/v1/users/%s/ssh-keys/' % self.user_id)
@@ -62,7 +62,7 @@ class UsersSShKeysListTestCase(MockedTestCase):
     def test_get_works(self):
         self.fake_client_set.compute_ext.user_keypairs\
                 .get(self.user_id, 'kp').AndReturn('K1')
-        users_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY')
+        users_ssh_keys.keypair_to_view('K1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
@@ -108,7 +108,7 @@ class UserUsersSShKeysListTestCase(MockedTestCase):
 
     def setUp(self):
         super(UserUsersSShKeysListTestCase, self).setUp()
-        self.mox.StubOutWithMock(users_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(users_ssh_keys, 'keypair_to_view')
         self.mox.StubOutWithMock(users_ssh_keys, 'fetch_user')
         self.mox.StubOutWithMock(users_ssh_keys.auth, 'assert_admin')
 
@@ -116,7 +116,7 @@ class UserUsersSShKeysListTestCase(MockedTestCase):
         users_ssh_keys.fetch_user(self.user_id, False)
         self.fake_client_set.compute_ext.user_keypairs\
                 .get(self.user_id, 'kp').AndReturn('K1')
-        users_ssh_keys.keypair_from_nova('K1').AndReturn('REPLY')
+        users_ssh_keys.keypair_to_view('K1').AndReturn('REPLY')
 
         self.mox.ReplayAll()
 
@@ -130,7 +130,7 @@ class CreateMySshKeyTestCase(MockedTestCase):
 
     def setUp(self):
         super(CreateMySshKeyTestCase, self).setUp()
-        self.mox.StubOutWithMock(users_ssh_keys, 'keypair_from_nova')
+        self.mox.StubOutWithMock(users_ssh_keys, 'keypair_to_view')
         self.mox.StubOutWithMock(users_ssh_keys, 'fetch_user')
         self.mox.StubOutWithMock(users_ssh_keys.auth, 'assert_admin')
 
@@ -151,7 +151,7 @@ class CreateMySshKeyTestCase(MockedTestCase):
         self.fake_client_set.compute_ext.user_keypairs \
                 .create(self.user_id, kp.name, 'PUBLIC') \
                 .AndReturn(kp)
-        users_ssh_keys.keypair_from_nova(kp).AndReturn('REPLY')
+        users_ssh_keys.keypair_to_view(kp).AndReturn('REPLY')
 
         self.mox.ReplayAll()
 

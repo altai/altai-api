@@ -58,7 +58,7 @@ def link_for_server(server):
     }
 
 
-def _instance_from_nova(server):
+def _instance_to_view(server):
     client = admin_client_set()
     project_link = link_for_project(server.tenant_id)
     flavor = client.compute.flavors.get(server.flavor['id'])
@@ -164,14 +164,14 @@ def list_instances():
     else:
         servers = g.client_set.compute.servers.list(
                 search_opts={'all_tenants': 1})
-    result = [_instance_from_nova(instance) for instance in servers]
+    result = [_instance_to_view(instance) for instance in servers]
     return make_collection_response(u'instances', result)
 
 
 @BP.route('/<instance_id>', methods=('GET',))
 @user_endpoint
 def get_instance(instance_id):
-    return make_json_response(_instance_from_nova(fetch_instance(instance_id)))
+    return make_json_response(_instance_to_view(fetch_instance(instance_id)))
 
 
 def _security_group_ids_to_names(security_groups_ids, sg_manager):
@@ -223,7 +223,7 @@ def create_instance():
             'message': 'Limits exceeded (%s)' % str(e)
         })
     set_audit_resource_id(server)
-    return make_json_response(_instance_from_nova(server))
+    return make_json_response(_instance_to_view(server))
 
 
 @BP.route('/<instance_id>', methods=('PUT',))
@@ -246,7 +246,7 @@ def update_instance(instance_id):
         InstanceDataDAO.update(instance.id, **for_instance_data)
 
     set_audit_resource_id(instance)
-    return make_json_response(_instance_from_nova(instance))
+    return make_json_response(_instance_to_view(instance))
 
 
 def _do_remove_instance(instance_id):
@@ -270,7 +270,7 @@ def remove_instance(instance_id):
     server = _do_remove_instance(instance_id)
     set_audit_resource_id(instance_id)
     if server is not None:
-        return make_json_response(_instance_from_nova(server))
+        return make_json_response(_instance_to_view(server))
     else:
         return make_json_response(None, status_code=204)
 
@@ -302,7 +302,7 @@ def _do_reboot_instance(instance_id, method):
     except osc_exc.NotFound:
         abort(404)
     # Fetch it again, with new status:
-    return make_json_response(_instance_from_nova(fetch_instance(instance_id)))
+    return make_json_response(_instance_to_view(fetch_instance(instance_id)))
 
 
 @BP.route('/<instance_id>/reboot', methods=('POST',))

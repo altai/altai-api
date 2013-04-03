@@ -44,7 +44,7 @@ class StreamWithData(mox.Comparator):
 class ImageFromNovaWorks(MockedTestCase):
     maxDiff = None
 
-    def test_image_from_nova_works(self):
+    def test_image_to_view_works(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
                               id=u'TENANT', name=u'TestTenant')
         image = doubles.make(self.mox, doubles.Image,
@@ -74,10 +74,10 @@ class ImageFromNovaWorks(MockedTestCase):
         self.mox.ReplayAll()
         with self.app.test_request_context():
             self.install_fake_auth()
-            data = images._image_from_nova(image, tenant)
+            data = images._image_to_view(image, tenant)
         self.assertEquals(data, expected)
 
-    def test_global_image_from_nova(self):
+    def test_global_image_to_view(self):
         image = doubles.make(self.mox, doubles.Image,
                              id=u'IMAGE', name=u'TestImage', size=123456,
                              owner=None, created_at='2012-10-15T01:43:00',
@@ -101,10 +101,10 @@ class ImageFromNovaWorks(MockedTestCase):
         with self.app.test_request_context():
             self.install_fake_auth()
             image.owner = images.auth.default_tenant_id()
-            data = images._image_from_nova(image)
+            data = images._image_to_view(image)
         self.assertEquals(data, expected)
 
-    def test_queued_image_from_nova(self):
+    def test_queued_image_to_view(self):
         image = doubles.make(self.mox, doubles.Image,
                              id=u'IMAGE', name=u'TestImage', size=123456,
                              owner=None, created_at='2012-10-15T01:43:00',
@@ -131,10 +131,10 @@ class ImageFromNovaWorks(MockedTestCase):
         with self.app.test_request_context():
             self.install_fake_auth()
             image.owner = images.auth.default_tenant_id()
-            data = images._image_from_nova(image)
+            data = images._image_to_view(image)
         self.assertEquals(data, expected)
 
-    def test_global_ami_image_from_nova(self):
+    def test_global_ami_image_to_view(self):
         image_properties = {
             u'image_location': u'local',
             u'kernel_id': u'KERNEL',
@@ -184,7 +184,7 @@ class ImageFromNovaWorks(MockedTestCase):
         with self.app.test_request_context():
             self.install_fake_auth()
             image.owner = images.auth.default_tenant_id()
-            data = images._image_from_nova(image)
+            data = images._image_to_view(image)
         self.assertEquals(data, expected)
 
 
@@ -196,7 +196,7 @@ class ListImagesTestCase(MockedTestCase):
         self.mox.StubOutWithMock(images.auth, 'default_tenant_id')
         self.mox.StubOutWithMock(images.auth, 'assert_admin')
         self.mox.StubOutWithMock(images.auth, 'api_client_set')
-        self.mox.StubOutWithMock(images, '_image_from_nova')
+        self.mox.StubOutWithMock(images, '_image_to_view')
         self.tenants = [
             doubles.make(self.mox, doubles.Tenant, id='SYS', name='systenant'),
             doubles.make(self.mox, doubles.Tenant, id='PID', name='ptest'),
@@ -215,10 +215,10 @@ class ListImagesTestCase(MockedTestCase):
         client.image.images.list(filters={'is_public': None})\
                 .AndReturn(self.images)
 
-        images._image_from_nova(self.images[0], None).AndReturn('I1')
-        images._image_from_nova(self.images[1],
+        images._image_to_view(self.images[0], None).AndReturn('I1')
+        images._image_to_view(self.images[1],
                                 self.tenants[1]).AndReturn('I2')
-        images._image_from_nova(self.images[2],
+        images._image_to_view(self.images[2],
                                 self.tenants[1]).AndReturn('I3')
 
         expected = {
@@ -242,9 +242,9 @@ class ListImagesTestCase(MockedTestCase):
         client.image.images.list(filters={'is_public': None})\
                 .AndReturn(self.images)
 
-        images._image_from_nova(self.images[0], None).AndReturn('I1')
-        images._image_from_nova(self.images[1], None).AndReturn('I2')
-        images._image_from_nova(self.images[2], None).AndReturn('I3')
+        images._image_to_view(self.images[0], None).AndReturn('I1')
+        images._image_to_view(self.images[1], None).AndReturn('I2')
+        images._image_to_view(self.images[2], None).AndReturn('I3')
 
         expected = {
             u'collection': {
@@ -269,8 +269,8 @@ class ListImagesTestCase(MockedTestCase):
                 .AndReturn(tcs)
         tcs.image.images.list(filters={'is_public': None}) \
                 .AndReturn(['ii1', 'ii2'])
-        images._image_from_nova('ii1', self.tenants[0]).AndReturn('I1')
-        images._image_from_nova('ii2', self.tenants[1]).AndReturn('I2')
+        images._image_to_view('ii1', self.tenants[0]).AndReturn('I1')
+        images._image_to_view('ii2', self.tenants[1]).AndReturn('I2')
 
         expected = {
             u'collection': {
@@ -309,7 +309,7 @@ class ListImagesTestCase(MockedTestCase):
 
         client.image.images.get(image.id).AndReturn(image)
         images.auth.default_tenant_id().AndReturn('SYS')
-        images._image_from_nova(image).AndReturn('REPLY')
+        images._image_to_view(image).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/images/%s' % image.id)
@@ -347,7 +347,7 @@ class ImagesAsUserTestCase(MockedTestCase):
         self.mox.StubOutWithMock(images.auth, 'client_set_for_tenant')
         self.mox.StubOutWithMock(images.auth, 'default_tenant_id')
         self.mox.StubOutWithMock(images.auth, 'current_user_project_ids')
-        self.mox.StubOutWithMock(images, '_image_from_nova')
+        self.mox.StubOutWithMock(images, '_image_to_view')
         self.tenant = doubles.make(self.mox, doubles.Tenant,
                                    id='PID', name='ptest')
         self.images = [
@@ -364,10 +364,10 @@ class ImagesAsUserTestCase(MockedTestCase):
         client.image.images.list(filters={'is_public': None})\
                 .AndReturn(self.images)
 
-        images._image_from_nova(self.images[0], None).AndReturn('I1')
-        images._image_from_nova(self.images[1],
+        images._image_to_view(self.images[0], None).AndReturn('I1')
+        images._image_to_view(self.images[1],
                                 self.tenant).AndReturn('I2')
-        images._image_from_nova(self.images[2],
+        images._image_to_view(self.images[2],
                                 self.tenant).AndReturn('I3')
 
         expected = {
@@ -393,7 +393,7 @@ class ImagesAsUserTestCase(MockedTestCase):
                 .AndReturn(tcs)
         tcs.image.images.list(filters={'is_public': None}) \
                 .AndReturn(['ii1'])
-        images._image_from_nova('ii1', self.tenant).AndReturn('I1')
+        images._image_to_view('ii1', self.tenant).AndReturn('I1')
 
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/images/?project:for=%s' % self.tenant.id)
@@ -415,7 +415,7 @@ class ImagesAsUserTestCase(MockedTestCase):
                 .AndReturn(tcs)
         tcs.image.images.list(filters={'is_public': False}) \
                 .AndReturn(['ii1'])
-        images._image_from_nova('ii1', self.tenant).AndReturn(fake_image_dict)
+        images._image_to_view('ii1', self.tenant).AndReturn(fake_image_dict)
 
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/images/?project:eq=%s' % self.tenant.id)
@@ -437,7 +437,7 @@ class ImagesAsUserTestCase(MockedTestCase):
                 .AndReturn(tcs)
         tcs.image.images.list(filters={'is_public': False}) \
                 .AndReturn(['ii1'])
-        images._image_from_nova('ii1', self.tenant).AndReturn(fake_image_dict)
+        images._image_to_view('ii1', self.tenant).AndReturn(fake_image_dict)
 
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/images/?project:in=%s' % self.tenant.id)
@@ -451,7 +451,7 @@ class ImagesAsUserTestCase(MockedTestCase):
         client.image.images.get(image.id).AndReturn(image)
         images.auth.default_tenant_id().AndReturn('SYS')
         images.auth.current_user_project_ids().AndReturn(['PID'])
-        images._image_from_nova(image).AndReturn('REPLY')
+        images._image_to_view(image).AndReturn('REPLY')
 
         self.mox.ReplayAll()
         rv = self.client.get(u'/v1/images/%s' % image.id)
@@ -514,7 +514,7 @@ class UpdateImageTestCase(MockedTestCase):
 
     def setUp(self):
         super(UpdateImageTestCase, self).setUp()
-        self.mox.StubOutWithMock(images, '_image_from_nova')
+        self.mox.StubOutWithMock(images, '_image_to_view')
         self.mox.StubOutWithMock(images, '_fetch_image')
 
     def interact(self, iid, params, expected_status_code=200):
@@ -532,7 +532,7 @@ class UpdateImageTestCase(MockedTestCase):
         image.update(name='UPDATED')
         images._fetch_image(image.id, to_modify=False)\
                 .AndReturn('UPDATED IMAGE')
-        images._image_from_nova('UPDATED IMAGE').AndReturn('REPLY')
+        images._image_to_view('UPDATED IMAGE').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(image.id, {'name': 'UPDATED'})
@@ -542,7 +542,7 @@ class UpdateImageTestCase(MockedTestCase):
 class CreateImageTestCase(MockedTestCase):
     def setUp(self):
         super(CreateImageTestCase, self).setUp()
-        self.mox.StubOutWithMock(images, '_image_from_nova')
+        self.mox.StubOutWithMock(images, '_image_to_view')
         self.mox.StubOutWithMock(images.auth, 'client_set_for_tenant')
         self.mox.StubOutWithMock(images.auth, 'assert_admin')
         self.mox.StubOutWithMock(images.auth, 'api_client_set')
@@ -569,7 +569,7 @@ class CreateImageTestCase(MockedTestCase):
             container_format=u'bare',
             is_public=True,
             properties={}).AndReturn('QueuedImage')
-        images._image_from_nova('QueuedImage').AndReturn('REPLY')
+        images._image_to_view('QueuedImage').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -612,7 +612,7 @@ class CreateImageTestCase(MockedTestCase):
             container_format=u'bare',
             is_public=False,
             properties={}).AndReturn('QueuedImage')
-        images._image_from_nova('QueuedImage').AndReturn('REPLY')
+        images._image_to_view('QueuedImage').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)
@@ -638,7 +638,7 @@ class CreateImageTestCase(MockedTestCase):
                 u'kernel_id': u'KERNEL_ID',
                 u'ramdisk_id': u'RAMDISK_ID'
             }).AndReturn('QueuedImage')
-        images._image_from_nova('QueuedImage').AndReturn('REPLY')
+        images._image_to_view('QueuedImage').AndReturn('REPLY')
 
         self.mox.ReplayAll()
         data = self.interact(params)

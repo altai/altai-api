@@ -31,7 +31,7 @@ from altai_api.blueprints import projects
 class ConvertersTestCase(MockedTestCase):
     maxDiff = None
 
-    def test_project_from_nova_works(self):
+    def test_project_to_view_works(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
             id=u'c4fc65e', name=u'Project X')
         net = doubles.make(self.mox, doubles.Network,
@@ -59,10 +59,10 @@ class ConvertersTestCase(MockedTestCase):
         }
 
         with self.app.test_request_context():
-            result = projects._project_from_nova(tenant, net, quotaset)
+            result = projects._project_to_view(tenant, net, quotaset)
         self.assertEquals(expected, result)
 
-    def test_project_from_nova_no_network(self):
+    def test_project_to_view_no_network(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
             id=u'c4fc65e', name=u'Project X')
         quotaset = doubles.make(self.mox, doubles.QuotaSet)
@@ -84,10 +84,10 @@ class ConvertersTestCase(MockedTestCase):
         }
 
         with self.app.test_request_context():
-            result = projects._project_from_nova(tenant, None, quotaset)
+            result = projects._project_to_view(tenant, None, quotaset)
         self.assertEquals(expected, result)
 
-    def test_project_from_nova_no_quota(self):
+    def test_project_to_view_no_quota(self):
         tenant = doubles.make(self.mox, doubles.Tenant,
             id=u'c4fc65e', name=u'Project X')
         net = doubles.make(self.mox, doubles.Network,
@@ -110,7 +110,7 @@ class ConvertersTestCase(MockedTestCase):
         }
 
         with self.app.test_request_context():
-            result = projects._project_from_nova(tenant, net, None)
+            result = projects._project_to_view(tenant, net, None)
         self.assertEquals(expected, result)
 
 
@@ -186,7 +186,7 @@ class UserProjectsTestCase(MockedTestCase):
         self.tm_mock = self.fake_client_set.identity_public.tenants
 
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')
-        self.mox.StubOutWithMock(projects, '_project_from_nova')
+        self.mox.StubOutWithMock(projects, '_project_to_view')
         self.mox.StubOutWithMock(projects, '_network_for_project')
 
     def test_get_project(self):
@@ -196,7 +196,7 @@ class UserProjectsTestCase(MockedTestCase):
         self.tm_mock.find(id=u'pid').AndReturn(tenant)
         projects._quotaset_for_project(u'pid').AndReturn('QUOTA')
         projects._network_for_project(u'pid').AndReturn('FAKE_NETWORK')
-        projects._project_from_nova(tenant, 'FAKE_NETWORK', 'QUOTA') \
+        projects._project_to_view(tenant, 'FAKE_NETWORK', 'QUOTA') \
                 .AndReturn('FAKE_PROJECT')
 
         self.mox.ReplayAll()
@@ -235,11 +235,11 @@ class UserProjectsTestCase(MockedTestCase):
         self.tm_mock.list().AndReturn(tenants)
         self.nm_mock.list().AndReturn(nets)
         projects._quotaset_for_project(u't1').AndReturn('QUOTA1')
-        projects._project_from_nova(tenants[0], nets[2], 'QUOTA1')\
+        projects._project_to_view(tenants[0], nets[2], 'QUOTA1')\
                 .AndReturn('PROJECT1')
 
         projects._quotaset_for_project(u't2').AndReturn('QUOTA2')
-        projects._project_from_nova(tenants[1], nets[0], 'QUOTA2')\
+        projects._project_to_view(tenants[1], nets[0], 'QUOTA2')\
                 .AndReturn('PROJECT2')
 
         expected = {
@@ -268,7 +268,7 @@ class ProjectsTestCase(MockedTestCase):
         self.tm_mock = self.fake_client_set.identity_admin.tenants
 
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')
-        self.mox.StubOutWithMock(projects, '_project_from_nova')
+        self.mox.StubOutWithMock(projects, '_project_to_view')
         self.mox.StubOutWithMock(projects, '_network_for_project')
 
     def test_get_project(self):
@@ -279,7 +279,7 @@ class ProjectsTestCase(MockedTestCase):
         self.tm_mock.get(u'pid').AndReturn(tenant)
         projects._quotaset_for_project(u'pid').AndReturn('QUOTA')
         projects._network_for_project(u'pid').AndReturn('FAKE_NETWORK')
-        projects._project_from_nova(tenant, 'FAKE_NETWORK', 'QUOTA') \
+        projects._project_to_view(tenant, 'FAKE_NETWORK', 'QUOTA') \
                 .AndReturn('FAKE_PROJECT')
 
         self.mox.ReplayAll()
@@ -318,11 +318,11 @@ class ProjectsTestCase(MockedTestCase):
         self.tm_mock.list().AndReturn(tenants)
         self.nm_mock.list().AndReturn(nets)
         projects._quotaset_for_project(u't1').AndReturn('QUOTA1')
-        projects._project_from_nova(tenants[0], nets[2], 'QUOTA1')\
+        projects._project_to_view(tenants[0], nets[2], 'QUOTA1')\
                 .AndReturn('PROJECT1')
 
         projects._quotaset_for_project(u't2').AndReturn('QUOTA2')
-        projects._project_from_nova(tenants[1], nets[0], 'QUOTA2')\
+        projects._project_to_view(tenants[1], nets[0], 'QUOTA2')\
                 .AndReturn('PROJECT2')
 
         expected = {
@@ -359,7 +359,7 @@ class CreateProjectTestCase(MockedTestCase):
             rv, status_code=expected_status_code)
 
     def test_project_creation_works(self):
-        self.mox.StubOutWithMock(projects, '_project_from_nova')
+        self.mox.StubOutWithMock(projects, '_project_to_view')
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')
 
         networks = self.fake_client_set.compute.networks
@@ -376,7 +376,7 @@ class CreateProjectTestCase(MockedTestCase):
 
         networks.get(self.net_id).AndReturn('UPDATED NETWORK')
         projects._quotaset_for_project(tenant.id).AndReturn('QUOTA')
-        projects._project_from_nova(tenant, 'UPDATED NETWORK', 'QUOTA')\
+        projects._project_to_view(tenant, 'UPDATED NETWORK', 'QUOTA')\
                 .AndReturn('REPLY')
 
         self.mox.ReplayAll()
@@ -425,7 +425,7 @@ class CreateProjectTestCase(MockedTestCase):
         self.assertEquals(data.get('element-name'), 'network')
 
     def test_project_creation_associate_fails(self):
-        self.mox.StubOutWithMock(projects, '_project_from_nova')
+        self.mox.StubOutWithMock(projects, '_project_to_view')
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')
 
         networks = self.fake_client_set.compute.networks
@@ -544,7 +544,7 @@ class UpdateProjectTestCase(MockedTestCase):
 
         self.mox.StubOutWithMock(projects, '_network_for_project')
         self.mox.StubOutWithMock(projects, '_quotaset_for_project')
-        self.mox.StubOutWithMock(projects, '_project_from_nova')
+        self.mox.StubOutWithMock(projects, '_project_to_view')
 
     def interact(self, put_params, expected_status_code=200):
         rv = self.client.put('/v1/projects/%s' % self.tenant_id,
@@ -573,7 +573,7 @@ class UpdateProjectTestCase(MockedTestCase):
         tenant.update(description=updated.description).AndReturn(updated)
         projects._network_for_project(self.tenant_id).AndReturn('NET')
         projects._quotaset_for_project(self.tenant_id).AndReturn('QUOTA')
-        projects._project_from_nova(updated, 'NET', 'QUOTA')\
+        projects._project_to_view(updated, 'NET', 'QUOTA')\
                 .AndReturn('UPDATED')
 
         self.mox.ReplayAll()
@@ -613,7 +613,7 @@ class UpdateProjectTestCase(MockedTestCase):
 
         projects._network_for_project(self.tenant_id).AndReturn('NET')
         projects._quotaset_for_project(self.tenant_id).AndReturn('QUOTA')
-        projects._project_from_nova(tenant, 'NET', 'QUOTA')\
+        projects._project_to_view(tenant, 'NET', 'QUOTA')\
                 .AndReturn('UPDATED')
 
         self.mox.ReplayAll()

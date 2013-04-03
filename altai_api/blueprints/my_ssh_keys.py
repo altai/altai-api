@@ -33,7 +33,7 @@ from openstackclient_base import exceptions as osc_exc
 BP = Blueprint('my_ssh_keys', __name__)
 
 
-def keypair_from_nova(keypair):
+def keypair_to_view(keypair):
     return {
         'href': url_for('my_ssh_keys.get_my_ssh_key',
                         key_name=keypair.name),
@@ -59,7 +59,7 @@ _SCHEMA = Schema((
 def list_my_ssh_keys():
     parse_collection_request(_SCHEMA)
 
-    result = [keypair_from_nova(keypair)
+    result = [keypair_to_view(keypair)
               for keypair in bound_client_set().compute.keypairs.list()]
 
     return make_collection_response('ssh-keys', result,
@@ -73,7 +73,7 @@ def get_my_ssh_key(key_name):
         keypair = bound_client_set().compute.keypairs.find(name=key_name)
     except osc_exc.NotFound:
         abort(404)
-    return make_json_response(keypair_from_nova(keypair))
+    return make_json_response(keypair_to_view(keypair))
 
 
 @BP.route('/', methods=('POST',))
@@ -87,7 +87,7 @@ def create_my_ssh_key():
         raise exc.InvalidRequest(str(e))
 
     set_audit_resource_id(kp.name)
-    result = keypair_from_nova(kp)
+    result = keypair_to_view(kp)
     if hasattr(kp, 'private_key'):
         result['private-key'] = kp.private_key
     return make_json_response(result)
