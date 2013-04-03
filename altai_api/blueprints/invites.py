@@ -89,3 +89,17 @@ def accept_invite(code):
     InvitesDAO.complete_for_user(user.id)
     return make_json_response(user_to_view(user, invite), 200)
 
+
+@BP.route('/<code>', methods=('DELETE',))
+@no_auth_endpoint
+def drop_invite(code):
+    """Refuse to accept invite"""
+    invite, user = _invite_and_user(code)
+    try:
+        user.delete()
+    except osc_exc.NotFound:
+        abort(404)
+
+    InvitesDAO.complete_for_user(invite.user_id)
+    return make_json_response(None, status_code=204)
+

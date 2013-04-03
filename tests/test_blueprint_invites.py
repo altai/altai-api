@@ -174,6 +174,33 @@ class InvitesTestCase(MockedTestCase):
         self.check_and_parse_response(rv, status_code=400,
                                       authenticated=False)
 
+    def test_drop_invite(self):
+        invites.auth.admin_client_set() \
+                .AndReturn(self.fake_client_set)
+        invites.InvitesDAO.get(self.code).AndReturn(self.token)
+        user_mgr = self.fake_client_set.identity_admin.users
+        user_mgr.get(self.user.id).AndReturn(self.user)
+        self.user.delete()
+        invites.InvitesDAO.complete_for_user(self.user.id)
+
+        self.mox.ReplayAll()
+        rv = self.client.delete('/v1/invites/%s' % self.code)
+        self.check_and_parse_response(rv, status_code=204,
+                                      authenticated=False)
+
+    def test_drop_invite_late_not_found(self):
+        invites.auth.admin_client_set() \
+                .AndReturn(self.fake_client_set)
+        invites.InvitesDAO.get(self.code).AndReturn(self.token)
+        user_mgr = self.fake_client_set.identity_admin.users
+        user_mgr.get(self.user.id).AndReturn(self.user)
+        self.user.delete()\
+                .AndRaise(osc_exc.NotFound('gone'))
+        self.mox.ReplayAll()
+        rv = self.client.delete('/v1/invites/%s' % self.code)
+        self.check_and_parse_response(rv, status_code=404,
+                                      authenticated=False)
+
 
 class AuthenticatedInvitesTestCase(TestCase):
 
