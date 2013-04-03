@@ -41,6 +41,7 @@ from altai_api.auth import (client_set_for_tenant, admin_client_set,
 from altai_api.blueprints.users import link_for_user_id
 from altai_api.blueprints.projects import link_for_project
 from altai_api.blueprints.images import link_for_image
+from altai_api.blueprints.nodes import link_for_node
 
 from altai_api.db.instance_data import InstanceDataDAO
 
@@ -56,6 +57,9 @@ def link_for_server(server):
         u'href': url_for('instances.get_instance', instance_id=server.id),
         u'name': server.name
     }
+
+
+_HOST_ATTRIBUTE = 'OS-EXT-SRV-ATTR:host'
 
 
 def _instance_to_view(server):
@@ -102,6 +106,8 @@ def _instance_to_view(server):
             result[u'expires-at'] = instancedata.expires_at
         if instancedata.remind_at is not None:
             result[u'remind-at'] = instancedata.remind_at
+    if g.is_admin and hasattr(server, _HOST_ATTRIBUTE):
+        result['node'] = link_for_node(getattr(server, _HOST_ATTRIBUTE))
     return result
 
 

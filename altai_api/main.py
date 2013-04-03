@@ -58,6 +58,7 @@ def make_app(config_env=CONFIG_ENV):
          ('config', '/v1/config'),
          ('fw_rule_sets', '/v1/fw-rule-sets'),
          ('fw_rules', '/v1/fw-rule-sets/<fw_rule_set_id>/rules'),
+         ('nodes', '/v1/nodes'),
          ('images', '/v1/images'),
          ('instance_fw_rule_sets', '/v1/instances/<instance_id>/fw-rule-sets'),
          ('instances', '/v1/instances'),

@@ -26,6 +26,7 @@ from keystoneclient.v2_0.tenants import Tenant
 from keystoneclient.v2_0.users import User
 
 from novaclient.v1_1.flavors import Flavor
+from novaclient.v1_1.hosts import Host
 from novaclient.v1_1.keypairs import Keypair
 from novaclient.v1_1.quotas import QuotaSet
 from novaclient.v1_1.security_group_rules import SecurityGroupRule
@@ -290,6 +291,13 @@ INFO = {
         u'public_key': u'ssh-rsa BLABLABLA nova@test\n',
         u'name': u'kptest',
         u'fingerprint': u'00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF'
+    },
+    Host: {
+        u'project': u'TEST_PID',
+        u'memory_mb': 512,
+        u'host': u'test',
+        u'cpu': 4,
+        u'disk_gb': 10
     }
 }
 

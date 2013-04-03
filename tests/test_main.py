@@ -50,7 +50,7 @@ class MakeAppTestCase(mox.MoxTestBase):
         app.config.from_object('altai_api.default_settings')
         app.config.from_envvar(main.CONFIG_ENV)
         main.DB.init_app(app)
-        for _ in xrange(17):
+        for _ in xrange(18):
             app.register_blueprint(mox.IsA(flask.Blueprint),
                                    url_prefix=mox.IsA(basestring))
         main.register_entry_points(app)

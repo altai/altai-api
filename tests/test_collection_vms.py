@@ -134,6 +134,27 @@ class InstanceFromNovaTestCase(MockedTestCase):
             result = instances._instance_to_view(self.instance)
         self.assertEquals(result, expected)
 
+    def test_instance_to_view_with_host(self):
+        setattr(self.instance, 'OS-EXT-SRV-ATTR:host', 'TEST_HOST')
+        expected = {
+            'name': 'TEST_HOST',
+            'href': '/v1/nodes/TEST_HOST'
+        }
+
+        # ACTION
+        client = self.fake_client_set
+        client.identity_admin.tenants.get(u'TENANT').AndReturn(self.tenant)
+        client.compute.flavors.get(u'1').AndReturn(self.flavor)
+        client.identity_admin.users.get(u'UID').AndReturn(self.user)
+        client.image.images.get(u'IMAGE').AndReturn(self.image)
+        instances.InstanceDataDAO.get(u'VMID').AndReturn(self.instancedata)
+
+        self.mox.ReplayAll()
+        with self.app.test_request_context():
+            self.install_fake_auth()
+            result = instances._instance_to_view(self.instance)
+        self.assertEquals(result.get('node'), expected)
+
     def test_instance_to_view_no_tenant(self):
         expected_project = {
             'id': 'TENANT',
