@@ -58,7 +58,7 @@ def save_audit_data(response):
 
     if current_app.config['AUDIT_VERBOSITY'] < 2:
         # don't save certain data
-        if data['method'] == 'GET':
+        if data['method'] not in ('POST', 'PUT', 'DELETE'):
             return response
         if status not in _INTERESTING_STATUSES:
             return response
