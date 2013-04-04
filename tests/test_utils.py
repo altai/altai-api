@@ -79,14 +79,15 @@ class MakeResponseTestCase(TestCase):
         timestamp = datetime(2012, 9, 13, 15, 03, 42)
         with self.app.test_request_context():
             resp = make_json_response({'created': timestamp})
-        self.assertEquals(resp.data, '{"created":"2012-09-13T15:03:42Z"}')
+        expected = '{"created":"2012-09-13T15:03:42.000000Z"}'
+        self.assertEquals(resp.data, expected)
 
     def test_dates_in_pretty_response(self):
         self.app.config['PRETTY_PRINT_JSON'] = True
         timestamp = datetime(2012, 9, 13, 15, 03, 42)
         with self.app.test_request_context():
             resp = make_json_response({'created': timestamp})
-        self.assertTrue('"2012-09-13T15:03:42Z"' in resp.data)
+        self.assertTrue('"2012-09-13T15:03:42.000000Z"' in resp.data)
 
     def test_raises_nicely(self):
         class TestClass(object):
@@ -597,7 +598,7 @@ class TimestampFromOpenstackTestCase(unittest.TestCase):
                           timestamp_from_openstack, value)
 
     def test_invalid_type_rejected(self):
-        self.assertRaises(TypeError,
+        self.assertRaises(ValueError,
                           timestamp_from_openstack, 42)
 
 

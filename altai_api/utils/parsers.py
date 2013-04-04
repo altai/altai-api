@@ -26,28 +26,38 @@
 from datetime import datetime
 
 
-_OS_TIMESTAMP_FORMATS = (
-    # NOTE(imelnikov): git grep strftime enlightens
-    "%Y-%m-%dT%H:%M:%S",
+_TIMESTAMP_FORMATS = (
     "%Y-%m-%dT%H:%M:%SZ",
-    "%Y-%m-%dT%H:%M:%S.000Z"
+    "%Y-%m-%dT%H:%M:%S.%fZ",
+)
+
+_OS_TIMESTAMP_FORMATS = _TIMESTAMP_FORMATS + (
+    "%Y-%m-%dT%H:%M:%S",
+    "%Y-%m-%dT%H:%M:%S.%f",
 )
 
 
-def timestamp_from_openstack(date):
-    """Parse date from a string OpenStack gave us.
+def _timestamp_from_string(date, formats, on_error='Invalid timestamp'):
+    """Parse date from a string.
 
-    OpenStack API may give us strings in several formats.
+    OpenStack API may give us strings in several formats, and so may users.
 
     """
-    if not isinstance(date, basestring):
-        raise TypeError('%r is not a date value' % date)
-    for fmt in _OS_TIMESTAMP_FORMATS:
-        try:
-            return datetime.strptime(date, fmt)
-        except ValueError:
-            pass
-    raise ValueError('Invalid timestamp: %r' % date)
+    if isinstance(date, basestring):
+        for fmt in formats:
+            try:
+                return datetime.strptime(date, fmt)
+            except ValueError:
+                pass
+    _raise(date, on_error)
+
+
+def timestamp_from_openstack(value):
+    return _timestamp_from_string(value, _OS_TIMESTAMP_FORMATS)
+
+
+def timestamp_from_user(value, on_error=None):
+    return _timestamp_from_string(value, _TIMESTAMP_FORMATS, on_error)
 
 
 def _raise(value, on_error):

@@ -35,7 +35,7 @@ from altai_api.utils.parsers import boolean_from_string
 _JSON = 'application/json'
 _IMPLEMENTATION = 'Altai API service v%s' % altai_api.__version__
 
-_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
+_TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ"
 
 
 def _json_default(obj):

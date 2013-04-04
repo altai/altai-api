@@ -196,8 +196,9 @@ class TimestampTestCase(unittest.TestCase):
         self.assertEquals(self.ts.typename, 'timestamp')
 
     def test_timestamp_parses(self):
-        self.assertEquals(
-            self.ts.from_argument('2012-09-13T19:46:00Z'), self.d)
+        for date_str in ('2012-09-13T19:46:00Z',
+                         '2012-09-13T19:46:00.000Z'):
+            self.assertEquals(self.ts.from_argument(date_str), self.d)
 
     def test_timestamp_forces_seconds(self):
         self.assertRaises(exc.InvalidArgumentValue, self.ts.from_argument,

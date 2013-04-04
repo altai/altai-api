@@ -20,7 +20,6 @@
 # <http://www.gnu.org/licenses/>.
 
 from functools import wraps
-from datetime import datetime
 
 from altai_api import exceptions as exc
 from altai_api.utils.parsers import (int_from_string,
@@ -28,6 +27,7 @@ from altai_api.utils.parsers import (int_from_string,
                                      boolean_from_string,
                                      cidr_from_user,
                                      ipv4_from_user,
+                                     timestamp_from_user,
                                      split_with_escape)
 
 
@@ -260,18 +260,11 @@ class Timestamp(ElementType):
             basic_search_matchers=_ORDERED_MATCHERS,
             **kwargs)
 
-    @staticmethod
-    def __check(value, on_error):
-        try:
-            return datetime.strptime(value, '%Y-%m-%dT%H:%M:%SZ')
-        except (ValueError, TypeError):
-            on_error(value)
-
     def from_argument(self, value):
-        return self.__check(value, self._illegal_argument)
+        return timestamp_from_user(value, self._illegal_argument)
 
     def _from_request_impl(self, value):
-        return self.__check(value, self._illegal_element)
+        return timestamp_from_user(value, self._illegal_element)
 
 
 class Ipv4(ElementType):
